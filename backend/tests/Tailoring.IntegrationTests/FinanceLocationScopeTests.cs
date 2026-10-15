@@ -179,7 +179,7 @@ public sealed class FinanceLocationScopeTests(PostgresFixture fx) : IClassFixtur
         Assert.Equal("invoice_not_found", voided.Code);
 
         var bill = await Fails(() => Invoices(w.BusinessId, user)
-            .CreateFromOrderAsync(w.OrderB, new CreateInvoiceFromOrderRequest { Mode = "Balance" }, null));
+            .CreateFromOrderAsync(w.OrderB, new CreateInvoiceFromOrderRequest { Mode = "Full" }, null)); // Full needs no plan feature, so the location check is what answers
         Assert.Equal("order_not_found", bill.Code);
     }
 
