@@ -59,7 +59,13 @@ public partial class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
     {
         base.OnModelCreating(b);
 
-        b.Entity<AppUser>(e => e.Property(u => u.FullName).HasMaxLength(120));
+        b.Entity<AppUser>(e =>
+        {
+            e.Property(u => u.FullName).HasMaxLength(120);
+            // Identity rewrites the whole user row on every update. This column is changed only by the atomic claim in TotpVerifier,
+            // so a stale in-memory copy can never reopen a code that was already used.
+            e.Property(u => u.LastTotpStep).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+        });
 
         b.Entity<Business>(e =>
         {
