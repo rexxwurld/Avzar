@@ -9,6 +9,7 @@ using Tailoring.Application.Storefront;
 using Tailoring.Domain.Designs;
 using Tailoring.Domain.Storefront;
 using Tailoring.Infrastructure.Persistence;
+using Tailoring.Domain.Common;
 
 namespace Tailoring.Infrastructure.Services;
 
