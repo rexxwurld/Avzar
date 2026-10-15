@@ -102,3 +102,13 @@ Web pages the frontend must provide (links in the emails point at `App__WebBaseU
 Data Protection keys must be persisted in production: email and reset tokens are signed with them, so losing the key ring invalidates every outstanding link.
 
 Mobile flow: `POST /api/auth/token` -> `{accessToken, refreshToken, ...}`; send `Authorization: Bearer <accessToken>`; when it expires `POST /api/auth/token/refresh` with the refresh token and store the NEW refresh token it returns (the old one stops working; using it again ends the session). On logout call `/api/auth/token/revoke`.
+
+## 8. Six Labors license for ImageSharp 4.x (build-time)
+
+ImageSharp 4.x (the first line patched for the October 2026 advisories) refuses to build in Release without a license.
+Free for for-profit companies under USD 1M annual revenue: apply at https://licensing.sixlabors.com/ (you receive a `sixlabors.lic` file; licenses are time-limited, so renew before expiry).
+
+- **Local:** put `sixlabors.lic` in `backend/src/Tailoring.Infrastructure/` (git-ignored), or set `SIXLABORS_LICENSE_KEY` to the FULL file contents.
+- **CI:** add a repository secret named `SIXLABORS_LICENSE_KEY` containing the full file contents. `ci.yml` exports it; the Infrastructure csproj reads it.
+- **Docker/other builds:** pass the same env var (or `-p:SixLaborsLicenseKey=...`) to `dotnet build/publish`. Do not bake the key into an image layer; use a BuildKit secret.
+- Only `Tailoring.Infrastructure` references ImageSharp directly, so only it needs the key.
