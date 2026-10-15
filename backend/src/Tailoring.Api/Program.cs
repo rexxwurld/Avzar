@@ -1,4 +1,9 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Tailoring.Api.Infrastructure;
 using Tailoring.Api.Security;
 using Tailoring.Application.Abstractions;
+using Tailoring.Application.Auth;
 using Tailoring.Infrastructure;
 using Tailoring.Infrastructure.Persistence;
 using Tailoring.Infrastructure.Services;
@@ -21,7 +27,8 @@ builder.Services.AddScoped<ITenantContext, HttpTenantContext>();
 builder.Services.AddScoped<SessionSigner>();
 builder.Services.AddInfrastructure(connectionString, builder.Configuration);
 
-// Cookie session for the web app (HttpOnly, SameSite=Lax). Mobile token flow arrives in Phase 7.
+// Cookie session for the web app (HttpOnly, SameSite=Lax). The mobile app uses short-lived JWTs plus rotating refresh tokens
+// (enabled only when Auth:JwtSigningKey is set, 32+ characters).
 var cookieSecure = isDev ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 builder.Services.ConfigureApplicationCookie(o =>
 {
@@ -43,11 +50,50 @@ builder.Services.AddAntiforgery(o =>
     o.Cookie.SameSite = SameSiteMode.Lax;
 });
 
+var authOptions = builder.Configuration.GetSection("Auth").Get<Tailoring.Application.Abstractions.AuthOptions>() ?? new();
+builder.Services.AddSingleton<JwtTokenIssuer>();
+if (authOptions.MobileTokensEnabled)
+{
+    // "Smart" picks the scheme per request: a request with an Authorization: Bearer header is judged ONLY as a bearer request
+    // (an invalid token never falls back to the cookie); everything else uses the Identity cookie.
+    builder.Services.AddAuthentication(o =>
+        {
+            o.DefaultAuthenticateScheme = "Smart";
+            o.DefaultChallengeScheme = "Smart";
+        })
+        .AddPolicyScheme("Smart", "Cookie or bearer", o => o.ForwardDefaultSelector = ctx =>
+            ctx.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                ? JwtTokenIssuer.Scheme : IdentityConstants.ApplicationScheme)
+        .AddJwtBearer(JwtTokenIssuer.Scheme, o =>
+        {
+            o.MapInboundClaims = false; // keep the claim names exactly as issued (name identifier, business_id, sid)
+            o.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true, ValidIssuer = authOptions.JwtIssuer,
+                ValidateAudience = true, ValidAudience = authOptions.JwtAudience,
+                ValidateIssuerSigningKey = true, IssuerSigningKey = JwtTokenIssuer.Key(authOptions),
+                ValidateLifetime = true, ClockSkew = TimeSpan.FromSeconds(30),
+                ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+            };
+            o.Events = new JwtBearerEvents
+            {
+                // Revoking a device takes effect on its very next request, not when the access token expires.
+                OnTokenValidated = async ctx =>
+                {
+                    var ok = Guid.TryParse(ctx.Principal?.FindFirstValue(JwtTokenIssuer.SessionClaim), out var sessionId)
+                        & Guid.TryParse(ctx.Principal?.FindFirstValue(ClaimTypes.NameIdentifier), out var userId);
+                    if (!ok || !await ctx.HttpContext.RequestServices.GetRequiredService<ISessionService>().IsActiveAsync(sessionId, userId, ctx.HttpContext.RequestAborted))
+                        ctx.Fail("Session is not active.");
+                },
+            };
+        });
+}
+
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 builder.Services.AddAuthorization();
 
-builder.Services.AddControllers(o => o.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
+builder.Services.AddControllers(o => o.Filters.Add<CsrfFilter>());
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<AppExceptionHandler>();
 
