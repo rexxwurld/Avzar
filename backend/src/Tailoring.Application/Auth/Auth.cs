@@ -30,6 +30,11 @@ public sealed record AcceptInvitationRequest
     [Required, StringLength(128, MinimumLength = 10)] public string Password { get; init; } = "";
 }
 
+public sealed record AcceptExistingInvitationRequest
+{
+    [Required] public string Token { get; init; } = "";
+}
+
 public sealed record SessionIdentity(Guid UserId, Guid BusinessId);
 public sealed record BusinessChoiceDto(Guid BusinessId, string BusinessName);
 
@@ -46,5 +51,7 @@ public interface IAuthService
     Task<SessionIdentity> RegisterBusinessAsync(RegisterBusinessRequest request, CancellationToken ct = default);
     Task<AuthResult> AuthenticateAsync(LoginRequest request, CancellationToken ct = default);
     Task<SessionIdentity> AcceptInvitationAsync(AcceptInvitationRequest request, CancellationToken ct = default);
+    /// <summary>For a signed-in user whose account email matches the invitation. Creates the membership; no new account.</summary>
+    Task<SessionIdentity> AcceptInvitationAsExistingUserAsync(Guid userId, AcceptExistingInvitationRequest request, CancellationToken ct = default);
     Task<CurrentUserDto> GetCurrentUserAsync(Guid userId, Guid businessId, CancellationToken ct = default);
 }
