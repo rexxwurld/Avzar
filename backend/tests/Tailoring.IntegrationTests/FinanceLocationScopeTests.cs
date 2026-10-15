@@ -80,8 +80,11 @@ public sealed class FinanceLocationScopeTests(PostgresFixture fx) : IClassFixtur
         var orders = Orders(bid);
         var (orderA, _) = await orders.CreateAsync(NewOrder(cid, la), null);
         var (orderB, _) = await orders.CreateAsync(NewOrder(cid, lb), null);
-        await Orders(bid).ConfirmAsync(orderA.Id);
-        await Orders(bid).ConfirmAsync(orderB.Id);
+        foreach (var id in new[] { orderA.Id, orderB.Id })
+        {
+            await Orders(bid).QuoteAsync(id); // Draft -> Quoted -> Confirmed
+            await Orders(bid).ConfirmAsync(id);
+        }
 
         var full = new CreateInvoiceFromOrderRequest { Mode = "Full" };
         var (draftA, _) = await Invoices(bid, null).CreateFromOrderAsync(orderA.Id, full, null);
