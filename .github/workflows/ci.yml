@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   backend:
@@ -89,3 +90,72 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # Applies the COMMITTED migrations to a clean PostgreSQL and inspects the real schema.
+  # The backend tests use EnsureCreated, so this is the only job that proves the migration SQL runs.
+  migrations:
+    runs-on: ubuntu-24.04
+    env:
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: Host=localhost;Port=5432;Database=avzar_ci;Username=postgres;Password=ci_only_password
+      PGPASSWORD: ci_only_password
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: avzar_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Six Labors license is available
+        run: |
+          [ -n "$SIXLABORS_LICENSE_KEY" ] || { echo "::error::SIXLABORS_LICENSE_KEY is empty"; exit 1; }
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: backend/global.json
+
+      - name: Ensure solution
+        run: |
+          [ -f Tailoring.sln ] || dotnet new sln -n Tailoring --format sln
+          dotnet sln Tailoring.sln add src/*/*.csproj tests/*/*.csproj
+
+      - run: dotnet restore
+      - run: dotnet build --no-restore -c Release
+
+      - name: Install dotnet-ef
+        run: dotnet tool install -g dotnet-ef
+
+      - name: Require committed migrations
+        run: |
+          [ -d src/Tailoring.Infrastructure/Persistence/Migrations ] || { echo "::error::No committed migrations. Run the 'Generate initial migration' workflow first."; exit 1; }
+
+      - name: Apply migrations to clean PostgreSQL
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef database update \
+            --project src/Tailoring.Infrastructure --startup-project src/Tailoring.Api
+
+      - name: Inspect the real schema
+        run: |
+          q() { psql -h localhost -U postgres -d avzar_ci -tA -c "$1"; }
+          tables=$(q "select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'")
+          checks=$(q "select count(*) from pg_constraint where contype='c'")
+          fks=$(q "select count(*) from pg_constraint where contype='f'")
+          partial=$(q "select count(*) from pg_indexes where schemaname='public' and indexdef like '%WHERE%'")
+          echo "tables=$tables check_constraints=$checks foreign_keys=$fks partial_indexes=$partial"
+          # The generated migration had 64 tables and 6 filtered indexes; fail if far off.
+          [ "$tables" -ge 60 ] || { echo "::error::Too few tables"; exit 1; }
+          [ "$partial" -ge 6 ] || { echo "::error::Too few partial indexes"; exit 1; }
+          echo "--- financial/audit FKs that cascade (expect none) ---"
+          q "select conrelid::regclass||' -> '||confrelid::regclass from pg_constraint where contype='f' and confdeltype='c' and conrelid::regclass::text in ('\"Payments\"','\"Receipts\"','\"CreditNotes\"','\"Invoices\"','\"Expenses\"','\"AuditLogs\"','\"Orders\"')" | tee cascades.txt
+          [ ! -s cascades.txt ] || { echo "::error::Cascade delete on financial/audit table"; exit 1; }
