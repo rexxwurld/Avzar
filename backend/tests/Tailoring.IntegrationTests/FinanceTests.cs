@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Tailoring.Application.Abstractions;
 using Tailoring.Application.Common;
 using Tailoring.Application.Finance;
+using Tailoring.Application.Orders;
 using Tailoring.Domain.Access;
 using Tailoring.Domain.Billing;
 using Tailoring.Domain.Customers;
@@ -8,8 +10,6 @@ using Tailoring.Domain.Finance;
 using Tailoring.Domain.Orders;
 using Tailoring.Domain.Tenancy;
 using Tailoring.Infrastructure.Services;
-using Tailoring.Application.Abstractions;
-using Tailoring.Application.Orders;
 using Xunit;
 
 namespace Tailoring.IntegrationTests;
@@ -202,7 +202,7 @@ public sealed class FinanceTests(PostgresFixture fx) : IClassFixture<PostgresFix
         Assert.Equal(s.OrderNumber, inv.OrderNumber);
         Assert.Equal(2, inv.Lines.Count);
         Assert.Equal(25000m - 2500m, inv.Lines.Sum(l => l.NetAmount));
-        Assert.Equal((2000m, 250m), (inv.Lines[0].Discount, inv.Lines[1].Discount)); // 2500 split 20000:5000
+        Assert.Equal((2000m, 500m), (inv.Lines[0].Discount, inv.Lines[1].Discount)); // 2500 split 20000:5000
 
         Assert.Equal("already_invoiced", await CodeOf(() => Invoices(s.BusinessId).CreateFromOrderAsync(s.OrderId, new CreateInvoiceFromOrderRequest { Mode = "Full" }, null)));
     }
@@ -726,7 +726,9 @@ public sealed class ExpenseTests(PostgresFixture fx) : IClassFixture<PostgresFix
         Assert.Equal("NGN", summary.CurrencyCode);
 
         Assert.Equal(2, (await Svc(bid).ListAsync(new ExpenseListQuery { CategoryId = fabric.Id, From = Today(-10) })).TotalCount);
-        Assert.Empty((await Svc(bid).ListAsync(new ExpenseListQuery { Search = "ankara", CategoryId = rent.Id })).Items);
+        // search and category filters combine (AND); the voided rent expense is excluded
+        Assert.Equal(40000m, Assert.Single((await Svc(bid).ListAsync(new ExpenseListQuery { Search = "ankara", CategoryId = rent.Id })).Items).Amount);
+        Assert.Empty((await Svc(bid).ListAsync(new ExpenseListQuery { Search = "zzz-no-match", CategoryId = rent.Id })).Items);
     }
 
     [Fact]

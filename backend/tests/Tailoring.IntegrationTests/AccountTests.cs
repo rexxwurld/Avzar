@@ -156,6 +156,7 @@ public sealed class AccountTests(PostgresFixture fx) : IClassFixture<PostgresFix
         services.AddIdentityCore<AppUser>(o =>
             {
                 o.User.RequireUniqueEmail = true; o.Password.RequiredLength = 10; o.Password.RequireNonAlphanumeric = false;
+                o.Password.RequireDigit = false; o.Password.RequireUppercase = false; o.Password.RequireLowercase = false;
                 o.Lockout.MaxFailedAccessAttempts = 5; o.Lockout.AllowedForNewUsers = true;
                 o.Tokens.PasswordResetTokenProvider = PasswordResetTokenProvider.ProviderName;
             })

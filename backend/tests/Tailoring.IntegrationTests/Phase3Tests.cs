@@ -60,7 +60,7 @@ public sealed class Phase3Tests(PostgresFixture fx) : IClassFixture<PostgresFixt
     }
 
     private OrderService Orders(World w, Guid? user = null)
-     { var (db, t) = Ctx(w, user ?? w.OwnerUser); return new(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new EntitlementService(db), new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions()); }
+    { var (db, t) = Ctx(w, user ?? w.OwnerUser); return new(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new EntitlementService(db), new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions()); }
 
     private TaskService Tasks(World w, Guid? user = null)
     { var (db, t) = Ctx(w, user ?? w.OwnerUser); return new(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new PermissionService(db)); }
@@ -370,7 +370,7 @@ public sealed class Phase3Tests(PostgresFixture fx) : IClassFixture<PostgresFixt
         Assert.Equal(1, (await TaskAsync(w, order.Id, "Final Quality Check")).UnmetDependencies);
 
         var finalQc = await TaskAsync(w, order.Id, "Final Quality Check");
-        await Tasks(w).AssignAsync(finalQc.Id, new AssignTaskRequest { MembershipId = w.CutterMember, Override = true, Reason = "test" });
+        await Tasks(w).AssignAsync(finalQc.Id, new AssignTaskRequest { MembershipId = w.CutterMember, Override = true, Reason = "test override" });
         var tooEarly = await Assert.ThrowsAsync<AppException>(() => Mine(w, w.CutterUser).StartAsync(finalQc.Id));
         Assert.Equal("dependencies_incomplete", tooEarly.Code);
 

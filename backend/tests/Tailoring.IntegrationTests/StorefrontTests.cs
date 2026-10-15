@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Tailoring.Application.Abstractions;
 using Tailoring.Application.Common;
 using Tailoring.Application.Designs;
 using Tailoring.Application.Media;
@@ -13,7 +14,6 @@ using Tailoring.Domain.Storefront;
 using Tailoring.Domain.Tenancy;
 using Tailoring.Infrastructure.Services;
 using Tailoring.Infrastructure.Storage;
-using Tailoring.Application.Abstractions;
 using Xunit;
 
 namespace Tailoring.IntegrationTests;
@@ -709,7 +709,7 @@ public sealed class StorefrontTests(PostgresFixture fx) : IClassFixture<Postgres
         var slug = await PublishedSlugAsync(bid, "standard");
         var design = await PublicDesignAsync(bid, "Ankara Wrap");
         await Inquiries(null).SubmitAsync(slug, Ask() with { DesignId = design, Phone = "08031234567" }, "8.8.8.8");
-        await Inquiries(null).SubmitAsync(slug, Ask() with { Name = "Spammer" }, "8.8.8.9");
+        await Inquiries(null).SubmitAsync(slug, Ask() with { Name = "Spammer", Email = "spam@example.com" }, "8.8.8.9");
 
         var list = (await Inquiries(bid).ListAsync(new InquiryListQuery { Search = "ngozi" })).Items.Single();
         Assert.Equal("Ankara Wrap", list.DesignName);

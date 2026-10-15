@@ -73,7 +73,7 @@ public sealed class ImageProcessorTests
         foreach (var (variant, cap) in new[] { ("orig", 2560), ("md", 960), ("sm", 320) })
         {
             var bytes = result.Variants[variant];
-            Assert.Equal("WEBP", Image.DetectFormat(bytes).Name);
+            Assert.Equal("image/webp", Image.DetectFormat(bytes).DefaultMimeType);
             var info = Image.Identify(bytes);
             Assert.True(Math.Max(info.Width, info.Height) <= cap, variant);
         }
