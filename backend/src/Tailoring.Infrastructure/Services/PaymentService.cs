@@ -169,8 +169,12 @@ public sealed class PaymentService(AppDbContext db, ITenantContext tenant, IAudi
             ?? throw AppException.NotFound("receipt_not_found", "Receipt not found."), ct);
 
     public async Task<ReceiptDto> GetReceiptForPaymentAsync(Guid paymentId, CancellationToken ct = default)
-        => await ToReceiptDtoAsync(await db.Receipts.AsNoTracking().FirstOrDefaultAsync(r => r.PaymentId == paymentId, ct)
+    {
+        if (!await db.Payments.AsNoTracking().AnyAsync(p => p.Id == paymentId, ct)) // tenant filter makes another business's id look the same
+            throw AppException.NotFound("payment_not_found", "Payment not found.");
+        return await ToReceiptDtoAsync(await db.Receipts.AsNoTracking().FirstOrDefaultAsync(r => r.PaymentId == paymentId, ct)
             ?? throw AppException.NotFound("receipt_not_found", "This payment has no receipt. Only verified payments get one."), ct);
+    }
 
     // ------------------------------------------------------------------ helpers
 

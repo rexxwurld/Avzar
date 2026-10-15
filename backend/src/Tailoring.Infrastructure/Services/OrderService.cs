@@ -344,6 +344,7 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
             throw AppException.BadRequest("invalid_price", $"'{input.Name}': price can have at most 2 decimal places.");
 
         var g = existing ?? new OrderGarment { BusinessId = BusinessId, OrderId = order.Id };
+        var previousUnitPrice = existing?.UnitPrice;
         g.LineNumber = line;
         g.Name = input.Name.Trim();
         g.Category = Parse.Clean(input.Category);
@@ -373,7 +374,7 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
         }
 
         await ApplyDesignAsync(g, input, existing, ct);
-        await ApplyPricingAsync(g, input, existing, ct);
+        await ApplyPricingAsync(g, input, existing is null ? null : previousUnitPrice, ct);
         return g;
     }
 
@@ -393,14 +394,14 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
         g.DesignPriceSnapshot = design.BasePrice;
     }
 
-    private async Task ApplyPricingAsync(OrderGarment g, OrderGarmentInput input, OrderGarment? existing, CancellationToken ct)
+    private async Task ApplyPricingAsync(OrderGarment g, OrderGarmentInput input, decimal? previousUnitPrice, CancellationToken ct)
     {
         if (input.Pricing is null)
         {
             if (!string.IsNullOrWhiteSpace(input.PriceOverrideReason))
                 throw AppException.BadRequest("override_without_pricing", "A price override reason only applies when the price comes from the calculator.");
             // Manual price. A snapshot that no longer explains the price would mislead, so drop it when the price changed.
-            if (existing?.PricingSnapshotJson is not null && existing.UnitPrice != input.UnitPrice)
+            if (g.PricingSnapshotJson is not null && previousUnitPrice is { } prev && prev != input.UnitPrice)
             { g.PricingSnapshotJson = null; g.PriceOverrideReason = null; }
             return;
         }

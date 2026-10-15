@@ -198,7 +198,6 @@ public sealed class InvoiceService(AppDbContext db, ITenantContext tenant, IAudi
             SetLines(invoice, req.Lines, req.TaxPercent ?? await ProfileTaxAsync(ct));
         }
 
-        db.Entry(invoice).Property(x => x.Version).OriginalValue = req.Version!.Value;
         invoice.UpdatedAtUtc = DateTime.UtcNow;
         audit.Record(BusinessId, tenant.UserId, "invoice.updated", nameof(Invoice), invoice.Id);
         try { await db.SaveChangesAsync(ct); }

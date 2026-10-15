@@ -507,10 +507,45 @@ public sealed partial class StorefrontService(AppDbContext db, ITenantContext te
     private bool HasUnpublished(Storefront s, Dictionary<Guid, StorefrontVersion?> live)
         => s.PublishedVersionId is not { } v || live.GetValueOrDefault(v) is not { } ver || !JsonEquivalent(s.DraftJson, ver.DocumentJson);
 
+    /// <summary>
+    /// Same meaning, ignoring object key order. The draft is stored as text but published versions are jsonb, and PostgreSQL
+    /// reorders keys inside jsonb, so a plain string comparison would report phantom unpublished changes.
+    /// </summary>
     private static bool JsonEquivalent(string a, string b)
     {
-        try { return StorefrontJson.Serialize(StorefrontJson.Deserialize(a)) == StorefrontJson.Serialize(StorefrontJson.Deserialize(b)); }
+        try
+        {
+            return Canonical(StorefrontJson.Serialize(StorefrontJson.Deserialize(a))) == Canonical(StorefrontJson.Serialize(StorefrontJson.Deserialize(b)));
+        }
         catch (JsonException) { return false; }
+    }
+
+    private static string Canonical(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        using var ms = new MemoryStream();
+        using (var w = new Utf8JsonWriter(ms)) WriteCanonical(doc.RootElement, w);
+        return System.Text.Encoding.UTF8.GetString(ms.ToArray());
+    }
+
+    private static void WriteCanonical(JsonElement e, Utf8JsonWriter w)
+    {
+        switch (e.ValueKind)
+        {
+            case JsonValueKind.Object:
+                w.WriteStartObject();
+                foreach (var p in e.EnumerateObject().OrderBy(x => x.Name, StringComparer.Ordinal)) { w.WritePropertyName(p.Name); WriteCanonical(p.Value, w); }
+                w.WriteEndObject();
+                break;
+            case JsonValueKind.Array:
+                w.WriteStartArray();
+                foreach (var item in e.EnumerateArray()) WriteCanonical(item, w);
+                w.WriteEndArray();
+                break;
+            default:
+                e.WriteTo(w);
+                break;
+        }
     }
 
     private async Task<StorefrontDto> ToDtoAsync(Storefront s, CancellationToken ct)
