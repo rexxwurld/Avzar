@@ -70,7 +70,7 @@ All tenant tables carry `BusinessId`. Timestamps are UTC. `Business.Version` map
 Auth: `GET /api/auth/csrf`, `POST /api/auth/register-business`, `/login`, `/accept-invitation`, `/logout`, `GET /api/auth/me`.
 Staff (`staff.view` / `staff.manage`): `GET /api/staff`, `POST /api/staff/invitations`, `POST /api/staff/{id}/deactivate|reactivate`, `PUT /api/staff/{id}/roles|locations`.
 Roles (`roles.manage`): `GET /api/roles`, `GET /api/roles/permissions`, `POST /api/roles`, `PUT /api/roles/{id}/permissions`.
-Locations: `GET /api/locations`, `POST /api/locations` (`locations.manage`).
+Locations: `GET /api/locations`, `POST /api/locations` (`locations.manage`). Staff without `locations.all` (and who are not the owner) only see orders and fittings at the locations assigned to them; see `ILocationScope`.
 Errors are RFC 7807 problem responses with a stable `code` field. Swagger UI at `/swagger` in Development.
 
 Business rules enforced: the Owner cannot be deactivated or have roles changed; the Owner role cannot be edited or assigned by invitation; users cannot deactivate themselves; role/location ids in requests must belong to the caller's business; invitations store only a SHA-256 hash of the token and expire after 7 days.
