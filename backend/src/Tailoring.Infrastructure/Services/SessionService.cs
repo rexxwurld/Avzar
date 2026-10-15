@@ -61,11 +61,29 @@ public sealed class SessionService(
         switch (SessionRules.Decide(session, TokenHasher.Hash(secret), now))
         {
             case RefreshDecision.Rotate: break;
-            case RefreshDecision.ReuseDetected:
-                await RevokeAtomicAsync(session.Id, "token_reuse", now, ct);
-                log.LogWarning("Refresh token reuse detected; session {SessionId} revoked.", session.Id);
-                throw AppException.Unauthorized("token_reuse_detected", "This session was ended because a token was used twice. Please sign in again.");
+            
+case RefreshDecision.ReuseDetected:
+    await RevokeAtomicAsync(session.Id, "token_reuse", now, ct);
+
+    // Keep EF Core's tracked entity consistent with the database.
+    session.RevokedAtUtc = now;
+    session.RevokedReason = "token_reuse";
+
+    log.LogWarning(
+        "Refresh token reuse detected; session {SessionId} revoked.",
+        session.Id);
+
+    throw AppException.Unauthorized(
+        "token_reuse_detected",
+        "This session was ended because a token was used twice. Please sign in again.");
+
+
+            
+            
+            
             case RefreshDecision.Expired:
+
+            
                 await RevokeAtomicAsync(session.Id, "expired", now, ct);
                 throw AppException.Unauthorized("session_expired", "Your session has expired. Please sign in again.");
             default: throw Invalid();
