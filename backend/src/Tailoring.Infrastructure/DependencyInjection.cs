@@ -73,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<IOwnershipService, OwnershipService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<ILocationService, LocationService>();
+        services.AddScoped<Tailoring.Application.Locations.ILocationScope, LocationScope>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<Tailoring.Application.ImportExport.ICustomerImportService, CustomerImportService>();
         services.AddScoped<Tailoring.Application.ImportExport.ISearchService, SearchService>();
