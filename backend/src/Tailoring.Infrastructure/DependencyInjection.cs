@@ -61,6 +61,7 @@ public static class DependencyInjection
 
         services.Configure<AppOptions>(config.GetSection("App"));
         services.AddScoped<IAuditLogger, AuditLogger>();
+        services.AddScoped<Tailoring.Application.Audit.IAuditReadService, AuditReadService>();
         services.AddScoped<IEntitlementService, EntitlementService>();
         services.AddScoped<IPlanCatalogService, PlanCatalogService>();
         services.AddScoped<IPermissionService, PermissionService>();
@@ -69,6 +70,7 @@ public static class DependencyInjection
         services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<IBusinessSettingsService, BusinessSettingsService>();
         services.AddScoped<IStaffService, StaffService>();
+        services.AddScoped<IOwnershipService, OwnershipService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<ILocationService, LocationService>();
         services.AddScoped<ICustomerService, CustomerService>();
