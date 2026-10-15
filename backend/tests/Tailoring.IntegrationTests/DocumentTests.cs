@@ -237,7 +237,7 @@ public sealed class DocumentTests(PostgresFixture fx) : IClassFixture<PostgresFi
         var bid = await NewBusinessAsync();
         var c1 = await NewCustomerAsync(bid); var c2 = await NewCustomerAsync(bid);
         await Upload(bid, customerId: c1); await Upload(bid, customerId: c1); await Upload(bid, customerId: c2);
-        Assert.Equal(2, (await Docs(bid).ListAsync(new DocumentListQuery { CustomerId = c1 })).Total);
+        Assert.Equal(2, (await Docs(bid).ListAsync(new DocumentListQuery { CustomerId = c1 })).TotalCount);
     }
 
     [Fact]
@@ -263,7 +263,7 @@ public sealed class DocumentTests(PostgresFixture fx) : IClassFixture<PostgresFi
         var ex = await Assert.ThrowsAsync<AppException>(() => Upload(bid, svc: Docs(bid, new FakeScanner(ScanOutcome.Infected, "Eicar"))));
         Assert.Equal((422, "file_infected"), (ex.StatusCode, ex.Code));
         Assert.Equal(before, _storage.Objects.Count);
-        Assert.Equal(0, (await Docs(bid).ListAsync(new DocumentListQuery())).Total);
+        Assert.Equal(0, (await Docs(bid).ListAsync(new DocumentListQuery())).TotalCount);
     }
 
     [Fact]
@@ -274,7 +274,7 @@ public sealed class DocumentTests(PostgresFixture fx) : IClassFixture<PostgresFi
 
         var ex = await Assert.ThrowsAsync<AppException>(() => Upload(bid, svc: Docs(bid, down, av: new AntivirusOptions { Provider = "clamav", Required = true })));
         Assert.Equal((503, "scan_unavailable"), (ex.StatusCode, ex.Code));
-        Assert.Equal(0, (await Docs(bid).ListAsync(new DocumentListQuery())).Total);
+        Assert.Equal(0, (await Docs(bid).ListAsync(new DocumentListQuery())).TotalCount);
 
         var ok = await Upload(bid, svc: Docs(bid, down, av: new AntivirusOptions { Provider = "clamav", Required = false }));
         Assert.Equal("NotScanned", ok.ScanStatus);
@@ -322,7 +322,7 @@ public sealed class DocumentTests(PostgresFixture fx) : IClassFixture<PostgresFi
         Assert.Equal("document_not_found", (await Assert.ThrowsAsync<AppException>(() => Docs(b).GetAsync(dto.Id))).Code);
         Assert.Equal("document_not_found", (await Assert.ThrowsAsync<AppException>(() => Docs(b).OpenAsync(dto.Id))).Code);
         Assert.Equal("document_not_found", (await Assert.ThrowsAsync<AppException>(() => Docs(b).DeleteAsync(dto.Id))).Code);
-        Assert.Equal(0, (await Docs(b).ListAsync(new DocumentListQuery())).Total);
+        Assert.Equal(0, (await Docs(b).ListAsync(new DocumentListQuery())).TotalCount);
         Assert.True(_storage.Objects.ContainsKey(DocumentKeys.KeyFor(a, dto.Id)));
     }
 
