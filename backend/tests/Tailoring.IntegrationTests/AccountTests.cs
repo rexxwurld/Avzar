@@ -249,7 +249,8 @@ public sealed class AccountTests(PostgresFixture fx) : IClassFixture<PostgresFix
             h.Account.ResetPasswordAsync(new ResetPasswordRequest { UserId = u.Id, Token = token, NewPassword = "another-new-password-1" }));
         Assert.Equal("invalid_token", reuse.Code);
 
-        // the device that was signed in can no longer refresh
+        // the device that was signed in can no longer refresh (new request = new context; this harness shares one)
+        h.Db.ChangeTracker.Clear();
         var refresh = await Assert.ThrowsAsync<AppException>(() => h.Sessions.RefreshAsync(pair.RefreshToken));
         Assert.Equal(401, refresh.StatusCode);
     }
