@@ -13,12 +13,6 @@ using Xunit;
 
 namespace Tailoring.IntegrationTests;
 
-public sealed class FakeUserTenant(Guid? businessId, Guid? userId) : ITenantContext
-{
-    public Guid? UserId { get; } = userId;
-    public Guid? BusinessId { get; } = businessId;
-}
-
 public sealed class Phase3Tests(PostgresFixture fx) : IClassFixture<PostgresFixture>
 {
     private sealed record World(Guid BusinessId, Guid LocationId, Guid CustomerId,

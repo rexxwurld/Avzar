@@ -26,10 +26,11 @@ public sealed class FixedPermissions(params string[] granted) : IPermissionServi
         => Task.FromResult<MembershipAccess?>(new MembershipAccess(false, granted.ToHashSet()));
 }
 
-public sealed class FakeUserTenant(Guid businessId, Guid userId) : ITenantContext
+/// <summary>Single definition for every test file (nullable so tests can model "no business" or "no user").</summary>
+public sealed class FakeUserTenant(Guid? businessId, Guid? userId) : ITenantContext
 {
-    public Guid? UserId => userId;
-    public Guid? BusinessId => businessId;
+    public Guid? UserId { get; } = userId;
+    public Guid? BusinessId { get; } = businessId;
 }
 
 /// <summary>Pure maths: no database. Expected values are worked out by hand in the comments.</summary>
