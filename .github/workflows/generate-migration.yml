@@ -1,0 +1,52 @@
+name: Generate initial migration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-24.04
+    env:
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: backend/global.json
+
+      - name: Ensure solution
+        run: |
+          [ -f Tailoring.sln ] || dotnet new sln -n Tailoring --format sln
+          dotnet sln Tailoring.sln add src/*/*.csproj tests/*/*.csproj
+
+      - run: dotnet restore
+      - run: dotnet build --no-restore -c Release
+
+      - name: Create InitialSchema migration
+        run: |
+          if [ -d src/Tailoring.Infrastructure/Persistence/Migrations ]; then
+            echo "Migrations already exist, nothing to do."; exit 0
+          fi
+          dotnet tool install -g dotnet-ef
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef migrations add InitialSchema \
+            --project src/Tailoring.Infrastructure \
+            --startup-project src/Tailoring.Api \
+            --output-dir Persistence/Migrations
+
+      - name: Commit migration
+        working-directory: .
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add backend/src/Tailoring.Infrastructure/Persistence/Migrations
+          git diff --cached --quiet && exit 0
+          git commit -m "Add InitialSchema EF migration"
+          git push
