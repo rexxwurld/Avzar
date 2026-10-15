@@ -19,6 +19,9 @@ public sealed record LoginRequest
     [Required] public string Password { get; init; } = "";
     /// <summary>Required only when the user belongs to more than one business.</summary>
     public Guid? BusinessId { get; init; }
+    /// <summary>Authenticator code or recovery code. Required only when two-factor is enabled on the account.</summary>
+    public string? TwoFactorCode { get; init; }
+    public string? RecoveryCode { get; init; }
 }
 
 public sealed record AcceptInvitationRequest
