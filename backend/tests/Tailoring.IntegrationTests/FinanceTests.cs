@@ -8,6 +8,7 @@ using Tailoring.Domain.Finance;
 using Tailoring.Domain.Orders;
 using Tailoring.Domain.Tenancy;
 using Tailoring.Infrastructure.Services;
+using Tailoring.Application.Abstractions;
 using Xunit;
 
 namespace Tailoring.IntegrationTests;
