@@ -16,6 +16,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check Six Labors license is available
+        run: |
+          if [ -z "$SIXLABORS_LICENSE_KEY" ]; then
+            echo "::error title=Missing secret::SIXLABORS_LICENSE_KEY is empty. Add it under Settings > Secrets and variables > Actions (full contents of sixlabors.lic). Secrets are not available to pull requests from forks. See docs/RUNBOOK.md section 8."
+            exit 1
+          fi
+
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: backend/global.json
@@ -49,6 +56,12 @@ jobs:
         with:
           name: backend-test-results
           path: test-results
+
+      # Lets a reviewer read the generated schema (check constraints, partial unique indexes, composite FKs).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-migration
+          path: /tmp/ci-migration
 
   web:
     runs-on: ubuntu-latest
