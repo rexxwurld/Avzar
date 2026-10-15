@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tailoring.Application.Abstractions;
 using Tailoring.Application.Auth;
@@ -20,7 +21,10 @@ public sealed class AuthService(
     SignInManager<AppUser> signIn,
     IPermissionService permissions,
     IAuditLogger audit,
-    IEntitlementService entitlements) : IAuthService
+    IEntitlementService entitlements,
+    IAccountService accounts,
+    IOptions<AuthOptions> authOptions,
+    ILogger<AuthService> log) : IAuthService
 {
     public async Task<SessionIdentity> RegisterBusinessAsync(RegisterBusinessRequest req, CancellationToken ct = default)
     {
@@ -84,6 +88,11 @@ public sealed class AuthService(
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
+        // Verification mail is best effort: the account exists either way and the user can ask for it again.
+        try { await accounts.SendEmailVerificationAsync(user.Id, ct); }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        { log.LogWarning(ex, "Could not queue the verification email for new user {UserId}.", user.Id); }
+
         return new SessionIdentity(user.Id, business.Id);
     }
 
@@ -93,11 +102,34 @@ public sealed class AuthService(
         if (user is null)
             throw AppException.Unauthorized("invalid_credentials", "Email or password is incorrect.");
 
-        var check = await signIn.CheckPasswordSignInAsync(user, req.Password, lockoutOnFailure: true);
-        if (check.IsLockedOut)
+        // Lockout is handled by hand: CheckPasswordSignInAsync resets the failure counter on a correct password, which would let
+        // someone who knows the password guess second-factor codes without ever being locked out.
+        if (await users.IsLockedOutAsync(user))
             throw new AppException(423, "locked_out", "Too many failed attempts. Try again later.");
-        if (!check.Succeeded)
+        if (!await users.CheckPasswordAsync(user, req.Password))
+        {
+            await users.AccessFailedAsync(user);
+            if (await users.IsLockedOutAsync(user))
+                throw new AppException(423, "locked_out", "Too many failed attempts. Try again later.");
             throw AppException.Unauthorized("invalid_credentials", "Email or password is incorrect.");
+        }
+
+        if (authOptions.Value.RequireVerifiedEmail && !user.EmailConfirmed)
+            throw AppException.Forbidden("email_not_verified", "Confirm your email address first. Check your inbox for the link.");
+
+        if (user.TwoFactorEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(req.TwoFactorCode) && string.IsNullOrWhiteSpace(req.RecoveryCode))
+                throw AppException.Unauthorized("two_factor_required", "Enter the code from your authenticator app.");
+            if (!await SecondFactor.VerifyAsync(users, user, req.TwoFactorCode, req.RecoveryCode))
+            {
+                await users.AccessFailedAsync(user);
+                if (await users.IsLockedOutAsync(user))
+                    throw new AppException(423, "locked_out", "Too many failed attempts. Try again later.");
+                throw AppException.Unauthorized("invalid_two_factor_code", "That code is not correct.");
+            }
+        }
+        await users.ResetAccessFailedCountAsync(user);
 
         var choices = await db.Memberships.IgnoreQueryFilters().AsNoTracking()
             .Where(m => m.UserId == user.Id && m.Status == MembershipStatus.Active)
