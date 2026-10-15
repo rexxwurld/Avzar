@@ -72,6 +72,8 @@ public static class DependencyInjection
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<ILocationService, LocationService>();
         services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<Tailoring.Application.ImportExport.ICustomerImportService, CustomerImportService>();
+        services.AddScoped<Tailoring.Application.ImportExport.ISearchService, SearchService>();
         services.AddScoped<IFittingService, FittingService>();
         services.AddScoped<IMeasurementService, MeasurementService>();
         services.AddScoped<IDesignService, DesignService>();
@@ -118,6 +120,26 @@ public static class DependencyInjection
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<IMyTaskService, MyTaskService>();
         services.AddScoped<IWorkerService, WorkerService>();
+
+        // PDFs are drawn on demand from live records (never stored, so they cannot go stale). Needs Pdf:QuestPdfLicense.
+        services.Configure<Pdf.PdfOptions>(config.GetSection("Pdf"));
+        services.AddSingleton<Tailoring.Application.Pdf.IPdfRenderer, Pdf.QuestPdfRenderer>();
+        services.AddScoped<Tailoring.Application.Pdf.IPdfService, Pdf.PdfService>();
+
+        // Redis is optional. Without a connection string nothing below is registered and limits stay per process.
+        var redisCs = config["Redis:ConnectionString"];
+        if (!string.IsNullOrWhiteSpace(redisCs))
+        {
+            services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(_ =>
+            {
+                var o = StackExchange.Redis.ConfigurationOptions.Parse(redisCs);
+                o.AbortOnConnectFail = false;   // the API must start even if Redis is down
+                o.ConnectTimeout = 3000;
+                o.SyncTimeout = 1000;
+                return StackExchange.Redis.ConnectionMultiplexer.Connect(o);
+            });
+            services.AddSingleton<Coordination.IRedisCounter, Coordination.RedisCounter>();
+        }
 
         // Email: durable outbox + background dispatcher + one transport chosen by configuration (Email:Provider = log | smtp | resend).
         var email = config.GetSection("Email").Get<Email.EmailOptions>() ?? new Email.EmailOptions();
