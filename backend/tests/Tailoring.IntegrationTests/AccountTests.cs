@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Tailoring.Application.Abstractions;
 using Tailoring.Application.Auth;
 using Tailoring.Application.Common;
+using Tailoring.Application.Staff;
 using Tailoring.Domain.Access;
 using Tailoring.Domain.Tenancy;
 using Tailoring.Infrastructure.Persistence;
@@ -388,6 +389,377 @@ public sealed class AccountTests(PostgresFixture fx) : IClassFixture<PostgresFix
         Assert.True(await SecondFactorProbe.VerifyAsync(h.Users, user, null, codes.Codes[0]));
         Assert.False(await SecondFactorProbe.VerifyAsync(h.Users, user, null, codes.Codes[0]));
         Assert.True(await SecondFactorProbe.VerifyAsync(h.Users, user, null, codes.Codes[1]));
+    }
+
+    [Fact]
+    public async Task A_used_authenticator_code_cannot_be_replayed()
+    {
+        await using var h = Build();
+        var u = await NewUserAsync(h);
+        var setup = await h.Account.BeginTwoFactorSetupAsync(u.Id);
+        var key = Totp.DecodeBase32(setup.SharedKey)!;
+        var now = DateTimeOffset.UtcNow;
+        var step = Totp.StepAt(now);
+        string CodeAt(long s) => Totp.Compute(key, s);
+
+        // enabling 2FA consumes the code that proved setup
+        await h.Account.EnableTwoFactorAsync(u.Id, new EnableTwoFactorRequest { Code = CodeAt(step) });
+        var user = (await h.Users.FindByIdAsync(u.Id.ToString()))!;
+        Task<bool> Verify(long s) => TotpVerifier.VerifyAsync(h.Db, h.Users, user, CodeAt(s), now);
+
+        Assert.False(await Verify(step));       // the same code again
+        Assert.False(await Verify(step - 1));   // an older step
+        Assert.False(await Verify(step + 3));   // outside the window, and must not be claimed
+        Assert.True(await Verify(step + 1));    // newer and inside the window
+        Assert.False(await Verify(step + 1));   // now used
+        Assert.True(await Verify(step + 2));
+    }
+
+    [Fact]
+    public async Task Parallel_requests_carrying_one_code_succeed_at_most_once()
+    {
+        await using var h = Build();
+        var u = await NewUserAsync(h);
+        var setup = await h.Account.BeginTwoFactorSetupAsync(u.Id);
+        var now = DateTimeOffset.UtcNow;
+        var code = Totp.Compute(Totp.DecodeBase32(setup.SharedKey)!, Totp.StepAt(now));
+
+        await using var h1 = Build();
+        await using var h2 = Build();
+        var u1 = (await h1.Users.FindByIdAsync(u.Id.ToString()))!;
+        var u2 = (await h2.Users.FindByIdAsync(u.Id.ToString()))!;
+        var results = await Task.WhenAll(
+            TotpVerifier.VerifyAsync(h1.Db, h1.Users, u1, code, now),
+            TotpVerifier.VerifyAsync(h2.Db, h2.Users, u2, code, now));
+        Assert.Equal(1, results.Count(r => r));
+    }
+
+    [Fact]
+    public async Task Replacing_the_authenticator_key_clears_the_replay_marker()
+    {
+        await using var h = Build();
+        var u = await NewUserAsync(h);
+
+        var first = await h.Account.BeginTwoFactorSetupAsync(u.Id);
+        var codes = await h.Account.EnableTwoFactorAsync(u.Id,
+            new EnableTwoFactorRequest { Code = Totp.Compute(Totp.DecodeBase32(first.SharedKey)!, Totp.StepAt(DateTimeOffset.UtcNow)) });
+        await h.Account.DisableTwoFactorAsync(u.Id, new DisableTwoFactorRequest { Password = Pw, RecoveryCode = codes.Codes[0] });
+
+        // a brand-new key must accept a code for the current step even though the old key used that step a moment ago
+        var second = await h.Account.BeginTwoFactorSetupAsync(u.Id);
+        await h.Account.EnableTwoFactorAsync(u.Id,
+            new EnableTwoFactorRequest { Code = Totp.Compute(Totp.DecodeBase32(second.SharedKey)!, Totp.StepAt(DateTimeOffset.UtcNow)) });
+        Assert.True((await h.Account.GetSecurityAsync(u.Id)).TwoFactorEnabled);
+    }
+
+    // ---------- joining a business with an existing account ----------
+
+    private static AuthService AuthFor(Harness h) => new(h.Db, h.Users, new AllowAllPermissions(), new AuditLogger(h.Db),
+        new EntitlementService(h.Db), h.Account, Options.Create(new AuthOptions()), NullLogger<AuthService>.Instance);
+
+    private static async Task<(Guid BusinessId, Guid RoleId, string Token, Guid InviteId)> SeedInviteAsync(
+        Harness h, string email, Guid invitedBy, DateTime? expires = null, bool seatTaken = false)
+    {
+        var business = new Business { Name = "Join-" + Unique() };
+        h.Db.Businesses.Add(business);
+        var role = new BusinessRole { BusinessId = business.Id, Name = "Tailor" };
+        h.Db.BusinessRoles.Add(role);
+        if (seatTaken) // the Free plan allows one staff seat
+        {
+            var other = new AppUser { UserName = $"{Unique()}@test.local", FullName = "Seat Holder" };
+            other.Email = other.UserName;
+            Assert.True((await h.Users.CreateAsync(other, Pw)).Succeeded);
+            h.Db.Memberships.Add(new BusinessMembership { BusinessId = business.Id, UserId = other.Id, DisplayName = "Seat Holder" });
+        }
+        var token = TokenHasher.NewToken();
+        var invite = new StaffInvitation
+        {
+            BusinessId = business.Id, Email = email.ToLowerInvariant(), FullName = "Joiner", TokenHash = TokenHasher.Hash(token),
+            ExpiresAtUtc = expires ?? DateTime.UtcNow.AddDays(7), InvitedByUserId = invitedBy, RoleIds = [role.Id]
+        };
+        h.Db.Invitations.Add(invite);
+        await h.Db.SaveChangesAsync();
+        return (business.Id, role.Id, token, invite.Id);
+    }
+
+    [Fact]
+    public async Task An_existing_account_can_join_with_the_matching_email()
+    {
+        await using var h = Build();
+        var u = await NewUserAsync(h);
+        var (bid, roleId, token, inviteId) = await SeedInviteAsync(h, u.Email!, u.Id);
+
+        var session = await AuthFor(h).AcceptInvitationAsExistingUserAsync(u.Id, new AcceptExistingInvitationRequest { Token = token });
+        Assert.Equal(new SessionIdentity(u.Id, bid), session);
+
+        var m = await h.Db.Memberships.IgnoreQueryFilters().Include(x => x.Roles).SingleAsync(x => x.BusinessId == bid && x.UserId == u.Id);
+        Assert.Equal(MembershipStatus.Active, m.Status);
+        Assert.False(m.IsOwner);
+        Assert.Equal(roleId, Assert.Single(m.Roles).RoleId);
+        Assert.NotNull((await h.Db.Invitations.IgnoreQueryFilters().SingleAsync(i => i.Id == inviteId)).AcceptedAtUtc);
+        Assert.True(await h.Db.AuditLogs.IgnoreQueryFilters().AnyAsync(a => a.BusinessId == bid && a.Action == "staff.invitation_accepted_existing_account"));
+
+        // single use
+        var again = await Assert.ThrowsAsync<AppException>(() =>
+            AuthFor(h).AcceptInvitationAsExistingUserAsync(u.Id, new AcceptExistingInvitationRequest { Token = token }));
+        Assert.Equal("invalid_invitation", again.Code);
+    }
+
+    [Fact]
+    public async Task A_different_account_cannot_use_someone_elses_invitation()
+    {
+        await using var h = Build();
+        var owner = await NewUserAsync(h);
+        var intruder = await NewUserAsync(h);
+        var (bid, _, token, inviteId) = await SeedInviteAsync(h, owner.Email!, owner.Id);
+
+        var ex = await Assert.ThrowsAsync<AppException>(() =>
+            AuthFor(h).AcceptInvitationAsExistingUserAsync(intruder.Id, new AcceptExistingInvitationRequest { Token = token }));
+        Assert.Equal("invitation_email_mismatch", ex.Code);
+        Assert.Equal(403, ex.StatusCode);
+        Assert.False(await h.Db.Memberships.IgnoreQueryFilters().AnyAsync(m => m.BusinessId == bid));
+        Assert.Null((await h.Db.Invitations.IgnoreQueryFilters().SingleAsync(i => i.Id == inviteId)).AcceptedAtUtc);
+    }
+
+    [Theory]
+    [InlineData("garbage")]
+    [InlineData("")]
+    public async Task Unknown_tokens_are_rejected(string token)
+    {
+        await using var h = Build();
+        var u = await NewUserAsync(h);
+        var ex = await Assert.ThrowsAsync<AppException>(() =>
+            AuthFor(h).AcceptInvitationAsExistingUserAsync(u.Id, new AcceptExistingInvitationRequest { Token = token }));
+        Assert.Equal("invalid_invitation", ex.Code);
+    }
+
+    [Fact]
+    public async Task Expired_and_revoked_invitations_are_rejected()
+    {
+        await using var h = Build();
+        var u = await NewUserAsync(h);
+        var expired = await SeedInviteAsync(h, u.Email!, u.Id, DateTime.UtcNow.AddMinutes(-1));
+        var revoked = await SeedInviteAsync(h, u.Email!, u.Id);
+        (await h.Db.Invitations.IgnoreQueryFilters().SingleAsync(i => i.Id == revoked.InviteId)).RevokedAtUtc = DateTime.UtcNow;
+        await h.Db.SaveChangesAsync();
+
+        foreach (var token in new[] { expired.Token, revoked.Token })
+        {
+            var ex = await Assert.ThrowsAsync<AppException>(() =>
+                AuthFor(h).AcceptInvitationAsExistingUserAsync(u.Id, new AcceptExistingInvitationRequest { Token = token }));
+            Assert.Equal("invalid_invitation", ex.Code);
+        }
+    }
+
+    [Fact]
+    public async Task Someone_who_already_belongs_cannot_join_twice()
+    {
+        await using var h = Build();
+        var u = await NewUserAsync(h);
+        var (bid, _, token, _) = await SeedInviteAsync(h, u.Email!, u.Id);
+        h.Db.Memberships.Add(new BusinessMembership { BusinessId = bid, UserId = u.Id, DisplayName = "Existing" });
+        await h.Db.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<AppException>(() =>
+            AuthFor(h).AcceptInvitationAsExistingUserAsync(u.Id, new AcceptExistingInvitationRequest { Token = token }));
+        Assert.Equal("already_member", ex.Code);
+    }
+
+    [Fact]
+    public async Task Joining_respects_the_staff_seat_limit_and_leaves_the_invitation_open()
+    {
+        await using var h = Build();
+        var u = await NewUserAsync(h);
+        var (bid, _, token, inviteId) = await SeedInviteAsync(h, u.Email!, u.Id, seatTaken: true);
+
+        await Assert.ThrowsAsync<AppException>(() =>
+            AuthFor(h).AcceptInvitationAsExistingUserAsync(u.Id, new AcceptExistingInvitationRequest { Token = token }));
+        Assert.False(await h.Db.Memberships.IgnoreQueryFilters().AnyAsync(m => m.BusinessId == bid && m.UserId == u.Id));
+        h.Db.ChangeTracker.Clear();
+        Assert.Null((await h.Db.Invitations.IgnoreQueryFilters().SingleAsync(i => i.Id == inviteId)).AcceptedAtUtc);
+    }
+
+    [Fact]
+    public async Task A_deleted_account_cannot_join()
+    {
+        await using var h = Build();
+        var u = await NewUserAsync(h);
+        var (_, _, token, _) = await SeedInviteAsync(h, u.Email!, u.Id);
+        await h.Users.SetLockoutEndDateAsync(u, DateTimeOffset.MaxValue);
+
+        var ex = await Assert.ThrowsAsync<AppException>(() =>
+            AuthFor(h).AcceptInvitationAsExistingUserAsync(u.Id, new AcceptExistingInvitationRequest { Token = token }));
+        Assert.Equal("unknown_user", ex.Code);
+    }
+
+    [Fact]
+    public async Task The_new_account_route_still_refuses_an_email_that_already_has_an_account()
+    {
+        await using var h = Build();
+        var u = await NewUserAsync(h);
+        var (_, _, token, _) = await SeedInviteAsync(h, u.Email!, u.Id);
+
+        var ex = await Assert.ThrowsAsync<AppException>(() =>
+            AuthFor(h).AcceptInvitationAsync(new AcceptInvitationRequest { Token = token, Password = "another-long-password" }));
+        Assert.Equal("account_exists", ex.Code);
+    }
+
+    // ---------- ownership transfer ----------
+
+    private sealed record OwnedBusiness(Guid BusinessId, AppUser Owner, Guid OwnerMembership, List<(AppUser User, Guid Membership)> Staff);
+
+    private async Task<OwnedBusiness> SeedOwnedBusinessAsync(Harness h, int staffCount = 1)
+    {
+        var business = new Business { Name = "Own-" + Unique() };
+        h.Db.Businesses.Add(business);
+        var roles = DefaultRoles.Create(business.Id);
+        h.Db.BusinessRoles.AddRange(roles);
+
+        var owner = await NewUserAsync(h);
+        var ownerMembership = new BusinessMembership { BusinessId = business.Id, UserId = owner.Id, DisplayName = "Owner", IsOwner = true };
+        ownerMembership.Roles.Add(new MembershipRole { BusinessId = business.Id, MembershipId = ownerMembership.Id, RoleId = roles.Single(r => r.Name == DefaultRoles.Owner).Id });
+        h.Db.Memberships.Add(ownerMembership);
+
+        var staff = new List<(AppUser, Guid)>();
+        for (var i = 0; i < staffCount; i++)
+        {
+            var u = await NewUserAsync(h);
+            var m = new BusinessMembership { BusinessId = business.Id, UserId = u.Id, DisplayName = "Staff " + i };
+            m.Roles.Add(new MembershipRole { BusinessId = business.Id, MembershipId = m.Id, RoleId = roles.Single(r => r.Name == DefaultRoles.Tailor).Id });
+            h.Db.Memberships.Add(m);
+            staff.Add((u, m.Id));
+        }
+        await h.Db.SaveChangesAsync();
+        return new OwnedBusiness(business.Id, owner, ownerMembership.Id, staff);
+    }
+
+    /// <summary>The service gets its own context scoped to the caller's business (the query filters read the context's tenant, not the service's);
+    /// the harness only supplies the real UserManager.</summary>
+    private OwnershipService OwnershipFor(Harness h, Guid businessId, Guid userId)
+    {
+        var tenant = new FakeUserTenant(businessId, userId);
+        var db = fx.CreateFor(tenant);
+        return new OwnershipService(db, tenant, new AuditLogger(db), h.Users);
+    }
+
+    [Fact]
+    public async Task The_owner_can_hand_the_business_to_an_active_staff_member()
+    {
+        await using var h = Build();
+        var b = await SeedOwnedBusinessAsync(h);
+        var heir = b.Staff[0];
+
+        await OwnershipFor(h, b.BusinessId, b.Owner.Id).TransferAsync(new TransferOwnershipRequest { NewOwnerMembershipId = heir.Membership, Password = Pw });
+
+        h.Db.ChangeTracker.Clear();
+        var rows = await h.Db.Memberships.IgnoreQueryFilters().Include(m => m.Roles).Where(m => m.BusinessId == b.BusinessId).ToListAsync();
+        var roleNames = await h.Db.BusinessRoles.IgnoreQueryFilters().Where(r => r.BusinessId == b.BusinessId).ToDictionaryAsync(r => r.Id, r => r.Name);
+        Assert.Equal(heir.Membership, Assert.Single(rows, m => m.IsOwner).Id);
+
+        var newOwner = rows.Single(m => m.Id == heir.Membership);
+        Assert.Contains(DefaultRoles.Owner, newOwner.Roles.Select(r => roleNames[r.RoleId]));
+        var oldOwner = rows.Single(m => m.Id == b.OwnerMembership);
+        Assert.False(oldOwner.IsOwner);
+        Assert.Equal(MembershipStatus.Active, oldOwner.Status);
+        Assert.Equal(new[] { DefaultRoles.Manager }, oldOwner.Roles.Select(r => roleNames[r.RoleId]).ToArray());
+        Assert.True(await h.Db.AuditLogs.IgnoreQueryFilters().AnyAsync(a => a.BusinessId == b.BusinessId && a.Action == "business.ownership_transferred"));
+    }
+
+    [Fact]
+    public async Task A_wrong_password_changes_nothing()
+    {
+        await using var h = Build();
+        var b = await SeedOwnedBusinessAsync(h);
+        var ex = await Assert.ThrowsAsync<AppException>(() => OwnershipFor(h, b.BusinessId, b.Owner.Id)
+            .TransferAsync(new TransferOwnershipRequest { NewOwnerMembershipId = b.Staff[0].Membership, Password = "not-the-password" }));
+        Assert.Equal("wrong_password", ex.Code);
+        h.Db.ChangeTracker.Clear();
+        Assert.True((await h.Db.Memberships.IgnoreQueryFilters().SingleAsync(m => m.Id == b.OwnerMembership)).IsOwner);
+    }
+
+    [Fact]
+    public async Task Only_the_owner_can_transfer()
+    {
+        await using var h = Build();
+        var b = await SeedOwnedBusinessAsync(h, staffCount: 2);
+        var ex = await Assert.ThrowsAsync<AppException>(() => OwnershipFor(h, b.BusinessId, b.Staff[0].User.Id)
+            .TransferAsync(new TransferOwnershipRequest { NewOwnerMembershipId = b.Staff[1].Membership, Password = Pw }));
+        Assert.Equal("owner_required", ex.Code);
+        h.Db.ChangeTracker.Clear();
+        Assert.True((await h.Db.Memberships.IgnoreQueryFilters().SingleAsync(m => m.Id == b.OwnerMembership)).IsOwner);
+    }
+
+    [Fact]
+    public async Task Invalid_targets_are_refused()
+    {
+        await using var h = Build();
+        var b = await SeedOwnedBusinessAsync(h);
+        var other = await SeedOwnedBusinessAsync(h);
+
+        async Task<string> Try(Guid target)
+        {
+            var ex = await Assert.ThrowsAsync<AppException>(() => OwnershipFor(h, b.BusinessId, b.Owner.Id)
+                .TransferAsync(new TransferOwnershipRequest { NewOwnerMembershipId = target, Password = Pw }));
+            return ex.Code;
+        }
+
+        Assert.Equal("same_person", await Try(b.OwnerMembership));
+        Assert.Equal("staff_not_found", await Try(Guid.NewGuid()));
+        Assert.Equal("staff_not_found", await Try(other.OwnerMembership)); // another business's member
+
+        var heir = await h.Db.Memberships.IgnoreQueryFilters().SingleAsync(m => m.Id == b.Staff[0].Membership);
+        heir.Status = MembershipStatus.Deactivated;
+        await h.Db.SaveChangesAsync();
+        Assert.Equal("target_inactive", await Try(heir.Id));
+    }
+
+    [Fact]
+    public async Task Two_factor_is_required_when_the_owner_has_it_on()
+    {
+        await using var h = Build();
+        var b = await SeedOwnedBusinessAsync(h);
+        var setup = await h.Account.BeginTwoFactorSetupAsync(b.Owner.Id);
+        var key = Totp.DecodeBase32(setup.SharedKey)!;
+        await h.Account.EnableTwoFactorAsync(b.Owner.Id, new EnableTwoFactorRequest { Code = Totp.Compute(key, Totp.StepAt(DateTimeOffset.UtcNow)) });
+        var svc = OwnershipFor(h, b.BusinessId, b.Owner.Id);
+
+        var missing = await Assert.ThrowsAsync<AppException>(() =>
+            svc.TransferAsync(new TransferOwnershipRequest { NewOwnerMembershipId = b.Staff[0].Membership, Password = Pw }));
+        Assert.Equal("invalid_code", missing.Code);
+        await h.Users.ResetAccessFailedCountAsync((await h.Users.FindByIdAsync(b.Owner.Id.ToString()))!);
+
+        // the enabling code is spent; the next time step is still inside the accepted window
+        await svc.TransferAsync(new TransferOwnershipRequest
+        {
+            NewOwnerMembershipId = b.Staff[0].Membership, Password = Pw,
+            TwoFactorCode = Totp.Compute(key, Totp.StepAt(DateTimeOffset.UtcNow) + 1)
+        });
+        h.Db.ChangeTracker.Clear();
+        Assert.True((await h.Db.Memberships.IgnoreQueryFilters().SingleAsync(m => m.Id == b.Staff[0].Membership)).IsOwner);
+    }
+
+    [Fact]
+    public async Task Racing_transfers_leave_exactly_one_owner()
+    {
+        await using var seed = Build();
+        var b = await SeedOwnedBusinessAsync(seed, staffCount: 2);
+        await using var h1 = Build();
+        await using var h2 = Build();
+
+        async Task<bool> Go(Harness h, Guid target)
+        {
+            try
+            {
+                await OwnershipFor(h, b.BusinessId, b.Owner.Id).TransferAsync(new TransferOwnershipRequest { NewOwnerMembershipId = target, Password = Pw });
+                return true;
+            }
+            catch (AppException ex) when (ex.Code == "owner_required") { return false; }
+        }
+
+        var results = await Task.WhenAll(Go(h1, b.Staff[0].Membership), Go(h2, b.Staff[1].Membership));
+        Assert.Equal(1, results.Count(r => r));
+        seed.Db.ChangeTracker.Clear();
+        Assert.Equal(1, await seed.Db.Memberships.IgnoreQueryFilters().CountAsync(m => m.BusinessId == b.BusinessId && m.IsOwner));
     }
 
     // ---------- sessions (refresh tokens) ----------
