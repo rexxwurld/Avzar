@@ -36,6 +36,7 @@ public static class DependencyInjection
                 o.User.RequireUniqueEmail = true;
                 o.Password.RequiredLength = 10;
                 o.Password.RequireNonAlphanumeric = false;
+                o.Password.RequireDigit = false; o.Password.RequireUppercase = false; o.Password.RequireLowercase = false;
                 o.Lockout.MaxFailedAccessAttempts = 5;
                 o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
                 o.Lockout.AllowedForNewUsers = true;
