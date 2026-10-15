@@ -91,3 +91,39 @@ public sealed class LocationService(AppDbContext db, ITenantContext tenant, IAud
         return new LocationDto(loc.Id, loc.Name, loc.Address, loc.IsActive);
     }
 }
+
+public sealed class LocationScope(AppDbContext db, ITenantContext tenant, IPermissionService permissions) : ILocationScope
+{
+    private bool _resolved;
+    private Guid[]? _allowed;
+
+    public async Task<Guid[]?> AllowedLocationIdsAsync(CancellationToken ct = default)
+    {
+        if (_resolved) return _allowed;
+        _allowed = await ResolveAsync(ct);
+        _resolved = true;
+        return _allowed;
+    }
+
+    public async Task EnsureAllowedAsync(Guid locationId, CancellationToken ct = default)
+    {
+        var allowed = await AllowedLocationIdsAsync(ct);
+        if (allowed is not null && !allowed.Contains(locationId))
+            throw AppException.Forbidden("location_forbidden", "You do not have access to that location.");
+    }
+
+    private async Task<Guid[]?> ResolveAsync(CancellationToken ct)
+    {
+        if (tenant.UserId is not { } userId) return null;                       // no signed-in user: public/system flow
+        if (tenant.BusinessId is not { } businessId) return Array.Empty<Guid>(); // user without a business: fail closed
+
+        var access = await permissions.GetAccessAsync(userId, businessId, ct);
+        if (access is null) return Array.Empty<Guid>();                          // no active membership
+        if (access.IsOwner || access.Permissions.Contains(Permissions.LocationsAll)) return null;
+
+        return await (from m in db.Memberships.AsNoTracking()
+                      where m.UserId == userId && m.Status == MembershipStatus.Active
+                      join l in db.MembershipLocations.AsNoTracking() on m.Id equals l.MembershipId
+                      select l.LocationId).Distinct().ToArrayAsync(ct);
+    }
+}

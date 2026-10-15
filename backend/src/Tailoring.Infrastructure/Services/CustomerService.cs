@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Tailoring.Application.Abstractions;
 using Tailoring.Application.Billing;
 using Tailoring.Application.Common;
+using Tailoring.Application.Locations;
 using Tailoring.Application.Customers;
 using Tailoring.Domain.Billing;
 using Tailoring.Domain.Common;
@@ -246,13 +247,16 @@ public sealed class CustomerService(AppDbContext db, ITenantContext tenant, IAud
         c.Direction.ToString(), c.Subject, c.Body, c.RecordedByUserId, c.CreatedAtUtc);
 }
 
-public sealed class FittingService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements) : IFittingService
+public sealed class FittingService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements,
+    ILocationScope? locations = null) : IFittingService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
 
     public async Task<PagedResult<FittingDto>> ListAsync(FittingListQuery query, CancellationToken ct = default)
     {
-        var q = db.Fittings.AsNoTracking();
+        var q = db.Fittings.AsNoTracking().AsQueryable();
+        if (locations is not null && await locations.AllowedLocationIdsAsync(ct) is { } allowed)
+            q = q.Where(f => allowed.Contains(f.LocationId));
         if (query.CustomerId is { } cid) q = q.Where(f => f.CustomerId == cid);
         if (query.OrderId is { } oid) q = q.Where(f => f.OrderId == oid);
         if (query.From is { } fromValue) { var f0 = fromValue.UtcDateTime; q = q.Where(f => f.ScheduledAtUtc >= f0); }
@@ -277,9 +281,14 @@ public sealed class FittingService(AppDbContext db, ITenantContext tenant, IAudi
 
         if (!await db.Locations.AnyAsync(l => l.Id == req.LocationId && l.IsActive, ct))
             throw AppException.BadRequest("unknown_location", "Location not found or inactive.");
+        if (locations is not null) await locations.EnsureAllowedAsync(req.LocationId, ct);
 
+        var allowedOrNull = locations is null ? null : await locations.AllowedLocationIdsAsync(ct);
+        var restricted = allowedOrNull is not null;
+        var allowedIds = allowedOrNull ?? Array.Empty<Guid>(); // never a null collection inside an EF expression
         if (req.OrderId is { } orderId &&
-            !await db.Orders.AnyAsync(o => o.Id == orderId && o.CustomerId == req.CustomerId, ct))
+            !await db.Orders.AnyAsync(o => o.Id == orderId && o.CustomerId == req.CustomerId
+                && (!restricted || allowedIds.Contains(o.LocationId)), ct))
             throw AppException.BadRequest("unknown_order", "That order does not exist for this customer.");
 
         var fitting = new FittingAppointment
@@ -300,7 +309,10 @@ public sealed class FittingService(AppDbContext db, ITenantContext tenant, IAudi
     public async Task<FittingDto> SetStatusAsync(Guid id, SetFittingStatusRequest req, CancellationToken ct = default)
     {
         var status = Parse.Value<FittingStatus>(req.Status, "status");
-        var fitting = await db.Fittings.FirstOrDefaultAsync(f => f.Id == id, ct)
+        var fittings = db.Fittings.AsQueryable();
+        if (locations is not null && await locations.AllowedLocationIdsAsync(ct) is { } allowed)
+            fittings = fittings.Where(f => allowed.Contains(f.LocationId));
+        var fitting = await fittings.FirstOrDefaultAsync(f => f.Id == id, ct)
             ?? throw AppException.NotFound("fitting_not_found", "Fitting not found.");
         if (fitting.Status is FittingStatus.Completed && status != FittingStatus.Completed)
             throw AppException.Conflict("fitting_closed", "A completed fitting cannot be reopened.");

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Tailoring.Application.Abstractions;
 using Tailoring.Application.Billing;
 using Tailoring.Application.Common;
+using Tailoring.Application.Locations;
 using Tailoring.Application.Orders;
 using Tailoring.Application.Pricing;
 using Tailoring.Application.Production;
@@ -17,15 +18,28 @@ using Tailoring.Infrastructure.Persistence;
 namespace Tailoring.Infrastructure.Services;
 
 public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IProductionPlanner planner, IEntitlementService entitlements,
-    IPricingService pricing, IPermissionService permissions) : IOrderService
+    IPricingService pricing, IPermissionService permissions, ILocationScope? locations = null) : IOrderService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
+
+    // ------------------------------------------------------------------ location scope
+
+    /// <summary>Limits a query to the locations the caller may see. A hidden order looks exactly like a missing one.</summary>
+    private async Task<IQueryable<Order>> VisibleAsync(IQueryable<Order> q, CancellationToken ct)
+    {
+        if (locations is null) return q;
+        var allowed = await locations.AllowedLocationIdsAsync(ct);
+        return allowed is null ? q : q.Where(o => allowed.Contains(o.LocationId));
+    }
+
+    private Task RequireLocationAsync(Guid locationId, CancellationToken ct)
+        => locations is null ? Task.CompletedTask : locations.EnsureAllowedAsync(locationId, ct);
 
     // ------------------------------------------------------------------ queries
 
     public async Task<PagedResult<OrderSummaryDto>> ListAsync(OrderListQuery query, CancellationToken ct = default)
     {
-        var q = db.Orders.AsNoTracking();
+        var q = await VisibleAsync(db.Orders.AsNoTracking(), ct);
         if (!string.IsNullOrWhiteSpace(query.Status))
         {
             var status = Parse.Value<OrderStatus>(query.Status, "status");
@@ -59,14 +73,14 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
 
     public async Task<OrderDto> GetAsync(Guid id, CancellationToken ct = default)
     {
-        var order = await db.Orders.AsNoTracking().Include(o => o.Garments).FirstOrDefaultAsync(o => o.Id == id, ct)
+        var order = await (await VisibleAsync(db.Orders.AsNoTracking(), ct)).Include(o => o.Garments).FirstOrDefaultAsync(o => o.Id == id, ct)
             ?? throw AppException.NotFound("order_not_found", "Order not found.");
         return await ToDtoAsync(order, ct);
     }
 
     public async Task<OrderPricingDto> GetPricingAsync(Guid id, CancellationToken ct = default)
     {
-        var order = await db.Orders.AsNoTracking().Include(o => o.Garments).FirstOrDefaultAsync(o => o.Id == id, ct)
+        var order = await (await VisibleAsync(db.Orders.AsNoTracking(), ct)).Include(o => o.Garments).FirstOrDefaultAsync(o => o.Id == id, ct)
             ?? throw AppException.NotFound("order_not_found", "Order not found.");
         var lines = order.Garments.OrderBy(g => g.LineNumber)
             .Select(g => new OrderLinePricingDto(g.Id, g.LineNumber, g.Name, g.Quantity, g.UnitPrice, g.DesignPriceSnapshot,
@@ -82,7 +96,10 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
         if (key is { Length: > 100 }) throw AppException.BadRequest("invalid_idempotency_key", "Idempotency key is too long.");
 
         if (key is not null && await FindByKeyAsync(key, ct) is { } already)
+        {
+            await RequireLocationAsync(already.LocationId, ct); // a replay must not reveal an order at a hidden location
             return (await ToDtoAsync(already, ct), false);
+        }
 
         var (currency, today) = await GetBusinessContextAsync(ct);
         var priority = Parse.Value<OrderPriority>(req.Priority, "priority");
@@ -94,6 +111,7 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
         if (customer.Status != CustomerStatus.Active)
             throw AppException.Conflict("customer_not_active", "Orders can only be created for active customers.");
         await EnsureLocationAsync(req.LocationId, ct);
+        await RequireLocationAsync(req.LocationId, ct);
 
         try
         {
@@ -125,7 +143,11 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
         {
             // A concurrent retry with the same key won the unique index; return its order instead of failing.
             db.ChangeTracker.Clear();
-            if (await FindByKeyAsync(key, ct) is { } winner) return (await ToDtoAsync(winner, ct), false);
+            if (await FindByKeyAsync(key, ct) is { } winner)
+            {
+                await RequireLocationAsync(winner.LocationId, ct);
+                return (await ToDtoAsync(winner, ct), false);
+            }
             throw;
         }
     }
@@ -134,7 +156,7 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
 
     public async Task<OrderDto> UpdateAsync(Guid id, UpdateOrderRequest req, CancellationToken ct = default)
     {
-        var order = await db.Orders.Include(o => o.Garments).FirstOrDefaultAsync(o => o.Id == id, ct)
+        var order = await (await VisibleAsync(db.Orders, ct)).Include(o => o.Garments).FirstOrDefaultAsync(o => o.Id == id, ct)
             ?? throw AppException.NotFound("order_not_found", "Order not found.");
         if (order.Status is not (OrderStatus.Draft or OrderStatus.Quoted))
             throw AppException.Conflict("order_locked", "Only draft or quoted orders can be edited here. Confirmed orders need an amendment (not built yet).");
@@ -143,7 +165,11 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
         var priority = Parse.Value<OrderPriority>(req.Priority, "priority");
         var delivery = Parse.Value<DeliveryMethod>(req.DeliveryMethod, "delivery_method");
         ValidateHeader(req.PromisedDate, today, delivery, req.DeliveryAddress, checkDate: req.PromisedDate != order.PromisedDate);
-        if (req.LocationId != order.LocationId) await EnsureLocationAsync(req.LocationId, ct);
+        if (req.LocationId != order.LocationId)
+        {
+            await EnsureLocationAsync(req.LocationId, ct);
+            await RequireLocationAsync(req.LocationId, ct);
+        }
 
         db.Entry(order).Property(o => o.Version).OriginalValue = req.Version;
 
@@ -275,7 +301,7 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
     // ------------------------------------------------------------------ helpers
 
     private async Task<Order> LoadForTransitionAsync(Guid id, CancellationToken ct)
-        => await db.Orders.Include(o => o.Garments).FirstOrDefaultAsync(o => o.Id == id, ct)
+        => await (await VisibleAsync(db.Orders, ct)).Include(o => o.Garments).FirstOrDefaultAsync(o => o.Id == id, ct)
             ?? throw AppException.NotFound("order_not_found", "Order not found.");
 
     private async Task SaveWithConcurrencyAsync(CancellationToken ct)
