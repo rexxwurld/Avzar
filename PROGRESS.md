@@ -235,7 +235,7 @@ Environment: no .NET SDK, Docker, `.git` or npm network access, so **no build, t
 - Rewrote `README.md` as a product README; claims cross-checked against `PROGRESS.md`, `docker-compose.yml`, `Directory.Packages.props`, `Program.cs` and the CI workflow.
 - CI run #64 (commit `889afec`) is reported successful from the supplied run page (backend 1m52s, web 47s). Its job logs were not available, so the license gate passing is inferred from the workflow (the step exits 1 on an empty secret), not observed.
 - Found: there is no root `ci.yml` (only `.github/workflows/ci.yml` and `generate-migration.yml`), so the suspected duplicate does not exist in this snapshot.
-- Found: integration tests use `EnsureCreated` (`TenantIsolationTests.cs`), so CI has never applied a migration to PostgreSQL; CI only checks that `dotnet ef migrations add` succeeds. No `Migrations` folder is committed.
+- Found: integration tests use `EnsureCreated` (`TenantIsolationTests.cs`), so CI has never applied a migration to PostgreSQL; CI only checks that `dotnet ef migrations add` succeeds. (Stale: a `Migrations` folder with `InitialSchema` is now committed.)
 - Found: `web/` contains only the public renderer and preview; there is no dashboard or editor.
 - Next: (1) in a network-enabled environment, clone `main`, confirm 889afec; (2) decide the migration baseline and apply it to a clean PostgreSQL; (3) compose smoke test; (4) WebApplicationFactory authorization tests; (5) upgrade Actions majors after checking releases; (6) begin dashboard/editor.
 
@@ -248,7 +248,10 @@ Environment: no .NET SDK, Docker, `.git` or npm network access, so **no build, t
 
 ## CI run #85 (2026-10-15, after the Step A batch and location scoping)
 - Build compiled. 527 tests: 526 passed, 1 failed. The failure was `Phase2Tests.Measurement_snapshot_stays_frozen_when_the_customer_is_remeasured`: a pre-existing flaky assertion that searched the whole snapshot JSON for "108", which also matched the random microseconds in `recordedAtUtc`. Fixed by asserting only on the snapshot's `values`. Not a product-code defect. Not yet re-run.
-- Found by inspection, not yet fixed: the committed `20261015214018_InitialSchema` migration and snapshot do not contain `AspNetUsers.LastTotpStep` (tests use `EnsureCreated`, so CI cannot see this). Regenerate the migration before any database is built from migrations.
+- CI run #86 (push 16cbde4, the flaky-test fix): reported Success (web and backend jobs). Test counts were not read from the artifacts.
+- Migration check #2 FAILED (2026-10-15): `dotnet ef database update` refused with `PendingModelChangesWarning`: the model has changes the committed `InitialSchema` migration does not contain (known: `AspNetUsers.LastTotpStep`). This confirms the stale-migration finding above. The later "Generate initial migration #3" run was green only because that workflow exits early when a Migrations folder exists, so it changed nothing.
+- Fix prepared, NOT yet run: `generate-migration.yml` now adds a forward migration (input `migration_name`, default `AddLastTotpStep`) when migrations already exist, prints its operations, and commits it. Then re-run Migration check.
+- Found by inspection (confirmed by Migration check #2, see above): the committed `20261015214018_InitialSchema` migration and snapshot do not contain `AspNetUsers.LastTotpStep` (tests use `EnsureCreated`, so CI cannot see this). Regenerate the migration before any database is built from migrations.
 
 ## Step A remaining gaps - code written 2026-10-15 (UNVERIFIED: not compiled, not run; no .NET SDK in the authoring environment. CI is the first check.)
 - [x] **Audit-read endpoint**: `GET /api/audit` (`audit.view`), paged, newest first, filters (action, entity type, entity id, actor, from/to UTC; `to` exclusive), actor name resolved. Read-only: no write or delete path. Tenant-filtered. Tests: `AuditReadTests` (isolation, no-tenant, paging/order/actor name, filters). Note: `DetailsJson` is returned as stored, so it is visible to anyone with `audit.view`; review what call sites put in details before widening that permission.
