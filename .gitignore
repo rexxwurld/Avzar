@@ -6,3 +6,6 @@ node_modules/
 *.user
 .vs/
 data/
+
+# Six Labors license (secret)
+sixlabors.lic
