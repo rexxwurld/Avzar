@@ -39,7 +39,7 @@ Swagger is on in Development. In Production set `Billing__SeedPlansOnStartup=tru
 | Database | PostgreSQL connection string (`ConnectionStrings__Default`) | now | required |
 | Email (invitations, reset, receipts) | SMTP relay (587/STARTTLS) or Resend API key | A | Code written, UNVERIFIED and untested with real credentials: **blocked by external configuration**. Default `Email__Provider=log` only writes to the log |
 | Media in production | S3-compatible bucket (access key, secret, bucket, endpoint) | 2 | Set `Storage__Provider=s3` plus `Storage__S3__*` (bucket, access key, secret, region, optional service URL for R2/MinIO). Default is local disk (`Storage__LocalRoot`). Not yet tested against a real bucket |
-| Cache / rate limits / queues | Redis connection string | 5+ | not used yet |
+| Rate limits across replicas (Redis) | Redis connection string (`Redis__ConnectionString`) | A | Optional. When set, the `auth`, `upload`, `public-submit` and `public` limits are counted in Redis so they hold across API replicas; an outage falls back to per-process limits and `/health` reports Degraded. Unit-tested with a fake counter only: **not tested against a real Redis**. Not yet used for caching, queues or SignalR (Step D) |
 | Subscription billing in naira | Paystack or Flutterwave secret key + webhook secret | 9 | not built |
 | Push notifications | Firebase (FCM) service account + Apple APNs key | 5/8 | not built |
 | AI Fashion Studio / Assistants | OpenAI API key (server-side only) | 6-7 | not built |
@@ -112,3 +112,15 @@ Free for for-profit companies under USD 1M annual revenue: apply at https://lice
 - **CI:** add a repository secret named `SIXLABORS_LICENSE_KEY` containing the full file contents. `ci.yml` exports it; the Infrastructure csproj reads it.
 - **Docker/other builds:** pass the same env var (or `-p:SixLaborsLicenseKey=...`) to `dotnet build/publish`. Do not bake the key into an image layer; use a BuildKit secret.
 - Only `Tailoring.Infrastructure` references ImageSharp directly, so only it needs the key.
+
+
+## 9. PDF documents, CSV import/export, search (Step A, last slice)
+**PDFs** (`GET /api/invoices/{id}/pdf`, `/api/invoices/{id}/credit-notes/{creditNoteId}/pdf`, `/api/receipts/{id}/pdf`, `/api/orders/{id}/quotation-pdf`, `/api/customers/{customerId}/measurement-sets/{setId}/pdf`, `/api/tasks/{id}/job-sheet-pdf`, `/api/my/tasks/{id}/job-sheet-pdf`) are drawn on demand from live records with QuestPDF and are never stored.
+- **You must choose a QuestPDF license**: set `Pdf__QuestPdfLicense` to `community`, `professional` or `enterprise`. There is deliberately no default; until it is set every PDF endpoint answers 503 `pdf_license_not_configured`. Community is free only below USD 1M annual revenue; check the current terms at questpdf.com before choosing.
+- On Linux containers QuestPDF needs the font/graphics libraries its docs list (for example `libfontconfig1`); add them to the API image if rendering fails.
+- Branding is the business name and its first active location's address. Logos and brand colours are not drawn yet.
+- Emailing or sharing a PDF by link needs a public, expiring, token-guarded route; it is deferred to the customer portal (Step B) so it is built once. Staff can download and send the file themselves.
+
+**Customer CSV**: `GET /api/customers/export`; `POST /api/customers/import/preview` (file) changes nothing and returns counts, problems and a `fileHash`; `POST /api/customers/import/commit` (file, `expectedHash`, `onDuplicate=skip|update`, `confirmUpdateCount`, `skipInvalidRows`). Imports create only by default. Overwriting existing customers needs `confirmUpdateCount` equal to the number the preview reported. Limits: 5 MB, 2000 rows, UTF-8 only. Exports defuse spreadsheet formulas (a leading apostrophe) and the importer removes it again.
+
+**Search**: `GET /api/search?q=` (2+ characters) returns up to 5 hits each of customers, orders, invoices, designs and inquiries, limited to what the caller's role may view. It uses `ILIKE` without a trigram index; add one (pg_trgm) if tables grow large.
