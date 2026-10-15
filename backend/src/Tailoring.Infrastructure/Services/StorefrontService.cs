@@ -53,7 +53,9 @@ public sealed partial class StorefrontService(AppDbContext db, ITenantContext te
         var rows = await db.Storefronts.AsNoTracking().OrderBy(s => s.CreatedAtUtc).ToListAsync(ct);
         var live = await LiveVersionsAsync(rows.Select(r => r.PublishedVersionId).OfType<Guid>().ToList(), ct);
         return rows.Select(s => new StorefrontSummaryDto(s.Id, s.Name, s.Slug, s.Status.ToString(), s.TemplateKey,
-            s.PublishedVersionId is { } v ? live.GetValueOrDefault(v)?.VersionNumber : null, s.DraftRevision, HasUnpublished(s, live), s.UpdatedAtUtc)).ToList();
+            s.PublishedVersionId is { } v ? live.GetValueOrDefault(v)?.VersionNumber : null, 
+
+            s.DraftRevision, HasUnpublished(s, live), s.UpdatedAtUtc ?? s.CreatedAtUtc)).ToList();
     }
 
     public async Task<StorefrontDto> GetAsync(Guid id, CancellationToken ct = default)
