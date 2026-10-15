@@ -1,5 +1,11 @@
 # Progress checklist
 
+## Verification status (read first)
+- **Verified by CI run #37 (GitHub Actions, commit 139b9f0, green):** `dotnet build -c Release`, `dotnet test -c Release` (full backend suite incl. Testcontainers PostgreSQL), `dotnet ef migrations add` (EF model generates a migration), web `npm run typecheck`, `npm test`, `npm run build`.
+- **Not yet verified:** `docker compose up`, publishing a storefront via Swagger and viewing it in the public renderer, exact test counts (see the `backend-test-results` artifact), migration SQL inspection (check constraints, partial unique indexes, composite FKs), and every external integration (email, storage, DNS, etc.).
+- The per-item "(unverified)" tags below pre-date CI #37. A green suite supports them but does not prove each line; retag an item only when a specific test covers it.
+- Dependency security: ImageSharp 4.1.2 (needs a Six Labors license at build time, see docs/RUNBOOK.md section 8); transitive pins for Pkcs, SSH.NET and AWSSDK.Core in `Directory.Packages.props`.
+
 Legend: [x] written  |  [ ] not started  |  "unverified" = written but never compiled or run
 
 ## Phase 1 - Foundation, auth, tenancy, staff, permissions
@@ -12,7 +18,7 @@ Legend: [x] written  |  [ ] not started  |  "unverified" = written but never com
 - [x] Roles + custom roles + permission editing, locations (unverified)
 - [x] Audit log writes for every mutation (unverified)
 - [x] Integration tests for tenant isolation against real PostgreSQL (written, never run)
-- [ ] **Compile, generate the first EF migration, run the tests** - needs a machine with .NET 10 SDK + Docker
+- [x] Compile, EF migration generation and tests: green in CI run #37 (see Verification status). Still to do: `./scripts/bootstrap-backend.sh` locally and inspect the generated migration SQL
 - [ ] Audit log read endpoint (`audit.view`)
 - [ ] Email verification, password reset / account recovery
 - [ ] Join an invitation with an existing account
@@ -190,11 +196,13 @@ Not started: scheduling engine & publication, notifications & SignalR & Hangfire
 - [ ] Email provider webhooks for delivered/bounced status
 - [ ] Email verification, password reset, optional TOTP 2FA, session/refresh-token management, account export/deletion
 - [ ] JWT + rotating refresh tokens (mobile)
-- [ ] Redis, S3-compatible storage, orphan cleanup, antivirus interface, document uploads
+- [x] S3-compatible storage (`S3ObjectStorage`, `Storage:Provider=s3`), orphan-file cleanup (`OrphanFileCleaner`), antivirus interface (`IVirusScanner`: NoOp + ClamAV), document uploads (`DocumentsController`, `DocumentSniffer`); tests in `StorageMaintenanceTests.cs` and `DocumentTests.cs`. Compiled and the suite passed in CI #37; not exercised against a real bucket or ClamAV (blocked by external configuration)
+- [ ] Redis
 - [ ] PDF generation
 - [ ] CSV import/export, global search
 - [ ] Working hours / holidays
-- [ ] Review notes: see `docs/STATIC_REVIEW.md` (ImageSharp 3.1.7 advisory question is still open)
+- [x] ImageSharp advisory resolved: upgraded to 4.1.2 (needs a Six Labors license at build time, see docs/RUNBOOK.md section 8). Waiting on the license key before backend CI can go green again.
+- [x] Static review (reading, not running) of raw SQL (EntitlementService, FinanceSupport, OrderService, EmailDispatchService) and the large EF projections (InvoiceService, DesignService, CollectionService, PublicSiteService): no defects found; queries are parameterised; patterns are ones EF Core/Npgsql translate. Perf note: InvoiceService.ListAsync repeats correlated subqueries for count and page; fine at current scale.
 
 ## Step A (handoff) - Account security, sessions, business hours  (all UNVERIFIED: nothing here has been compiled or run)
 - [x] Email verification: link emailed at registration (best effort) and on request; `POST /api/auth/confirm-email`, `POST /api/account/resend-verification`; per-address throttle (checks `EmailOutbox`); optional `Auth:RequireVerifiedEmail` (default OFF so nobody is locked out)
@@ -210,5 +218,5 @@ Not started: scheduling engine & publication, notifications & SignalR & Hangfire
 - [x] Test fix: `FakeUserTenant` was defined twice (Phase3Tests and PricingTests) which would not compile; one definition now
 - [x] Tests written (never run): `AccountTests.cs` (session rules, hours rules, verification, reset, throttle, 2FA, refresh rotation/reuse/parallel, sessions, export, deletion, business hours + isolation + concurrency)
 - NEW PACKAGE (version is a guess, bump to latest 10.0.x): `Microsoft.AspNetCore.Authentication.JwtBearer 10.0.0`
-- NOT DONE from Step A: Redis, S3 `IObjectStorage`, orphan-file cleanup, antivirus interface, document/attachment uploads, PDF generation, contact/CSV import-export, global search, join-with-existing-account, ownership transfer, TOTP replay protection (a code can be reused inside its ~90 s window), per-user 2FA attempt rate limit beyond lockout
+- NOT DONE from Step A: Redis, PDF generation, contact/CSV import-export, global search, join-with-existing-account, ownership transfer, TOTP replay protection (a code can be reused inside its ~90 s window), per-user 2FA attempt rate limit beyond lockout
 - Schema changed (UserSessions, BusinessHours, BusinessHolidays): re-run `./scripts/bootstrap-backend.sh` after deleting `Persistence/Migrations`
