@@ -9,6 +9,7 @@ using Tailoring.Domain.Orders;
 using Tailoring.Domain.Tenancy;
 using Tailoring.Infrastructure.Services;
 using Tailoring.Application.Abstractions;
+using Tailoring.Application.Orders;
 using Xunit;
 
 namespace Tailoring.IntegrationTests;
