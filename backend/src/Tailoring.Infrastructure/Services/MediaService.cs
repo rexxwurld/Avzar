@@ -39,7 +39,7 @@ public sealed class MediaService(
         {
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             await entitlements.EnsureWithinLimitAsync(BusinessId, EntitlementKeys.StorageGbMax,
-                async c => await db.MediaAssets.SumAsync(a => (long?)a.SizeBytes, c) ?? 0L,
+                async c => (await db.MediaAssets.SumAsync(a => (long?)a.SizeBytes, c) ?? 0L) + (await db.Documents.SumAsync(d => (long?)d.SizeBytes, c) ?? 0L),
                 asset.SizeBytes, Opt.QuotaBytesPerGb, ct);
 
             foreach (var (variant, data) in processed.Variants)
@@ -85,7 +85,7 @@ public sealed class MediaService(
 
     public async Task<MediaUsageDto> GetUsageAsync(CancellationToken ct = default)
     {
-        var used = await db.MediaAssets.AsNoTracking().SumAsync(a => (long?)a.SizeBytes, ct) ?? 0L;
+        var used = (await db.MediaAssets.AsNoTracking().SumAsync(a => (long?)a.SizeBytes, ct) ?? 0L) + (await db.Documents.AsNoTracking().SumAsync(d => (long?)d.SizeBytes, ct) ?? 0L);
         var limit = (await entitlements.GetAsync(BusinessId, ct)).Limit(EntitlementKeys.StorageGbMax);
         return new MediaUsageDto(used, limit.IsUnlimited ? null : limit.Max * Opt.QuotaBytesPerGb);
     }
@@ -166,12 +166,12 @@ public sealed class MediaService(
     }
 
     /// <summary>Display name only: strip any path, control characters and length. It never touches the file system.</summary>
-    internal static string SafeFileName(string? name)
+    internal static string SafeFileName(string? name, string fallback = "image")
     {
         var n = (name ?? "").Replace('\\', '/');
         n = n[(n.LastIndexOf('/') + 1)..];
         n = new string(n.Where(c => !char.IsControl(c)).ToArray()).Trim();
-        return n.Length == 0 ? "image" : Parse.Truncate(n, 200);
+        return n.Length == 0 ? fallback : Parse.Truncate(n, 200);
     }
 
     private static MediaAssetDto ToDto(MediaAsset a, bool inUse)

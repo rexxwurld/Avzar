@@ -10,6 +10,7 @@ using Tailoring.Application.Customers;
 using Tailoring.Application.Designs;
 using Tailoring.Application.Finance;
 using Tailoring.Application.Measurements;
+using Tailoring.Application.Documents;
 using Tailoring.Application.Media;
 using Tailoring.Application.Orders;
 using Tailoring.Application.Pricing;
@@ -89,9 +90,26 @@ public static class DependencyInjection
         services.AddScoped<ICollectionService, CollectionService>();
 
         services.Configure<StorageOptions>(config.GetSection("Storage"));
-        if (!string.Equals(config["Storage:Provider"] ?? "local", "local", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Only Storage:Provider=local is implemented. An S3-compatible provider is a deployment-hardening task.");
-        services.AddSingleton<IObjectStorage, LocalDiskObjectStorage>();
+        var storageProvider = (config["Storage:Provider"] ?? "local").Trim().ToLowerInvariant();
+        switch (storageProvider)
+        {
+            case "local": services.AddSingleton<IObjectStorage, LocalDiskObjectStorage>(); break;
+            case "s3":
+                (config.GetSection("Storage:S3").Get<S3StorageOptions>() ?? new S3StorageOptions()).Validate(); // fail at startup, not at first upload
+                services.AddSingleton<IObjectStorage, S3ObjectStorage>();
+                break;
+            default: throw new InvalidOperationException("Storage:Provider must be 'local' or 's3'.");
+        }
+        services.AddScoped<IOrphanFileCleaner, OrphanFileCleaner>();
+
+        services.Configure<DocumentOptions>(config.GetSection("Documents"));
+        services.Configure<AntivirusOptions>(config.GetSection("Antivirus"));
+        var av = config.GetSection("Antivirus").Get<AntivirusOptions>() ?? new AntivirusOptions();
+        av.Validate();
+        if (av.Provider.Trim().Equals("clamav", StringComparison.OrdinalIgnoreCase)) services.AddSingleton<IVirusScanner, ClamAvScanner>();
+        else services.AddSingleton<IVirusScanner, NoOpVirusScanner>();
+        services.AddScoped<IDocumentService, DocumentService>();
+        services.AddHostedService<OrphanCleanupWorker>();
         services.AddSingleton<IImageProcessor, ImageSharpProcessor>();
         services.AddScoped<IMediaService, MediaService>();
         services.AddScoped<IOrderService, OrderService>();

@@ -120,15 +120,29 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Behind a reverse proxy the client IP arrives in X-Forwarded-For. Only trust it when the API is reachable ONLY through that proxy,
+// otherwise anyone could spoof an address and dodge the rate limits. Off by default.
+if (app.Configuration.GetValue("Proxy:TrustForwardedHeaders", false))
+{
+    var forwarded = new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto, ForwardLimit = 1 };
+    forwarded.KnownIPNetworks.Clear();
+    forwarded.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwarded);
+}
+
 app.UseExceptionHandler();
-if (!isDev) app.UseHttpsRedirection();
+if (!isDev) app.UseHttpsRedirection(); // must come AFTER forwarded headers, or behind a TLS-terminating proxy (Render, Fly, Caddy) every request redirects forever
 if (isDev)
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    // Development convenience only. Production applies migrations explicitly (see docs/architecture.md).
-    using var scope = app.Services.CreateScope();
-    await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+}
+
+// Development: always. Production: opt in with Database__MigrateOnStartup=true (hosts with no shell, e.g. Render). EF Core takes a database lock, so several instances starting together are safe.
+if (isDev || app.Configuration.GetValue("Database:MigrateOnStartup", false))
+{
+    using var migrateScope = app.Services.CreateScope();
+    await migrateScope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
 }
 
 // Plans are data. Seeding only inserts missing plans/keys and never overwrites admin edits.
@@ -137,16 +151,6 @@ if (app.Configuration.GetValue("Billing:SeedPlansOnStartup", isDev))
 {
     using var seedScope = app.Services.CreateScope();
     await PlanSeeder.SyncAsync(seedScope.ServiceProvider.GetRequiredService<AppDbContext>());
-}
-
-// Behind a reverse proxy the client IP arrives in X-Forwarded-For. Only trust it when the API is reachable ONLY through that proxy,
-// otherwise anyone could spoof an address and dodge the rate limits. Off by default.
-if (app.Configuration.GetValue("Proxy:TrustForwardedHeaders", false))
-{
-    var forwarded = new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto, ForwardLimit = 1 };
-    forwarded.KnownNetworks.Clear();
-    forwarded.KnownProxies.Clear();
-    app.UseForwardedHeaders(forwarded);
 }
 
 app.UseRateLimiter();

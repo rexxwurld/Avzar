@@ -406,7 +406,7 @@ public sealed class FinanceTests(PostgresFixture fx) : IClassFixture<PostgresFix
         Assert.Equal(1, results.Count(r => r));
         var final = await Invoices(s.BusinessId).GetAsync(invoice.Id);
         Assert.Equal((1000m, 0m), (final.AmountPaid, final.Balance));
-        Assert.Single(final.Payments.Where(p => p.Status == "Verified"));
+        Assert.Single(final.Payments, p => p.Status == "Verified");
     }
 
     [Fact]
