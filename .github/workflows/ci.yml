@@ -42,14 +42,25 @@ jobs:
           --logger "trx;LogFileName=results.trx"
           --results-directory ../test-results
 
-      - name: Check EF model produces a migration
+      # Fails when the EF model has changes that no committed migration contains (this is what
+      # Migration check #2 found). On failure it also writes the missing migration to an artifact
+      # so the difference can be read without running anything locally.
+      - name: Check committed migrations match the EF model
         run: |
           dotnet tool install -g dotnet-ef
           export PATH="$PATH:$HOME/.dotnet/tools"
-          dotnet ef migrations add CiCheck \
-            --project src/Tailoring.Infrastructure \
-            --startup-project src/Tailoring.Api \
-            --output-dir /tmp/ci-migration
+          if dotnet ef migrations has-pending-model-changes \
+              --project src/Tailoring.Infrastructure \
+              --startup-project src/Tailoring.Api; then
+            echo "Committed migrations match the model."
+          else
+            echo "::error title=Stale migrations::The model has changes no committed migration contains. Run the 'Generate initial migration' workflow (forward migration), or add one locally. The missing migration is in the 'pending-migration' artifact."
+            dotnet ef migrations add CiPending \
+              --project src/Tailoring.Infrastructure \
+              --startup-project src/Tailoring.Api \
+              --output-dir /tmp/ci-migration || true
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -57,11 +68,12 @@ jobs:
           name: backend-test-results
           path: test-results
 
-      # Lets a reviewer read the generated schema (check constraints, partial unique indexes, composite FKs).
       - uses: actions/upload-artifact@v4
+        if: failure()
         with:
-          name: generated-migration
+          name: pending-migration
           path: /tmp/ci-migration
+          if-no-files-found: ignore
 
   web:
     runs-on: ubuntu-24.04
