@@ -195,3 +195,20 @@ Not started: scheduling engine & publication, notifications & SignalR & Hangfire
 - [ ] CSV import/export, global search
 - [ ] Working hours / holidays
 - [ ] Review notes: see `docs/STATIC_REVIEW.md` (ImageSharp 3.1.7 advisory question is still open)
+
+## Step A (handoff) - Account security, sessions, business hours  (all UNVERIFIED: nothing here has been compiled or run)
+- [x] Email verification: link emailed at registration (best effort) and on request; `POST /api/auth/confirm-email`, `POST /api/account/resend-verification`; per-address throttle (checks `EmailOutbox`); optional `Auth:RequireVerifiedEmail` (default OFF so nobody is locked out)
+- [x] Password reset: `POST /api/auth/forgot-password` (always 202, no account enumeration), `POST /api/auth/reset-password`; own token provider so reset links last `Auth:PasswordResetMinutes` (30) while confirmation links last hours; a reset ends all device sessions and clears lockout
+- [x] Change password (`POST /api/account/change-password`): ends device sessions, keeps the current browser signed in
+- [x] TOTP two-factor with Identity's authenticator provider + 10 single-use recovery codes: setup/enable/disable; login accepts `twoFactorCode` or `recoveryCode`. Lockout is now handled by hand in `AuthService` (the old `CheckPasswordSignInAsync` reset the failure counter on a correct password, which would have allowed unlimited 2FA guessing)
+- [x] Mobile bearer auth: `POST /api/auth/token` (sign in), `/refresh`, `/revoke`. 10-minute JWT access tokens + rotating refresh tokens (`UserSessions` table, hashes only). Reuse of an old refresh token revokes the session; parallel refresh is serialised by xmin. Every bearer request checks the session is still active, so revoking a device is immediate. Enabled only when `Auth:JwtSigningKey` (32+ chars) is set
+- [x] Session management: `GET/DELETE /api/account/sessions`, `POST /api/account/sessions/revoke-all` (device sessions only; web cookie sessions are not listed)
+- [x] `GET /api/account/export` (profile, memberships, device sessions) and `POST /api/account/delete` (password + 2FA; blocked for business owners; staff are anonymised, memberships deactivated, financial/audit rows kept)
+- [x] Business hours (7 days, DB check constraints) and closed dates: `GET/PUT/POST/DELETE /api/business/schedule...`, permission `business.settings`
+- [x] `CsrfFilter` replaces `AutoValidateAntiforgeryToken`: same rule, plus requests carrying `Authorization: Bearer` are exempt (a bad bearer token never falls back to the cookie)
+- [x] Web cookies now re-validate the security stamp every minute (was 30) so resets and deactivation bite quickly
+- [x] Test fix: `FakeUserTenant` was defined twice (Phase3Tests and PricingTests) which would not compile; one definition now
+- [x] Tests written (never run): `AccountTests.cs` (session rules, hours rules, verification, reset, throttle, 2FA, refresh rotation/reuse/parallel, sessions, export, deletion, business hours + isolation + concurrency)
+- NEW PACKAGE (version is a guess, bump to latest 10.0.x): `Microsoft.AspNetCore.Authentication.JwtBearer 10.0.0`
+- NOT DONE from Step A: Redis, S3 `IObjectStorage`, orphan-file cleanup, antivirus interface, document/attachment uploads, PDF generation, contact/CSV import-export, global search, join-with-existing-account, ownership transfer, TOTP replay protection (a code can be reused inside its ~90 s window), per-user 2FA attempt rate limit beyond lockout
+- Schema changed (UserSessions, BusinessHours, BusinessHolidays): re-run `./scripts/bootstrap-backend.sh` after deleting `Persistence/Migrations`
