@@ -1,0 +1,45 @@
+# Local development only. Copy .env.example to .env first.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: tailoring
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d tailoring"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=tailoring;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      App__WebBaseUrl: ${WEB_BASE_URL}
+      Billing__SeedPlansOnStartup: "true"   # inserts missing plans only; requires migrations to have been applied
+      Storage__LocalRoot: /data/media
+      Storefront__BaseDomain: ${BASE_DOMAIN:-localhost}
+      Proxy__TrustForwardedHeaders: "true"   # ONLY safe because the api is reached through the web container; do not publish port 8080 publicly
+    volumes: [mediadata:/data/media]
+    ports: ["8080:8080"]
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8080}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+    depends_on: [api]
+    environment:
+      API_URL: http://api:8080
+      BASE_DOMAIN: ${BASE_DOMAIN:-localhost}
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:
+  mediadata:
