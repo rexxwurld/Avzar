@@ -120,7 +120,7 @@ public sealed class AuthService(
         {
             if (string.IsNullOrWhiteSpace(req.TwoFactorCode) && string.IsNullOrWhiteSpace(req.RecoveryCode))
                 throw AppException.Unauthorized("two_factor_required", "Enter the code from your authenticator app.");
-            if (!await SecondFactor.VerifyAsync(users, user, req.TwoFactorCode, req.RecoveryCode))
+            if (!await SecondFactor.VerifyAsync(db, users, user, req.TwoFactorCode, req.RecoveryCode))
             {
                 await users.AccessFailedAsync(user);
                 if (await users.IsLockedOutAsync(user))
@@ -151,20 +151,20 @@ public sealed class AuthService(
             : new AuthResult(null, choices);
     }
 
-    public async Task<SessionIdentity> AcceptInvitationAsync(AcceptInvitationRequest req, CancellationToken ct = default)
+    private async Task<StaffInvitation> LoadValidInvitationAsync(string rawToken, CancellationToken ct)
     {
-        var hash = TokenHasher.Hash(req.Token.Trim());
+        var hash = TokenHasher.Hash(rawToken.Trim());
         var invite = await db.Invitations.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.TokenHash == hash, ct);
 
         if (invite is null || invite.AcceptedAtUtc is not null || invite.RevokedAtUtc is not null
             || invite.ExpiresAtUtc < DateTime.UtcNow)
             throw AppException.BadRequest("invalid_invitation", "This invitation is invalid or has expired.");
+        return invite;
+    }
 
-        // Joining with an EXISTING account must be done from an authenticated session. Not built yet (see PROGRESS.md).
-        if (await users.FindByEmailAsync(invite.Email) is not null)
-            throw AppException.Conflict("account_exists", "An account with this email already exists. Joining with an existing account is not implemented yet.");
-
-        // Re-validate the roles/locations that were chosen at invite time.
+    /// <summary>Re-validates the roles/locations that were chosen at invite time (they may have been deleted or deactivated since).</summary>
+    private async Task<(List<Guid> RoleIds, List<Guid> LocationIds)> ResolveInvitedAccessAsync(StaffInvitation invite, CancellationToken ct)
+    {
         var roleIds = await db.BusinessRoles.IgnoreQueryFilters()
             .Where(r => r.BusinessId == invite.BusinessId && invite.RoleIds.Contains(r.Id) && r.Name != DefaultRoles.Owner)
             .Select(r => r.Id).ToListAsync(ct);
@@ -173,33 +173,88 @@ public sealed class AuthService(
             .Select(l => l.Id).ToListAsync(ct);
         if (roleIds.Count == 0)
             throw AppException.BadRequest("invalid_invitation", "The roles for this invitation no longer exist.");
+        return (roleIds, locationIds);
+    }
 
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+    private async Task EnsureSeatAvailableAsync(StaffInvitation invite, CancellationToken ct)
         // The plan may have been downgraded since the invite went out. This invitation already holds a seat,
         // so compare ACTIVE staff only.
-        await entitlements.EnsureBelowLimitAsync(invite.BusinessId, EntitlementKeys.UsersMax,
+        => await entitlements.EnsureBelowLimitAsync(invite.BusinessId, EntitlementKeys.UsersMax,
             c => db.Memberships.IgnoreQueryFilters().LongCountAsync(m => m.BusinessId == invite.BusinessId && m.Status == MembershipStatus.Active, c), ct);
+
+    private BusinessMembership NewMembership(StaffInvitation invite, Guid userId, List<Guid> roleIds, List<Guid> locationIds)
+    {
+        var membership = new BusinessMembership { BusinessId = invite.BusinessId, UserId = userId, DisplayName = invite.FullName };
+        foreach (var rid in roleIds)
+            membership.Roles.Add(new MembershipRole { BusinessId = invite.BusinessId, MembershipId = membership.Id, RoleId = rid });
+        foreach (var lid in locationIds)
+            membership.Locations.Add(new MembershipLocation { BusinessId = invite.BusinessId, MembershipId = membership.Id, LocationId = lid });
+        db.Memberships.Add(membership);
+        return membership;
+    }
+
+    public async Task<SessionIdentity> AcceptInvitationAsync(AcceptInvitationRequest req, CancellationToken ct = default)
+    {
+        var invite = await LoadValidInvitationAsync(req.Token, ct);
+
+        // An existing account must prove itself by signing in first, then use AcceptInvitationAsExistingUserAsync.
+        if (await users.FindByEmailAsync(invite.Email) is not null)
+            throw AppException.Conflict("account_exists", "An account with this email already exists. Sign in, then accept the invitation from your account.");
+
+        var (roleIds, locationIds) = await ResolveInvitedAccessAsync(invite, ct);
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await EnsureSeatAvailableAsync(invite, ct);
 
         var user = new AppUser { UserName = invite.Email, Email = invite.Email, EmailConfirmed = true, FullName = invite.FullName };
         var created = await users.CreateAsync(user, req.Password);
         if (!created.Succeeded)
             throw AppException.BadRequest("weak_password", string.Join(" ", created.Errors.Select(e => e.Description)));
 
-        var membership = new BusinessMembership
-        {
-            BusinessId = invite.BusinessId, UserId = user.Id, DisplayName = invite.FullName
-        };
-        foreach (var rid in roleIds)
-            membership.Roles.Add(new MembershipRole { BusinessId = invite.BusinessId, MembershipId = membership.Id, RoleId = rid });
-        foreach (var lid in locationIds)
-            membership.Locations.Add(new MembershipLocation { BusinessId = invite.BusinessId, MembershipId = membership.Id, LocationId = lid });
-        db.Memberships.Add(membership);
+        var membership = NewMembership(invite, user.Id, roleIds, locationIds);
 
         invite.AcceptedAtUtc = DateTime.UtcNow;
         audit.Record(invite.BusinessId, user.Id, "staff.invitation_accepted", nameof(BusinessMembership), membership.Id);
 
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
+        return new SessionIdentity(user.Id, invite.BusinessId);
+    }
+
+    public async Task<SessionIdentity> AcceptInvitationAsExistingUserAsync(Guid userId, AcceptExistingInvitationRequest req, CancellationToken ct = default)
+    {
+        // Deleted (anonymised) accounts are locked out forever and must never gain a membership.
+        var user = await users.FindByIdAsync(userId.ToString()) is { } found && found.LockoutEnd != DateTimeOffset.MaxValue
+            ? found : throw AppException.Unauthorized("unknown_user", "Unknown user.");
+
+        var invite = await LoadValidInvitationAsync(req.Token, ct);
+
+        // The invitation was sent to one address. Only the signed-in owner of that address may use it, so a leaked link
+        // cannot attach someone else's account to this business.
+        if (!string.Equals(user.Email, invite.Email, StringComparison.OrdinalIgnoreCase))
+            throw AppException.Forbidden("invitation_email_mismatch", "This invitation was sent to a different email address than your account's.");
+
+        var (roleIds, locationIds) = await ResolveInvitedAccessAsync(invite, ct);
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        if (await db.Memberships.IgnoreQueryFilters().AnyAsync(m => m.BusinessId == invite.BusinessId && m.UserId == user.Id, ct))
+            throw AppException.Conflict("already_member", "You already belong to this business.");
+        await EnsureSeatAvailableAsync(invite, ct);
+
+        var membership = NewMembership(invite, user.Id, roleIds, locationIds);
+        invite.AcceptedAtUtc = DateTime.UtcNow;
+        audit.Record(invite.BusinessId, user.Id, "staff.invitation_accepted_existing_account", nameof(BusinessMembership), membership.Id);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation })
+        {
+            // Two accepts raced: the unique (business, user) index let exactly one through.
+            throw AppException.Conflict("already_member", "You already belong to this business.");
+        }
         return new SessionIdentity(user.Id, invite.BusinessId);
     }
 

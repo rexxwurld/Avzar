@@ -36,12 +36,11 @@ internal static class LinkToken
 internal static class SecondFactor
 {
     /// <summary>True when the authenticator code or an unused recovery code is valid. A recovery code is consumed by a successful check.</summary>
-    public static async Task<bool> VerifyAsync(UserManager<AppUser> users, AppUser user, string? code, string? recoveryCode)
+    public static async Task<bool> VerifyAsync(AppDbContext db, UserManager<AppUser> users, AppUser user, string? code, string? recoveryCode)
     {
         if (!string.IsNullOrWhiteSpace(code))
         {
-            var clean = code.Replace(" ", "").Replace("-", "");
-            return await users.VerifyTwoFactorTokenAsync(user, users.Options.Tokens.AuthenticatorTokenProvider, clean);
+            return await TotpVerifier.VerifyAsync(db, users, user, code);
         }
         if (!string.IsNullOrWhiteSpace(recoveryCode))
             return (await users.RedeemTwoFactorRecoveryCodeAsync(user, recoveryCode.Trim())).Succeeded;

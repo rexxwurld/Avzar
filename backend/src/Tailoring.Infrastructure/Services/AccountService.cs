@@ -131,8 +131,8 @@ public sealed class AccountService(
         if (string.IsNullOrEmpty(await users.GetAuthenticatorKeyAsync(user)))
             throw AppException.BadRequest("two_factor_not_started", "Start two-factor setup first.");
 
-        var clean = request.Code.Replace(" ", "").Replace("-", "");
-        if (!await users.VerifyTwoFactorTokenAsync(user, users.Options.Tokens.AuthenticatorTokenProvider, clean))
+        // The code that proves setup is consumed like any other, so it cannot be replayed to sign in a moment later.
+        if (!await TotpVerifier.VerifyAsync(db, users, user, request.Code, ct: ct))
             throw AppException.BadRequest("invalid_code", "That code is not correct. Check the time on your phone and try again.");
 
         await users.SetTwoFactorEnabledAsync(user, true);
@@ -150,6 +150,7 @@ public sealed class AccountService(
 
         await users.SetTwoFactorEnabledAsync(user, false);
         await users.ResetAuthenticatorKeyAsync(user);              // the old authenticator secret must stop working
+        await TotpVerifier.ClearAsync(db, user.Id, ct);
         await users.GenerateNewTwoFactorRecoveryCodesAsync(user, 0); // and so must any leftover recovery codes
         await RecordAsync("account.two_factor_disabled", user.Id, ct);
     }
@@ -228,7 +229,7 @@ public sealed class AccountService(
             await users.AccessFailedAsync(user);
             throw AppException.BadRequest("wrong_password", "The password is incorrect.");
         }
-        if (user.TwoFactorEnabled && !await SecondFactor.VerifyAsync(users, user, code, recoveryCode))
+        if (user.TwoFactorEnabled && !await SecondFactor.VerifyAsync(db, users, user, code, recoveryCode))
         {
             await users.AccessFailedAsync(user);
             throw AppException.BadRequest("invalid_code", "The authentication code is not correct.");
