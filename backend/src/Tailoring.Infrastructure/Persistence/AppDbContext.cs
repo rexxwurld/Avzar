@@ -174,6 +174,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
         ConfigureFinance(b);
         ConfigureStorefront(b);
         ConfigureEmail(b);
+        ConfigureAccount(b);
     }
 
     private void ApplyTenantFilter<T>(ModelBuilder b) where T : class, ITenantScoped
