@@ -40,7 +40,7 @@ Legend: [x] written  |  [ ] not started  |  "unverified" = written but never com
 - [ ] Payments / deposits / outstanding balance (Phase 6)
 - [ ] Attachments: garment photos, design references (needs object storage)
 - [ ] Customer notifications (Phase 5)
-- [~] Location-scoped staff access: orders, fittings and order search written 2026-10-15 (unverified, see Step A section). Customers, invoices, payments and tasks are NOT scoped yet
+- [~] Location-scoped staff access: orders, fittings and order search written 2026-10-15 (unverified, see Step A section). Invoices, payments and receipts are scoped since 2026-10-15 (see Step A finance section); tasks are NOT scoped yet
 - [ ] Production-task generation on confirm (Phase 3)
 - [ ] API-level authorization tests (WebApplicationFactory) for the new endpoints
 - [ ] Next.js screens: customers, measurement forms, order builder
@@ -269,3 +269,12 @@ Environment: no .NET SDK, Docker, `.git` or npm network access, so **no build, t
 - `ci.yml`: the old "Check EF model produces a migration" step passed even when migrations were stale (it only proved `migrations add` runs). Replaced by `dotnet ef migrations has-pending-model-changes`, which fails the backend job when the model and committed migrations differ and uploads the missing migration as the `pending-migration` artifact. The `generated-migration` artifact is gone. Not yet run: the first CI run after this change is its test.
 - Not changed: Actions major versions (Node 20 deprecation warnings). Needs a check of current releases first.
 - Next (Step A remaining): scope invoices, payments, receipts, credit notes and tasks by location (via the order's location); email provider webhooks; PDF branding; `WebApplicationFactory` authorization tests.
+
+
+## Step A: location scoping extended to finance (code written 2026-10-15; UNVERIFIED: not compiled or run, no .NET SDK in the authoring environment; CI is the first check)
+- [x] Invoices follow the location of the order they were billed from; payments, receipts and credit notes follow their invoice. A caller restricted to some locations (not the owner, no `locations.all`) sees only those. A hidden record returns the same 404 as a missing one (`invoice_not_found`, `payment_not_found`, `receipt_not_found`, `order_not_found`), including on idempotent replays and races.
+- [x] Applied in `InvoiceService` (list, get, update/delete draft, issue, void, credit note, create-from-order, replay), `PaymentService` (record, verify, reject, reverse, list, get, receipts) and the global search invoice hits. PDFs go through these services, so they are covered. Shared helper: `FinanceScope` in `FinanceSupport.cs`.
+- Rule for invoices with no order (standalone): visible only to unrestricted callers, and scoped staff get 403 `location_forbidden` if they try to create one (fail closed). Decide with the owner whether standalone invoices should get their own location later.
+- Same optional-constructor pattern as orders (`ILocationScope? locations = null`): if the scope service were ever unregistered, scoping would silently switch off. The planned `WebApplicationFactory` tests should assert the registration.
+- Tests: `FinanceLocationScopeTests.cs` (written, never run): own-location visibility, 404 for hidden, standalone rule, void/bill hidden, replay, payments, receipts, search, owner and `locations.all`, member with no locations.
+- Still NOT scoped: production tasks (`TaskService`, `MyTaskService`), expenses (no location column), reports. Tasks are next.
