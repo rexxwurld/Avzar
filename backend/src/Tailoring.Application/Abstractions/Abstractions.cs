@@ -40,3 +40,27 @@ public sealed class AppOptions
     public string WebBaseUrl { get; set; } = "http://localhost:3000";
     public int InvitationDays { get; set; } = 7;
 }
+
+/// <summary>Account security settings (configuration section "Auth").</summary>
+public sealed class AuthOptions
+{
+    /// <summary>Shown in authenticator apps.</summary>
+    public string ProductName { get; set; } = "Avzar";
+    /// <summary>When true, password sign-in is refused until the email address is confirmed. Off by default so existing accounts are not locked out.</summary>
+    public bool RequireVerifiedEmail { get; set; }
+    public int EmailVerificationHours { get; set; } = 24;
+    public int PasswordResetMinutes { get; set; } = 30;
+    /// <summary>Minimum gap between two verification or reset emails to the same address.</summary>
+    public int EmailThrottleSeconds { get; set; } = 120;
+
+    // Bearer tokens for the mobile app. Disabled unless JwtSigningKey (at least 32 characters) is configured.
+    public string? JwtSigningKey { get; set; }
+    public string JwtIssuer { get; set; } = "avzar-api";
+    public string JwtAudience { get; set; } = "avzar-mobile";
+    public int AccessTokenMinutes { get; set; } = 10;
+    public int RefreshIdleDays { get; set; } = 30;
+    public int RefreshAbsoluteDays { get; set; } = 90;
+    public int MaxSessionsPerUser { get; set; } = 10;
+
+    public bool MobileTokensEnabled => !string.IsNullOrWhiteSpace(JwtSigningKey) && JwtSigningKey.Length >= 32;
+}
