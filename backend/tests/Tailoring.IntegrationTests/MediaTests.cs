@@ -48,6 +48,15 @@ internal sealed class InMemoryObjectStorage : IObjectStorage
     public Task<Stream?> OpenReadAsync(string key, CancellationToken ct = default)
         => Task.FromResult<Stream?>(Objects.TryGetValue(key, out var b) ? new MemoryStream(b) : null);
     public Task DeleteAsync(string key, CancellationToken ct = default) { Objects.TryRemove(key, out _); return Task.CompletedTask; }
+    /// <summary>Tests can back-date an object to simulate age.</summary>
+    public ConcurrentDictionary<string, DateTime> Modified { get; } = new();
+    public async IAsyncEnumerable<StoredObject> ListAsync(string prefix, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await Task.Yield();
+        foreach (var (k, v) in Objects.ToArray())
+            if (k.StartsWith(prefix, StringComparison.Ordinal))
+                yield return new StoredObject(k, v.Length, Modified.TryGetValue(k, out var m) ? m : DateTime.UtcNow);
+    }
 }
 
 internal sealed class FailsOnSecondPut(IObjectStorage inner) : IObjectStorage
@@ -57,6 +66,7 @@ internal sealed class FailsOnSecondPut(IObjectStorage inner) : IObjectStorage
         => ++_puts == 2 ? throw new IOException("disk full") : inner.PutAsync(key, data, contentType, ct);
     public Task<Stream?> OpenReadAsync(string key, CancellationToken ct = default) => inner.OpenReadAsync(key, ct);
     public Task DeleteAsync(string key, CancellationToken ct = default) => inner.DeleteAsync(key, ct);
+    public IAsyncEnumerable<StoredObject> ListAsync(string prefix, CancellationToken ct = default) => inner.ListAsync(prefix, ct);
 }
 
 /// <summary>No database needed.</summary>

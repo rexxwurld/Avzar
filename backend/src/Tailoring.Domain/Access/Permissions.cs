@@ -53,6 +53,8 @@ public static class Permissions
     public const string PricingManage = "pricing.manage";
     public const string MediaView = "media.view";
     public const string MediaManage = "media.manage";
+    public const string DocumentsView = "documents.view";
+    public const string DocumentsManage = "documents.manage"; // upload, delete
 
     public static readonly IReadOnlyList<string> All =
     [
@@ -60,7 +62,7 @@ public static class Permissions
         CustomersView, CustomersManage, CustomersMerge, MeasurementTemplates, MeasurementsRecord,
         OrdersView, OrdersManage, OrdersConfirm, FittingsManage,
         TasksView, TasksManage, TasksAssign, TasksOverride, TasksWork, WorkflowsManage, WorkersManage,
-        DesignsView, DesignsManage, MediaView, MediaManage, PricingView, PricingManage,
+        DesignsView, DesignsManage, MediaView, MediaManage, DocumentsView, DocumentsManage, PricingView, PricingManage,
         StorefrontView, StorefrontEdit, StorefrontPublish, InquiriesView, InquiriesManage,
         InvoicesView, InvoicesManage, PaymentsView, PaymentsRecord, PaymentsVerify, ExpensesView, ExpensesManage
     ];

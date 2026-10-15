@@ -18,7 +18,6 @@ namespace Tailoring.Infrastructure.Services;
 public sealed class AuthService(
     AppDbContext db,
     UserManager<AppUser> users,
-    SignInManager<AppUser> signIn,
     IPermissionService permissions,
     IAuditLogger audit,
     IEntitlementService entitlements,

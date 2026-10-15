@@ -169,6 +169,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
         ConfigureBilling(b);
         ConfigureDesigns(b);
         ConfigureMedia(b);
+        ConfigureDocuments(b);
         ConfigureCollections(b);
         ConfigurePricing(b);
         ConfigureFinance(b);

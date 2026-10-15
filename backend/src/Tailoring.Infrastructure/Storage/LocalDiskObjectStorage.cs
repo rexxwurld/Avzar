@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 using Tailoring.Application.Media;
 
@@ -8,7 +7,7 @@ namespace Tailoring.Infrastructure.Storage;
 /// Development / single-server storage. Keys are validated and the resolved path must stay inside the root,
 /// so even a bug elsewhere cannot turn a key into a path traversal. Writes are atomic (temp file + move).
 /// </summary>
-public sealed partial class LocalDiskObjectStorage : IObjectStorage
+public sealed class LocalDiskObjectStorage : IObjectStorage
 {
     private readonly string _root;
 
@@ -18,14 +17,9 @@ public sealed partial class LocalDiskObjectStorage : IObjectStorage
         Directory.CreateDirectory(_root);
     }
 
-    [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9_.\-/]*$")]
-    private static partial Regex SafeKey();
-
     private string Resolve(string key)
     {
-        if (string.IsNullOrEmpty(key) || key.Length > 200 || !SafeKey().IsMatch(key)
-            || key.Split('/').Any(seg => seg is "" or "." or ".."))
-            throw new ArgumentException("Invalid storage key.", nameof(key));
+        StorageKeys.EnsureValid(key);
 
         var full = Path.GetFullPath(Path.Combine(_root, key));
         if (!full.StartsWith(_root + Path.DirectorySeparatorChar, StringComparison.Ordinal))
@@ -60,5 +54,20 @@ public sealed partial class LocalDiskObjectStorage : IObjectStorage
         var path = Resolve(key);
         if (File.Exists(path)) File.Delete(path);
         return Task.CompletedTask;
+    }
+
+    public async IAsyncEnumerable<StoredObject> ListAsync(string prefix, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        StorageKeys.EnsureValidPrefix(prefix);
+        await Task.Yield();
+        foreach (var file in Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories))
+        {
+            ct.ThrowIfCancellationRequested();
+            var key = Path.GetRelativePath(_root, file).Replace(Path.DirectorySeparatorChar, '/');
+            if (!key.StartsWith(prefix, StringComparison.Ordinal)) continue;
+            FileInfo info;
+            try { info = new FileInfo(file); if (!info.Exists) continue; } catch (IOException) { continue; }
+            yield return new StoredObject(key, info.Length, info.LastWriteTimeUtc);
+        }
     }
 }

@@ -169,6 +169,7 @@ public sealed class CustomerService(AppDbContext db, ITenantContext tenant, IAud
         await db.Orders.Where(o => o.CustomerId == sourceId).ExecuteUpdateAsync(s => s.SetProperty(o => o.CustomerId, targetId), ct);
         await db.CustomerCommunications.Where(c => c.CustomerId == sourceId).ExecuteUpdateAsync(s => s.SetProperty(c => c.CustomerId, targetId), ct);
         await db.Fittings.Where(f => f.CustomerId == sourceId).ExecuteUpdateAsync(s => s.SetProperty(f => f.CustomerId, targetId), ct);
+        await db.Documents.Where(d => d.CustomerId == sourceId).ExecuteUpdateAsync(s => s.SetProperty(d => d.CustomerId, targetId), ct);
 
         await tx.CommitAsync(ct);
         return ToDto(target);
