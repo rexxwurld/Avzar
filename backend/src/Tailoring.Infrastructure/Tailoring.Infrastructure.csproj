@@ -1,4 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- ImageSharp 4.x checks for a Six Labors license at build time (Release builds fail without one).
+         Pass the FULL contents of sixlabors.lic via the SIXLABORS_LICENSE_KEY env var (CI secret),
+         or drop sixlabors.lic next to this csproj (git-ignored). -->
+    <SixLaborsLicenseKey Condition="'$(SixLaborsLicenseKey)' == ''">$(SIXLABORS_LICENSE_KEY)</SixLaborsLicenseKey>
+  </PropertyGroup>
+
   <ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Tailoring.Application\Tailoring.Application.csproj" />
