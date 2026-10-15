@@ -220,3 +220,11 @@ Not started: scheduling engine & publication, notifications & SignalR & Hangfire
 - NEW PACKAGE (version is a guess, bump to latest 10.0.x): `Microsoft.AspNetCore.Authentication.JwtBearer 10.0.0`
 - NOT DONE from Step A: Redis, PDF generation, contact/CSV import-export, global search, join-with-existing-account, ownership transfer, TOTP replay protection (a code can be reused inside its ~90 s window), per-user 2FA attempt rate limit beyond lockout
 - Schema changed (UserSessions, BusinessHours, BusinessHolidays): re-run `./scripts/bootstrap-backend.sh` after deleting `Persistence/Migrations`
+
+
+## Step A (final slice) - Redis rate limits, PDFs, customer CSV, search  (all UNVERIFIED: nothing here has been compiled or run)
+- [x] Redis (optional, `Redis__ConnectionString`): the `auth`/`upload`/`public-submit`/`public` rate limits are counted in Redis so they hold across API replicas; Redis failure falls back to per-process limits; `/health` reports Degraded. Tested with a fake counter only (`RedisLimiterTests.cs`). NOT done: caching, queues, SignalR backplane (Step D). NEW PACKAGE (version a guess): `StackExchange.Redis 2.8.16`
+- [x] PDFs: invoice, receipt, credit note, quotation (order), measurement sheet, job sheet (manager and worker variants). Pure document builders (`PdfDocuments`, tested in `PdfTests.cs`), QuestPDF renderer, endpoints guarded by the permission of the record. NEW PACKAGE (version a guess): `QuestPDF 2025.7.0`. Requires an explicit `Pdf__QuestPdfLicense` decision (see RUNBOOK section 9). NOT done: logos/brand colours, email/share by link (deferred to the customer portal in Step B)
+- [x] Customer CSV import/export: preview then commit with file hash, create-only default, typed confirmation before overwriting, plan limits respected, formula-injection-safe export (`ImportExportTests.cs`). Only customers; other record types are not importable
+- [x] Global search across customers, orders, invoices, designs, inquiries, filtered by the caller's permissions (`SearchTests`)
+- Step A is now code-complete EXCEPT: email provider webhooks (delivered/bounced), join-with-existing-account, ownership transfer, TOTP replay protection, per-user 2FA attempt rate limit beyond lockout, PDF logos, PDF share links, Redis caching/queues. None of Step A has been exercised against real credentials (email, S3, ClamAV, Redis).
