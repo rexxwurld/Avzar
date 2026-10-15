@@ -46,6 +46,13 @@ public sealed class FinanceLocationScopeTests(PostgresFixture fx) : IClassFixtur
         return new PaymentService(db, t, new AuditLogger(db), new EntitlementService(db), new AllowAllPermissions(), ScopeFor(db, t, userId));
     }
 
+    /// <summary>Setup only: a signed-in id is needed for VerifyNow to take effect, and there is deliberately no location scope.</summary>
+    private PaymentService SetupPayments(Guid bid)
+    {
+        var db = fx.Create(bid);
+        return new PaymentService(db, new FakeUserTenant(bid, Guid.NewGuid()), new AuditLogger(db), new EntitlementService(db), new AllowAllPermissions());
+    }
+
     private SearchService Search(Guid bid, Guid userId)
     {
         var db = fx.Create(bid);
@@ -97,8 +104,8 @@ public sealed class FinanceLocationScopeTests(PostgresFixture fx) : IClassFixtur
             CustomerId = cid, Lines = [new InvoiceLineInput { Description = "Walk-in alteration", Quantity = 1, UnitPrice = 20m }]
         }, null);
 
-        var (payA, _) = await Payments(bid, null).RecordAsync(invoiceA.Id, new RecordPaymentRequest { Amount = 100m, Method = "Cash" }, null);
-        var (payB, _) = await Payments(bid, null).RecordAsync(invoiceB.Id, new RecordPaymentRequest { Amount = 100m, Method = "Cash", VerifyNow = true }, null);
+        var (payA, _) = await SetupPayments(bid).RecordAsync(invoiceA.Id, new RecordPaymentRequest { Amount = 100m, Method = "Cash" }, null);
+        var (payB, _) = await SetupPayments(bid).RecordAsync(invoiceB.Id, new RecordPaymentRequest { Amount = 100m, Method = "Cash", VerifyNow = true }, null);
         return new World(bid, la, lb, cid, orderA.Id, orderB.Id, invoiceA.Id, invoiceB.Id, standalone.Id, payA.Id, payB.Id, payB.ReceiptId!.Value);
     }
 
