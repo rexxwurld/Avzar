@@ -228,3 +228,19 @@ Not started: scheduling engine & publication, notifications & SignalR & Hangfire
 - [x] Customer CSV import/export: preview then commit with file hash, create-only default, typed confirmation before overwriting, plan limits respected, formula-injection-safe export (`ImportExportTests.cs`). Only customers; other record types are not importable
 - [x] Global search across customers, orders, invoices, designs, inquiries, filtered by the caller's permissions (`SearchTests`)
 - Step A is now code-complete EXCEPT: email provider webhooks (delivered/bounced), join-with-existing-account, ownership transfer, TOTP replay protection, per-user 2FA attempt rate limit beyond lockout, PDF logos, PDF share links, Redis caching/queues. None of Step A has been exercised against real credentials (email, S3, ClamAV, Redis).
+
+
+## Session 2026-10-15 (handoff V2 baseline review; read-only, no code changed)
+Environment: no .NET SDK, Docker, `.git` or npm network access, so **no build, test or install was run**. Done by reading only:
+- Rewrote `README.md` as a product README; claims cross-checked against `PROGRESS.md`, `docker-compose.yml`, `Directory.Packages.props`, `Program.cs` and the CI workflow.
+- CI run #64 (commit `889afec`) is reported successful from the supplied run page (backend 1m52s, web 47s). Its job logs were not available, so the license gate passing is inferred from the workflow (the step exits 1 on an empty secret), not observed.
+- Found: there is no root `ci.yml` (only `.github/workflows/ci.yml` and `generate-migration.yml`), so the suspected duplicate does not exist in this snapshot.
+- Found: integration tests use `EnsureCreated` (`TenantIsolationTests.cs`), so CI has never applied a migration to PostgreSQL; CI only checks that `dotnet ef migrations add` succeeds. No `Migrations` folder is committed.
+- Found: `web/` contains only the public renderer and preview; there is no dashboard or editor.
+- Next: (1) in a network-enabled environment, clone `main`, confirm 889afec; (2) decide the migration baseline and apply it to a clean PostgreSQL; (3) compose smoke test; (4) WebApplicationFactory authorization tests; (5) upgrade Actions majors after checking releases; (6) begin dashboard/editor.
+
+## Artifact review 2026-10-15 (CI run #64 artifacts; static inspection, nothing re-run)
+- `backend-test-results`: `results.trx` reports 478 total, 478 executed, 478 passed, 0 failed/error/not-executed. Test window 18:00:48-18:01:34 UTC on 2026-10-15; the migration artifact is stamped 18:01:53, consistent with run #64's backend job. Run/commit provenance is not stored inside the TRX, so the link to #64 is by timing and by your upload, not proven.
+- `generated-migration` (`20261015180153_CiCheck`): 64 `CreateTable` calls, 181 `CreateIndex`, 31 check-constraint references, 6 filtered indexes, 50 composite `(Id, BusinessId)` foreign keys. Tables include EmailOutbox, UserSessions, BusinessHours, BusinessHolidays, Documents, i.e. the model matches the post-#37 schema.
+- Delete behaviour on financial/audit tables (read from the migration): AuditLogs, Expenses, Orders, Invoices, CreditNotes, Payments, Receipts all use `Restrict` toward their parents. Only child-line tables cascade (`OrderGarments` from Orders, `InvoiceLines` from Invoices). This supports, but does not prove, the "never delete financial records" rule; it was not exercised against a live database.
+- Still not verified: the SQL was never applied to PostgreSQL (tests use `EnsureCreated`), filtered-index semantics, and concurrency behaviour in the live schema.
