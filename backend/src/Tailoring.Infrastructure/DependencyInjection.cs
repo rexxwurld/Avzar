@@ -41,7 +41,21 @@ public static class DependencyInjection
                 o.Lockout.AllowedForNewUsers = true;
             })
             .AddEntityFrameworkStores<AppDbContext>()
-            .AddDefaultTokenProviders();
+            .AddDefaultTokenProviders()
+            .AddTokenProvider<PasswordResetTokenProvider>(PasswordResetTokenProvider.ProviderName);
+
+        var auth = config.GetSection("Auth").Get<AuthOptions>() ?? new AuthOptions();
+        services.Configure<AuthOptions>(config.GetSection("Auth"));
+        // Confirmation links last hours; reset links last minutes and use their own provider. Password changes are noticed by
+        // web cookies within a minute (the default is 30), so a reset or a deactivation takes effect quickly.
+        services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = TimeSpan.FromHours(Math.Max(1, auth.EmailVerificationHours)));
+        services.Configure<PasswordResetTokenProviderOptions>(o =>
+        {
+            o.Name = PasswordResetTokenProvider.ProviderName;
+            o.TokenLifespan = TimeSpan.FromMinutes(Math.Max(5, auth.PasswordResetMinutes));
+        });
+        services.Configure<IdentityOptions>(o => o.Tokens.PasswordResetTokenProvider = PasswordResetTokenProvider.ProviderName);
+        services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(1));
 
         services.Configure<AppOptions>(config.GetSection("App"));
         services.AddScoped<IAuditLogger, AuditLogger>();
@@ -49,6 +63,9 @@ public static class DependencyInjection
         services.AddScoped<IPlanCatalogService, PlanCatalogService>();
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<ISessionService, SessionService>();
+        services.AddScoped<IBusinessSettingsService, BusinessSettingsService>();
         services.AddScoped<IStaffService, StaffService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<ILocationService, LocationService>();
