@@ -196,6 +196,9 @@ public sealed class InvoiceService(AppDbContext db, ITenantContext tenant, IAudi
             await db.SaveChangesAsync(ct); // old lines out first: line numbers are unique per invoice
             invoice.Lines.Clear();
             SetLines(invoice, req.Lines, req.TaxPercent ?? await ProfileTaxAsync(ct));
+            // Entity ids are assigned client-side, so a line discovered through the collection would be tracked as an
+            // existing row (UPDATE, 0 rows, concurrency error). Mark the new lines as Added explicitly.
+            foreach (var line in invoice.Lines) db.Entry(line).State = EntityState.Added;
         }
 
         invoice.UpdatedAtUtc = DateTime.UtcNow;
