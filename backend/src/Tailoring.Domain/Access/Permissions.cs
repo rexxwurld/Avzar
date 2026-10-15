@@ -11,6 +11,8 @@ public static class Permissions
     public const string StaffManage = "staff.manage";
     public const string RolesManage = "roles.manage";
     public const string LocationsManage = "locations.manage";
+    /// <summary>Sees orders and fittings at every location. Without it, staff only see the locations they are assigned to (fail closed).</summary>
+    public const string LocationsAll = "locations.all";
     public const string AuditView = "audit.view";
     public const string BusinessSettings = "business.settings";
 
@@ -58,7 +60,7 @@ public static class Permissions
 
     public static readonly IReadOnlyList<string> All =
     [
-        StaffView, StaffManage, RolesManage, LocationsManage, AuditView, BusinessSettings,
+        StaffView, StaffManage, RolesManage, LocationsManage, LocationsAll, AuditView, BusinessSettings,
         CustomersView, CustomersManage, CustomersMerge, MeasurementTemplates, MeasurementsRecord,
         OrdersView, OrdersManage, OrdersConfirm, FittingsManage,
         TasksView, TasksManage, TasksAssign, TasksOverride, TasksWork, WorkflowsManage, WorkersManage,

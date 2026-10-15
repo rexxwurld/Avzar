@@ -32,7 +32,7 @@ public static class DefaultRoles
             Make(Manager, Permissions.All.Where(p => p is not (Permissions.BusinessSettings or Permissions.RolesManage))),
             // Money only: sees orders and customers to bill them, but cannot change them.
             Make(Accountant, [Permissions.OrdersView, Permissions.CustomersView, Permissions.InvoicesView, Permissions.InvoicesManage,
-                Permissions.PaymentsView, Permissions.PaymentsRecord, Permissions.PaymentsVerify, Permissions.ExpensesView, Permissions.ExpensesManage]),
+                Permissions.PaymentsView, Permissions.PaymentsRecord, Permissions.PaymentsVerify, Permissions.ExpensesView, Permissions.ExpensesManage, Permissions.LocationsAll]),
             Make(Tailor, [Permissions.TasksWork]),
             Make(Cutter, [Permissions.TasksWork]),
             Make(Finisher, [Permissions.TasksWork]),
