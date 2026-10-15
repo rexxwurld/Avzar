@@ -85,3 +85,20 @@ Mail is queued in the `EmailOutbox` table and delivered by a background worker i
 | `Email__MaxAttempts`, `__BatchSize`, `__PollSeconds`, `__LeaseMinutes` | Tuning |
 
 Notes: "Sent" means the provider accepted the message, not that it reached an inbox (bounce/delivery webhooks are not built). Bodies are erased from the table once a message is Sent or Failed because they can contain one-time links. A timeout can leave delivery ambiguous; Resend is protected by an idempotency key, SMTP is not, so a rare duplicate is possible. Several API replicas can run the worker safely (rows are claimed with `FOR UPDATE SKIP LOCKED`).
+
+
+## 7. Account security and mobile sign-in (Step A, unverified)
+| Setting (env var) | Meaning |
+|---|---|
+| `Auth__JwtSigningKey` | 32+ random characters. Mobile sign-in stays OFF (503 `mobile_auth_not_configured`) until set. Generate with `openssl rand -base64 48`. Never commit it. Changing it signs every device out of its access token (refresh tokens still work and get new access tokens) |
+| `Auth__JwtIssuer`, `Auth__JwtAudience` | Defaults `avzar-api` / `avzar-mobile` |
+| `Auth__AccessTokenMinutes` (10), `Auth__RefreshIdleDays` (30), `Auth__RefreshAbsoluteDays` (90), `Auth__MaxSessionsPerUser` (10) | Token lifetimes and device cap |
+| `Auth__RequireVerifiedEmail` | `true` blocks password sign-in until the address is confirmed. Needs a working email provider first |
+| `Auth__EmailVerificationHours` (24), `Auth__PasswordResetMinutes` (30), `Auth__EmailThrottleSeconds` (120) | Link lifetimes and the minimum gap between emails to one address |
+| `Auth__ProductName` | Name shown in authenticator apps |
+
+Web pages the frontend must provide (links in the emails point at `App__WebBaseUrl`): `/verify-email?userId=&token=` (POST the two values to `/api/auth/confirm-email`) and `/reset-password?userId=&token=` (POST them with the new password to `/api/auth/reset-password`). Neither page exists yet in `web/`.
+
+Data Protection keys must be persisted in production: email and reset tokens are signed with them, so losing the key ring invalidates every outstanding link.
+
+Mobile flow: `POST /api/auth/token` -> `{accessToken, refreshToken, ...}`; send `Authorization: Bearer <accessToken>`; when it expires `POST /api/auth/token/refresh` with the refresh token and store the NEW refresh token it returns (the old one stops working; using it again ends the session). On logout call `/api/auth/token/revoke`.
