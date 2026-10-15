@@ -18,6 +18,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
     environment:
+          Database__MigrateOnStartup: "true"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=tailoring;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       App__WebBaseUrl: ${WEB_BASE_URL}
