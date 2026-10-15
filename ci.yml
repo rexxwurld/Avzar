@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: backend/global.json
+
+      # The repo has no .sln yet; create it here if it isn't committed.
+      - name: Ensure solution
+        run: |
+          [ -f Tailoring.sln ] || dotnet new sln -n Tailoring --format sln
+          dotnet sln Tailoring.sln add src/*/*.csproj tests/*/*.csproj
+
+      - run: dotnet restore
+      - run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: >
+          dotnet test --no-build -c Release
+          --logger "trx;LogFileName=results.trx"
+          --results-directory ../test-results
+
+      - name: Check EF model produces a migration
+        run: |
+          dotnet tool install -g dotnet-ef
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef migrations add CiCheck \
+            --project src/Tailoring.Infrastructure \
+            --startup-project src/Tailoring.Api \
+            --output-dir /tmp/ci-migration
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: test-results
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install   # switch to `npm ci` once package-lock.json is committed
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
