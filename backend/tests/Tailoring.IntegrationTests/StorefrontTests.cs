@@ -13,6 +13,7 @@ using Tailoring.Domain.Storefront;
 using Tailoring.Domain.Tenancy;
 using Tailoring.Infrastructure.Services;
 using Tailoring.Infrastructure.Storage;
+using Tailoring.Application.Abstractions;
 using Xunit;
 
 namespace Tailoring.IntegrationTests;
