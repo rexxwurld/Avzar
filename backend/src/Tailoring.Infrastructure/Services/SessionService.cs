@@ -62,13 +62,11 @@ public sealed class SessionService(
         {
             case RefreshDecision.Rotate: break;
             case RefreshDecision.ReuseDetected:
-                Revoke(session, "token_reuse", now);
-                await db.SaveChangesAsync(ct);
+                await RevokeAtomicAsync(session.Id, "token_reuse", now, ct);
                 log.LogWarning("Refresh token reuse detected; session {SessionId} revoked.", session.Id);
                 throw AppException.Unauthorized("token_reuse_detected", "This session was ended because a token was used twice. Please sign in again.");
             case RefreshDecision.Expired:
-                Revoke(session, "expired", now);
-                await db.SaveChangesAsync(ct);
+                await RevokeAtomicAsync(session.Id, "expired", now, ct);
                 throw AppException.Unauthorized("session_expired", "Your session has expired. Please sign in again.");
             default: throw Invalid();
         }
@@ -78,8 +76,7 @@ public sealed class SessionService(
         if (user is null || await users.IsLockedOutAsync(user)
             || await permissions.GetAccessAsync(session.UserId, session.BusinessId, ct) is null)
         {
-            Revoke(session, "account_inactive", now);
-            await db.SaveChangesAsync(ct);
+            await RevokeAtomicAsync(session.Id, "account_inactive", now, ct);
             throw AppException.Unauthorized("session_revoked", "This session is no longer valid. Please sign in again.");
         }
 
@@ -143,6 +140,14 @@ public sealed class SessionService(
         return db.UserSessions.AsNoTracking().AnyAsync(s => s.Id == sessionId && s.UserId == userId
             && s.RevokedAtUtc == null && s.AbsoluteExpiresAtUtc > now, ct);
     }
+
+    /// <summary>
+    /// Revokes without the row-version check: a concurrent rotation or revocation must not turn a security decision into a 500.
+    /// Idempotent (first reason wins).
+    /// </summary>
+    private async Task RevokeAtomicAsync(Guid sessionId, string reason, DateTime now, CancellationToken ct)
+        => await db.UserSessions.Where(s => s.Id == sessionId && s.RevokedAtUtc == null)
+            .ExecuteUpdateAsync(u => u.SetProperty(s => s.RevokedAtUtc, (DateTime?)now).SetProperty(s => s.RevokedReason, reason), ct);
 
     private static void Revoke(UserSession s, string reason, DateTime now) { s.RevokedAtUtc = now; s.RevokedReason = reason; }
     private static string Compose(Guid id, string secret) => $"{id:N}.{secret}";
