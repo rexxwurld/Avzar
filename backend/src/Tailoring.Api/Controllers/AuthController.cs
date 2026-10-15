@@ -45,6 +45,15 @@ public class AuthController(IAuthService auth, SessionSigner signer, IAntiforger
         return await auth.GetCurrentUserAsync(session.UserId, session.BusinessId, ct);
     }
 
+    /// <summary>Join a business with the account you are already signed in to. The account email must match the invitation.</summary>
+    [HttpPost("accept-invitation/existing"), Authorize, EnableRateLimiting("auth")]
+    public async Task<ActionResult<CurrentUserDto>> AcceptInvitationExisting(AcceptExistingInvitationRequest request, CancellationToken ct)
+    {
+        var session = await auth.AcceptInvitationAsExistingUserAsync(tenant.UserId!.Value, request, ct);
+        await signer.SignInAsync(session.UserId, session.BusinessId);
+        return await auth.GetCurrentUserAsync(session.UserId, session.BusinessId, ct);
+    }
+
     [HttpPost("logout"), Authorize]
     public async Task<IActionResult> Logout()
     {

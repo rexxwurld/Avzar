@@ -85,3 +85,21 @@ public class BillingController(
         return await entitlements.DescribeAsync(businessId.Value, ct);
     }
 }
+
+[ApiController, Route("api/audit")]
+public class AuditController(Tailoring.Application.Audit.IAuditReadService audit) : ControllerBase
+{
+    [HttpGet, HasPermission(Permissions.AuditView)]
+    public async Task<PagedResult<Tailoring.Application.Audit.AuditEntryDto>> List(
+        [FromQuery] Tailoring.Application.Audit.AuditListQuery query, CancellationToken ct)
+        => await audit.ListAsync(query, ct);
+}
+
+[ApiController, Route("api/business/ownership-transfer")]
+public class OwnershipController(IOwnershipService ownership) : ControllerBase
+{
+    /// <summary>Owner only (enforced in the service, after re-entering the password and any second factor).</summary>
+    [HttpPost, Authorize]
+    public async Task<IActionResult> Transfer(TransferOwnershipRequest request, CancellationToken ct)
+    { await ownership.TransferAsync(request, ct); return NoContent(); }
+}
