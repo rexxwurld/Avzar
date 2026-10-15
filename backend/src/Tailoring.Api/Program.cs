@@ -13,6 +13,7 @@ using Tailoring.Api.Security;
 using Tailoring.Application.Abstractions;
 using Tailoring.Application.Auth;
 using Tailoring.Infrastructure;
+using Tailoring.Infrastructure.Coordination;
 using Tailoring.Infrastructure.Persistence;
 using Tailoring.Infrastructure.Services;
 
@@ -100,21 +101,17 @@ builder.Services.AddExceptionHandler<AppExceptionHandler>();
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
-    o.AddPolicy("upload", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.User.Identity?.Name ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1) }));
-    o.AddPolicy("public-submit", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
-    o.AddPolicy("public", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromMinutes(1) }));
+    // Counters live in Redis when Redis:ConnectionString is set (limits then hold across replicas); otherwise they are per process.
+    string Ip(HttpContext c) => c.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    IRedisCounter? Redis(HttpContext c) => c.RequestServices.GetService<IRedisCounter>();
+    o.AddPolicy("auth", c => RateLimitPolicies.Fixed(Redis(c), "auth", Ip(c), 10, TimeSpan.FromMinutes(1)));
+    o.AddPolicy("upload", c => RateLimitPolicies.Fixed(Redis(c), "upload", c.User.Identity?.Name ?? Ip(c), 30, TimeSpan.FromMinutes(1)));
+    o.AddPolicy("public-submit", c => RateLimitPolicies.Fixed(Redis(c), "public-submit", Ip(c), 5, TimeSpan.FromMinutes(1)));
+    o.AddPolicy("public", c => RateLimitPolicies.Fixed(Redis(c), "public", Ip(c), 600, TimeSpan.FromMinutes(1)));
 });
 
-builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("postgres");
+var health = builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("postgres");
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Redis:ConnectionString"])) health.AddCheck<RedisHealthCheck>("redis");
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
