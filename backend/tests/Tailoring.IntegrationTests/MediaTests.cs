@@ -21,13 +21,13 @@ internal static class TestImages
 {
     public static byte[] Png(int w, int h)
     {
-        using var img = new Image<Rgba32>(w, h, Color.SteelBlue);
+        using var img = new Image<Rgba32>(w, h, Color.SteelBlue.ToPixel<Rgba32>());
         using var ms = new MemoryStream(); img.SaveAsPng(ms); return ms.ToArray();
     }
 
     public static byte[] JpegWithExif(int w, int h)
     {
-        using var img = new Image<Rgb24>(w, h, Color.Orange);
+        using var img = new Image<Rgb24>(w, h, Color.Orange.ToPixel<Rgb24>());
         img.Metadata.ExifProfile = new ExifProfile();
         img.Metadata.ExifProfile.SetValue(ExifTag.Software, "SecretCam 9000");
         using var ms = new MemoryStream(); img.SaveAsJpeg(ms); return ms.ToArray();
@@ -35,7 +35,7 @@ internal static class TestImages
 
     public static byte[] Gif()
     {
-        using var img = new Image<Rgba32>(8, 8, Color.Red);
+        using var img = new Image<Rgba32>(8, 8, Color.Red.ToPixel<Rgba32>());
         using var ms = new MemoryStream(); img.SaveAsGif(ms); return ms.ToArray();
     }
 }
