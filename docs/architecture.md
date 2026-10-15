@@ -1,6 +1,6 @@
 # Architecture - Tailoring Platform
 
-Status: Phases 1-3 written, **not yet compiled or run** (see `PROGRESS.md`).
+Status (2026-10-15): backend verification artifacts supplied with the source snapshot report 478/478 tests passed and include a generated EF migration. They have not been independently rerun here; branch freshness, live CI provenance, and deployment readiness remain unverified. See `PROGRESS.md`.
 
 ## 1. Stack and versions
 | Layer | Choice | Pinned in |
@@ -11,7 +11,7 @@ Status: Phases 1-3 written, **not yet compiled or run** (see `PROGRESS.md`).
 | Web | Next.js (App Router), TypeScript, Tailwind, React Hook Form + Zod | Phase 1b/2 |
 | Mobile | .NET MAUI (Android + iOS), FCM | Phase 7 |
 
-**Package versions are unverified.** They were written without NuGet access. Run `dotnet restore`, fix any that do not resolve, then treat `Directory.Packages.props` as the version record.
+**Package versions are pinned in `backend/Directory.Packages.props`, but current compatibility and vulnerability status are not verified by this workspace.** Run `dotnet restore`, Release build, and a current dependency/advisory scan before release. ImageSharp 4.1.2 requires `SIXLABORS_LICENSE_KEY`; QuestPDF requires an explicit `Pdf__QuestPdfLicense` choice.
 
 ## 2. Backend layering
 ```

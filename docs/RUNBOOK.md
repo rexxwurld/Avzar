@@ -1,7 +1,6 @@
 # Avzar: first run, test and credentials
 
-Status: Phases 1-2 backend are WRITTEN but have never been compiled or run by the author. Expect a first
-round of compile errors. Fix them before building anything else on top. Paste the errors back and they get fixed first.
+Status (2026-10-15): the supplied backend TRX artifact reports 478/478 tests passed, and a generated EF migration artifact is available. These artifacts were not rerun in this workspace; see `PROGRESS.md` for exact evidence and limitations. Do not treat this as a current live-branch or deployment verification.
 
 ## 1. Prerequisites
 - .NET 10 SDK (`backend/global.json` pins 10.0.100) and `dotnet tool install -g dotnet-ef`
@@ -12,18 +11,15 @@ round of compile errors. Fix them before building anything else on top. Paste th
 cp .env.example .env            # set POSTGRES_PASSWORD
 ./scripts/bootstrap-backend.sh  # creates the solution, restores, builds, generates ONE migration "InitialSchema"
 ```
-If it fails to build: copy the compiler errors back. If package restore fails on `SixLabors.ImageSharp 3.1.7`, bump
-it in `backend/Directory.Packages.props` to the latest 3.1.x.
+If it fails to build, resolve the actual compiler/restore error before proceeding. ImageSharp is pinned to 4.1.2 and requires a valid Six Labors license for Release builds; see section 8.
 
-Delete any old `Persistence/Migrations` folder from earlier attempts before running the script: the schema changed in
-every step, so one fresh migration is the right thing.
+**Migration safety:** inspect `backend/src/Tailoring.Infrastructure/Persistence/Migrations` and the target database before generating or replacing migrations. Never delete migration files or reset a database just to make a build pass. Regenerating a single initial migration is appropriate only for a confirmed unreleased schema with no deployed databases and after preserving the existing migration history. For an existing/deployed database, add a forward migration and test it against a disposable PostgreSQL database first.
 
 ## 3. Tests
 ```bash
 cd backend && dotnet test       # needs Docker running
 ```
-~190 tests: pure rules (pricing, invoices, entitlements, images, slugs) and PostgreSQL integration tests
-(tenant isolation, concurrency, money rules). Send back any failing test names with their messages.
+The supplied `backend-test-results.zip` TRX summary reports 478 tests total, 478 passed, 0 failed, and 0 errors. Independently rerun `dotnet test -c Release` with Docker available; the integration suite uses Testcontainers/PostgreSQL. Do not rely on the supplied artifact as proof of the current checkout's result.
 
 ## 4. Run
 ```bash
@@ -65,8 +61,7 @@ Never put any of these in source control. Use environment variables or a secret 
 - Web: `cd web && npm install && npm run typecheck && npm test`.
 
 ## 6. Known gaps in what exists now (be aware when testing)
-- The only web UI is the PUBLIC site renderer. There is no dashboard or builder editor UI yet (use Swagger to drive the builder API).
-- No PDF generation: invoices/receipts are JSON documents.
+- The current web tree contains the PUBLIC site renderer and its supporting components. The business dashboard and visual builder/editor UI are not implemented yet (use Swagger to drive the existing builder API).
 - No malware scanner on uploads (images are re-encoded, which disarms image payloads; other file types are refused).
 - With `Email__Provider=log` (default) emails are not delivered; the full message, links included, appears in the application log. Development only.
 - Existing businesses created before a permission was added will not have it on non-owner roles until edited.
@@ -124,3 +119,10 @@ Free for for-profit companies under USD 1M annual revenue: apply at https://lice
 **Customer CSV**: `GET /api/customers/export`; `POST /api/customers/import/preview` (file) changes nothing and returns counts, problems and a `fileHash`; `POST /api/customers/import/commit` (file, `expectedHash`, `onDuplicate=skip|update`, `confirmUpdateCount`, `skipInvalidRows`). Imports create only by default. Overwriting existing customers needs `confirmUpdateCount` equal to the number the preview reported. Limits: 5 MB, 2000 rows, UTF-8 only. Exports defuse spreadsheet formulas (a leading apostrophe) and the importer removes it again.
 
 **Search**: `GET /api/search?q=` (2+ characters) returns up to 5 hits each of customers, orders, invoices, designs and inquiries, limited to what the caller's role may view. It uses `ILIKE` without a trigram index; add one (pg_trgm) if tables grow large.
+
+## 10. Verification evidence and known environment blockers (2026-10-15)
+- The supplied `backend-test-results.zip` TRX summary reports 478 tests: 478 passed, 0 failed, 0 errors. Its originating workflow run and commit are not identified in the artifact itself.
+- The supplied `generated-migration.zip` contains migration `20261015172445_CiCheck`; static inspection found 181 index creations, filtered indexes, and database check constraints. The migration has not been applied to a PostgreSQL database as part of this review.
+- This review workspace had Node.js 22 but no .NET SDK, Docker, or PostgreSQL client. `npm install` did not complete within the available execution window. No web build or test pass is claimed here.
+- The source archive does not contain `.git`; the attempt to fetch `https://github.com/rexxwurld/Avzar.git` could not resolve `github.com`. Confirm the live `main` branch and commit ancestry in a network-enabled Git environment before applying changes.
+- `SIXLABORS_LICENSE_KEY` is consumed by the build and checked by CI. Do not print its value. Its GitHub Actions secret state cannot be established from a source archive; inspect the repository's Actions secrets settings or rely on a specific CI run's explicit license-check step.
