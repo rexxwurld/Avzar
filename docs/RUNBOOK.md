@@ -38,7 +38,7 @@ Swagger is on in Development. In Production set `Billing__SeedPlansOnStartup=tru
 |---|---|---|---|
 | Database | PostgreSQL connection string (`ConnectionStrings__Default`) | now | required |
 | Email (invitations, reset, receipts) | SMTP relay (587/STARTTLS) or Resend API key | A | Code written, UNVERIFIED and untested with real credentials: **blocked by external configuration**. Default `Email__Provider=log` only writes to the log |
-| Media in production | S3-compatible bucket (access key, secret, bucket, endpoint) | 2 | NOT wired: local disk only (`Storage__LocalRoot`) |
+| Media in production | S3-compatible bucket (access key, secret, bucket, endpoint) | 2 | Set `Storage__Provider=s3` plus `Storage__S3__*` (bucket, access key, secret, region, optional service URL for R2/MinIO). Default is local disk (`Storage__LocalRoot`). Not yet tested against a real bucket |
 | Cache / rate limits / queues | Redis connection string | 5+ | not used yet |
 | Subscription billing in naira | Paystack or Flutterwave secret key + webhook secret | 9 | not built |
 | Push notifications | Firebase (FCM) service account + Apple APNs key | 5/8 | not built |
