@@ -108,8 +108,11 @@ public sealed class Phase2Tests(PostgresFixture fx) : IClassFixture<PostgresFixt
         var reloaded = await Orders(s.BusinessId).GetAsync(order.Id);
         var line = reloaded.Garments.Single(g => g.MeasurementSetId == s.SetId);
         Assert.Equal(1, line.MeasurementRevision);
-        Assert.Contains("100", line.MeasurementSnapshot!.Value.GetRawText()); // old chest value, not 108
-        Assert.DoesNotContain("108", line.MeasurementSnapshot!.Value.GetRawText());
+        // Check only the measured values: the snapshot also carries a recordedAtUtc timestamp whose random
+        // fractional digits can contain "108" and made a whole-document substring check flaky.
+        var values = line.MeasurementSnapshot!.Value.GetProperty("values").GetRawText();
+        Assert.Contains("100", values); // old chest value, not 108
+        Assert.DoesNotContain("108", values);
     }
 
     [Fact]
