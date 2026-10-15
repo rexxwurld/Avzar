@@ -200,7 +200,8 @@ public sealed class SearchService(AppDbContext db, ITenantContext tenant, IPermi
             .ToListAsync(ct))
             .Select(o => new SearchHitDto("order", o.Id, o.OrderNumber, $"{o.Customer} · {o.Status}")).ToList();
 
-        var invoices = !Can(Permissions.InvoicesView) ? None : (await db.Invoices.AsNoTracking()
+        var financeScope = restricted ? new FinanceScope(true, allowedIds) : FinanceScope.Unrestricted; // an invoice follows its order's location
+        var invoices = !Can(Permissions.InvoicesView) ? None : (await db.Invoices.AsNoTracking().Visible(db, financeScope)
             .Where(i => (i.Number != null && EF.Functions.ILike(i.Number, like))
                 || db.Customers.Any(c => c.Id == i.CustomerId && EF.Functions.ILike(c.FullName, like)))
             .OrderByDescending(i => i.CreatedAtUtc).Take(limit)

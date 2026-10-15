@@ -4,6 +4,7 @@ using Tailoring.Application.Abstractions;
 using Tailoring.Application.Billing;
 using Tailoring.Application.Common;
 using Tailoring.Application.Finance;
+using Tailoring.Application.Locations;
 using Tailoring.Domain.Billing;
 using Tailoring.Domain.Customers;
 using Tailoring.Domain.Finance;
@@ -12,19 +13,33 @@ using Tailoring.Infrastructure.Persistence;
 
 namespace Tailoring.Infrastructure.Services;
 
-public sealed class InvoiceService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements) : IInvoiceService
+public sealed class InvoiceService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements,
+    ILocationScope? locations = null) : IInvoiceService
 {
     /// <summary>Applied at issue when no due date was chosen.</summary>
     public const int DefaultDueDays = 14;
 
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
 
+    // ------------------------------------------------------------------ location scope
+
+    private Task<FinanceScope> ScopeAsync(CancellationToken ct) => FinanceScope.ForAsync(locations, ct);
+
+    /// <summary>A replayed idempotency key must not reveal an invoice at a hidden location.</summary>
+    private async Task EnsureVisibleAsync(Invoice invoice, CancellationToken ct)
+    {
+        var scope = await ScopeAsync(ct);
+        if (!scope.Restricted) return;
+        if (!await db.Invoices.AsNoTracking().Visible(db, scope).AnyAsync(i => i.Id == invoice.Id, ct))
+            throw AppException.NotFound("invoice_not_found", "Invoice not found.");
+    }
+
     // ------------------------------------------------------------------ read
 
     public async Task<PagedResult<InvoiceSummaryDto>> ListAsync(InvoiceListQuery query, CancellationToken ct = default)
     {
         var (_, today) = await BusinessAsync(ct);
-        var rows = db.Invoices.AsNoTracking().Select(i => new
+        var rows = db.Invoices.AsNoTracking().Visible(db, await ScopeAsync(ct)).Select(i => new
         {
             Invoice = i,
             CustomerName = db.Customers.Where(c => c.Id == i.CustomerId).Select(c => c.FullName).FirstOrDefault() ?? "",
@@ -73,8 +88,15 @@ public sealed class InvoiceService(AppDbContext db, ITenantContext tenant, IAudi
     public async Task<(InvoiceDto Invoice, bool Created)> CreateAsync(CreateInvoiceRequest req, string? idempotencyKey, CancellationToken ct = default)
     {
         var key = NormalizeKey(idempotencyKey);
-        if (key is not null && await FindByKeyAsync(key, ct) is { } already) return (await ToDtoAsync(already, ct), false);
+        if (key is not null && await FindByKeyAsync(key, ct) is { } already)
+        {
+            await EnsureVisibleAsync(already, ct);
+            return (await ToDtoAsync(already, ct), false);
+        }
 
+        if ((await ScopeAsync(ct)).Restricted)
+            throw AppException.Forbidden("location_forbidden",
+                "An invoice that is not billed from an order has no location, so only staff with access to every location can create it.");
         var (currency, _) = await BusinessAsync(ct);
         if (!await db.Customers.AnyAsync(c => c.Id == req.CustomerId, ct))
             throw AppException.BadRequest("unknown_customer", "Customer not found.");
@@ -92,7 +114,11 @@ public sealed class InvoiceService(AppDbContext db, ITenantContext tenant, IAudi
     public async Task<(InvoiceDto Invoice, bool Created)> CreateFromOrderAsync(Guid orderId, CreateInvoiceFromOrderRequest req, string? idempotencyKey, CancellationToken ct = default)
     {
         var key = NormalizeKey(idempotencyKey);
-        if (key is not null && await FindByKeyAsync(key, ct) is { } already) return (await ToDtoAsync(already, ct), false);
+        if (key is not null && await FindByKeyAsync(key, ct) is { } already)
+        {
+            await EnsureVisibleAsync(already, ct);
+            return (await ToDtoAsync(already, ct), false);
+        }
 
         var mode = req.Mode?.Trim().ToLowerInvariant() switch
         {
@@ -113,6 +139,9 @@ public sealed class InvoiceService(AppDbContext db, ITenantContext tenant, IAudi
 
             var order = await db.Orders.AsNoTracking().Include(o => o.Garments).FirstOrDefaultAsync(o => o.Id == orderId, ct)
                 ?? throw AppException.NotFound("order_not_found", "Order not found.");
+            var orderScope = await ScopeAsync(ct);
+            if (orderScope.Restricted && !orderScope.Allowed.Contains(order.LocationId))
+                throw AppException.NotFound("order_not_found", "Order not found."); // a hidden order looks like a missing one
             if (order.Status is not (OrderStatus.Confirmed or OrderStatus.InProduction or OrderStatus.Ready or OrderStatus.Delivered))
                 throw AppException.Conflict("order_not_billable",
                     $"Only confirmed orders can be invoiced (this one is {order.Status}). Quotes can still change, so they are not billed.");
@@ -168,6 +197,7 @@ public sealed class InvoiceService(AppDbContext db, ITenantContext tenant, IAudi
             db.ChangeTracker.Clear();
             var winner = await FindByKeyAsync(key, ct);
             if (winner is null) throw; // the unique violation was something else
+            await EnsureVisibleAsync(winner, ct);
             return (await ToDtoAsync(winner, ct), false); // a retry raced the first request
         }
     }
@@ -360,7 +390,9 @@ public sealed class InvoiceService(AppDbContext db, ITenantContext tenant, IAudi
         catch (DbUpdateException ex) when (key is not null && IsUniqueViolation(ex))
         {
             db.ChangeTracker.Clear();
-            return (await ToDtoAsync((await FindByKeyAsync(key, ct))!, ct), false);
+            var winner = (await FindByKeyAsync(key, ct))!;
+            await EnsureVisibleAsync(winner, ct);
+            return (await ToDtoAsync(winner, ct), false);
         }
         return (await ToDtoAsync(invoice, ct), true);
     }
@@ -388,7 +420,7 @@ public sealed class InvoiceService(AppDbContext db, ITenantContext tenant, IAudi
 
     private async Task<Invoice> LoadAsync(Guid id, bool track, CancellationToken ct)
     {
-        var q = db.Invoices.Include(i => i.Lines).AsQueryable();
+        var q = db.Invoices.Include(i => i.Lines).Visible(db, await ScopeAsync(ct));
         if (!track) q = q.AsNoTracking();
         return await q.FirstOrDefaultAsync(i => i.Id == id, ct) ?? throw AppException.NotFound("invoice_not_found", "Invoice not found.");
     }

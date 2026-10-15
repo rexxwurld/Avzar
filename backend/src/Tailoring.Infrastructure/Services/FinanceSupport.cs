@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Tailoring.Application.Finance;
+using Tailoring.Application.Locations;
 using Tailoring.Domain.Finance;
 using Tailoring.Infrastructure.Persistence;
 
@@ -48,4 +49,32 @@ internal static class FinanceMapping
         p.Id, p.InvoiceId, invoiceNumber, p.CustomerId, p.Amount, p.CurrencyCode, p.Method.ToString(), p.Reference, p.ReceivedOn,
         p.Status.ToString(), p.Notes, p.StatusReason, p.RecordedByUserId, p.VerifiedByUserId, p.VerifiedAtUtc,
         receipt?.Id, receipt?.Number, p.Version, p.CreatedAtUtc);
+}
+
+/// <summary>
+/// Location scope for finance records. An invoice has no location of its own: it belongs to the location of the order it was billed from.
+/// A caller restricted to some locations therefore sees only invoices billed from orders at those locations (and the payments, receipts
+/// and credit notes of those invoices). Invoices that are not tied to an order are visible to unrestricted callers only (fail closed).
+/// A hidden record must look exactly like a missing one.
+/// </summary>
+internal sealed record FinanceScope(bool Restricted, Guid[] Allowed)
+{
+    public static readonly FinanceScope Unrestricted = new(false, Array.Empty<Guid>());
+
+    public static async Task<FinanceScope> ForAsync(ILocationScope? locations, CancellationToken ct)
+    {
+        if (locations is null) return Unrestricted; // no scope service registered (tests, system flows)
+        var allowed = await locations.AllowedLocationIdsAsync(ct);
+        return allowed is null ? Unrestricted : new FinanceScope(true, allowed);
+    }
+}
+
+internal static class FinanceScopeExtensions
+{
+    public static IQueryable<Invoice> Visible(this IQueryable<Invoice> q, AppDbContext db, FinanceScope scope)
+    {
+        if (!scope.Restricted) return q;
+        var allowed = scope.Allowed; // never null inside an EF expression
+        return q.Where(i => i.OrderId != null && db.Orders.Any(o => o.Id == i.OrderId && allowed.Contains(o.LocationId)));
+    }
 }

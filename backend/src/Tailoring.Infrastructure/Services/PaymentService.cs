@@ -4,6 +4,7 @@ using Tailoring.Application.Abstractions;
 using Tailoring.Application.Billing;
 using Tailoring.Application.Common;
 using Tailoring.Application.Finance;
+using Tailoring.Application.Locations;
 using Tailoring.Domain.Access;
 using Tailoring.Domain.Billing;
 using Tailoring.Domain.Finance;
@@ -16,9 +17,39 @@ namespace Tailoring.Infrastructure.Services;
 /// An invoice is never "marked paid"; its balance is always derived from Verified payments and credit notes.
 /// </summary>
 public sealed class PaymentService(AppDbContext db, ITenantContext tenant, IAuditLogger audit,
-    IEntitlementService entitlements, IPermissionService permissions) : IPaymentService
+    IEntitlementService entitlements, IPermissionService permissions,
+    ILocationScope? locations = null) : IPaymentService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
+
+    // ------------------------------------------------------------------ location scope (a payment follows its invoice, an invoice follows its order)
+
+    private Task<FinanceScope> ScopeAsync(CancellationToken ct) => FinanceScope.ForAsync(locations, ct);
+
+    private async Task<IQueryable<Payment>> VisiblePaymentsAsync(IQueryable<Payment> q, CancellationToken ct)
+    {
+        var scope = await ScopeAsync(ct);
+        if (!scope.Restricted) return q;
+        var ids = db.Invoices.AsNoTracking().Visible(db, scope).Select(i => i.Id);
+        return q.Where(p => ids.Contains(p.InvoiceId));
+    }
+
+    private async Task<IQueryable<Receipt>> VisibleReceiptsAsync(IQueryable<Receipt> q, CancellationToken ct)
+    {
+        var scope = await ScopeAsync(ct);
+        if (!scope.Restricted) return q;
+        var ids = db.Invoices.AsNoTracking().Visible(db, scope).Select(i => i.Id);
+        return q.Where(r => ids.Contains(r.InvoiceId));
+    }
+
+    /// <summary>A replayed idempotency key must not reveal a payment on a hidden invoice.</summary>
+    private async Task EnsureVisibleAsync(Payment payment, CancellationToken ct)
+    {
+        var scope = await ScopeAsync(ct);
+        if (!scope.Restricted) return;
+        if (!await db.Invoices.AsNoTracking().Visible(db, scope).AnyAsync(i => i.Id == payment.InvoiceId, ct))
+            throw AppException.NotFound("payment_not_found", "Payment not found.");
+    }
 
     public async Task<(PaymentDto Payment, bool Created)> RecordAsync(Guid invoiceId, RecordPaymentRequest req, string? idempotencyKey, CancellationToken ct = default)
     {
@@ -26,6 +57,7 @@ public sealed class PaymentService(AppDbContext db, ITenantContext tenant, IAudi
         if (key is { Length: > 100 }) throw AppException.BadRequest("invalid_idempotency_key", "Idempotency key is too long.");
         if (key is not null && await db.Payments.AsNoTracking().FirstOrDefaultAsync(p => p.IdempotencyKey == key, ct) is { } already)
         {
+            await EnsureVisibleAsync(already, ct);
             if (already.InvoiceId != invoiceId || already.Amount != req.Amount)
                 throw AppException.Conflict("idempotency_key_reused", "That idempotency key was already used for a different payment.");
             return (await ToDtoAsync(already, ct), false);
@@ -43,7 +75,7 @@ public sealed class PaymentService(AppDbContext db, ITenantContext tenant, IAudi
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             await Locks.AcquireAsync(db, $"invoice:{invoiceId:N}", ct);
 
-            var invoice = await db.Invoices.AsNoTracking().FirstOrDefaultAsync(i => i.Id == invoiceId, ct)
+            var invoice = await db.Invoices.AsNoTracking().Visible(db, await ScopeAsync(ct)).FirstOrDefaultAsync(i => i.Id == invoiceId, ct)
                 ?? throw AppException.NotFound("invoice_not_found", "Invoice not found.");
             if (invoice.Status != InvoiceStatus.Issued)
                 throw AppException.Conflict("invoice_not_payable", $"Payments can only be recorded against issued invoices (this one is {invoice.Status}).");
@@ -74,6 +106,7 @@ public sealed class PaymentService(AppDbContext db, ITenantContext tenant, IAudi
             db.ChangeTracker.Clear();
             var winner = await db.Payments.AsNoTracking().FirstOrDefaultAsync(p => p.IdempotencyKey == key, ct);
             if (winner is null) throw;
+            await EnsureVisibleAsync(winner, ct);
             return (await ToDtoAsync(winner, ct), false); // a retry raced the first request
         }
     }
@@ -135,7 +168,7 @@ public sealed class PaymentService(AppDbContext db, ITenantContext tenant, IAudi
 
     public async Task<PagedResult<PaymentDto>> ListAsync(PaymentListQuery query, CancellationToken ct = default)
     {
-        var q = db.Payments.AsNoTracking().AsQueryable();
+        var q = await VisiblePaymentsAsync(db.Payments.AsNoTracking().AsQueryable(), ct);
         if (query.InvoiceId is { } iid) q = q.Where(p => p.InvoiceId == iid);
         if (query.CustomerId is { } cid) q = q.Where(p => p.CustomerId == cid);
         if (query.From is { } from) q = q.Where(p => p.ReceivedOn >= from);
@@ -161,16 +194,16 @@ public sealed class PaymentService(AppDbContext db, ITenantContext tenant, IAudi
     }
 
     public async Task<PaymentDto> GetAsync(Guid id, CancellationToken ct = default)
-        => await ToDtoAsync(await db.Payments.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct)
+        => await ToDtoAsync(await (await VisiblePaymentsAsync(db.Payments.AsNoTracking(), ct)).FirstOrDefaultAsync(p => p.Id == id, ct)
             ?? throw AppException.NotFound("payment_not_found", "Payment not found."), ct);
 
     public async Task<ReceiptDto> GetReceiptAsync(Guid id, CancellationToken ct = default)
-        => await ToReceiptDtoAsync(await db.Receipts.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct)
+        => await ToReceiptDtoAsync(await (await VisibleReceiptsAsync(db.Receipts.AsNoTracking(), ct)).FirstOrDefaultAsync(r => r.Id == id, ct)
             ?? throw AppException.NotFound("receipt_not_found", "Receipt not found."), ct);
 
     public async Task<ReceiptDto> GetReceiptForPaymentAsync(Guid paymentId, CancellationToken ct = default)
     {
-        if (!await db.Payments.AsNoTracking().AnyAsync(p => p.Id == paymentId, ct)) // tenant filter makes another business's id look the same
+        if (!await (await VisiblePaymentsAsync(db.Payments.AsNoTracking(), ct)).AnyAsync(p => p.Id == paymentId, ct)) // tenant filter makes another business's id look the same
             throw AppException.NotFound("payment_not_found", "Payment not found.");
         return await ToReceiptDtoAsync(await db.Receipts.AsNoTracking().FirstOrDefaultAsync(r => r.PaymentId == paymentId, ct)
             ?? throw AppException.NotFound("receipt_not_found", "This payment has no receipt. Only verified payments get one."), ct);
@@ -181,7 +214,7 @@ public sealed class PaymentService(AppDbContext db, ITenantContext tenant, IAudi
     /// <summary>Starts a transaction, queues on the invoice's lock, then loads the payment and invoice as they are NOW.</summary>
     private async Task<(Payment Payment, Invoice Invoice)> LockAndLoadAsync(Guid paymentId, CancellationToken ct)
     {
-        var invoiceId = await db.Payments.AsNoTracking().Where(p => p.Id == paymentId).Select(p => (Guid?)p.InvoiceId).FirstOrDefaultAsync(ct)
+        var invoiceId = await (await VisiblePaymentsAsync(db.Payments.AsNoTracking(), ct)).Where(p => p.Id == paymentId).Select(p => (Guid?)p.InvoiceId).FirstOrDefaultAsync(ct)
             ?? throw AppException.NotFound("payment_not_found", "Payment not found.");
         await db.Database.BeginTransactionAsync(ct);
         await Locks.AcquireAsync(db, $"invoice:{invoiceId:N}", ct);
