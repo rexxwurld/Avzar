@@ -12,7 +12,7 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', anyOf: [], ready: true },
   { href: '/customers', label: 'Customers', anyOf: ['customers.view'], ready: true },
-  { href: '/orders', label: 'Orders', anyOf: ['orders.view'], ready: false },
+  { href: '/orders', label: 'Orders', anyOf: ['orders.view'], ready: true },
   { href: '/tasks', label: 'Production', anyOf: ['tasks.view', 'tasks.work'], ready: false },
   { href: '/finance', label: 'Finance', anyOf: ['invoices.view', 'payments.view', 'expenses.view'], ready: false },
   { href: '/storefront', label: 'Storefront', anyOf: ['storefront.view'], ready: false },
