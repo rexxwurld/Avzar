@@ -56,7 +56,7 @@ Never put any of these in source control. Use environment variables or a secret 
   The `allowed` endpoint answers 200 only for VERIFIED domains on plans that include custom domains, so certificates are never issued for strangers.
   Custom domains are OFF in every plan by default. Turn on `storefront.custom_domain` per plan (or per tenant override) only after you have tested this.
 - The API must be reachable ONLY through the web container (it trusts X-Forwarded-For when `Proxy__TrustForwardedHeaders=true`). Do not publish port 8080.
-- Persist ASP.NET Data Protection keys (preview links) when running more than one instance or restarting: configure a key ring location (volume or database) before production.
+- ASP.NET Data Protection keys are stored in PostgreSQL (`DataProtectionKeys` table, migration `AddDataProtectionKeys`), so they survive restarts and are shared by all instances. They are not encrypted at rest.
 - Optional: Cloudflare Turnstile. Site key (`TURNSTILE_SITE_KEY`, public) + secret (`Storefront__CaptchaSecretKey`, server only).
 - Web: `cd web && npm ci && npm run typecheck && npm test`.
 
@@ -95,7 +95,7 @@ Notes: "Sent" means the provider accepted the message, not that it reached an in
 
 Web pages the frontend must provide (links in the emails point at `App__WebBaseUrl`): `/verify-email?userId=&token=` (POST the two values to `/api/auth/confirm-email`) and `/reset-password?userId=&token=` (POST them with the new password to `/api/auth/reset-password`). Neither page exists yet in `web/`.
 
-Data Protection keys must be persisted in production: email and reset tokens are signed with them, so losing the key ring invalidates every outstanding link.
+Data Protection keys are persisted in the database (`DataProtectionKeys`): email and reset tokens, login cookies and preview links depend on them, so never truncate that table in production.
 
 Mobile flow: `POST /api/auth/token` -> `{accessToken, refreshToken, ...}`; send `Authorization: Bearer <accessToken>`; when it expires `POST /api/auth/token/refresh` with the refresh token and store the NEW refresh token it returns (the old one stops working; using it again ends the session). On logout call `/api/auth/token/revoke`.
 
