@@ -49,7 +49,9 @@ public class AuthController(IAuthService auth, SessionSigner signer, IAntiforger
     [HttpPost("accept-invitation/existing"), Authorize, EnableRateLimiting("auth")]
     public async Task<ActionResult<CurrentUserDto>> AcceptInvitationExisting(AcceptExistingInvitationRequest request, CancellationToken ct)
     {
-        var session = await auth.AcceptInvitationAsExistingUserAsync(tenant.UserId!.Value, request, ct);
+        // A session cookie that carries no user id is treated as signed out, not as a server error.
+        if (tenant.UserId is not { } userId) return Unauthorized();
+        var session = await auth.AcceptInvitationAsExistingUserAsync(userId, request, ct);
         await signer.SignInAsync(session.UserId, session.BusinessId);
         return await auth.GetCurrentUserAsync(session.UserId, session.BusinessId, ct);
     }
@@ -63,5 +65,10 @@ public class AuthController(IAuthService auth, SessionSigner signer, IAntiforger
 
     [HttpGet("me"), Authorize]
     public async Task<ActionResult<CurrentUserDto>> Me(CancellationToken ct)
-        => await auth.GetCurrentUserAsync(tenant.UserId!.Value, tenant.BusinessId!.Value, ct);
+    {
+        // A stale or partial session cookie (no user id or no business id) means "signed out": 401, never a 500.
+        if (tenant.UserId is not { } userId || tenant.BusinessId is not { } businessId)
+            return Unauthorized();
+        return await auth.GetCurrentUserAsync(userId, businessId, ct);
+    }
 }
