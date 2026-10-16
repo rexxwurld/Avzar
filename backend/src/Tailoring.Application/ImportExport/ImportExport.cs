@@ -11,7 +11,7 @@ public static class CsvReader
 {
     public static List<string[]> Parse(string text, int maxRows = 100_000)
     {
-        if (text.Length > 0 && text[0] == '\\uFEFF') text = text[1..];
+        if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
         var rows = new List<string[]>();
         var row = new List<string>();
         var field = new StringBuilder();
@@ -42,7 +42,7 @@ public static class CsvReader
                 continue;
             }
 
-            if (afterQuote && c is not (',' or '\\r' or '\\n'))
+            if (afterQuote && c is not (',' or '\r' or '\n'))
                 throw AppException.BadRequest("csv_malformed", "Unexpected characters after a quoted CSV value.");
 
             switch (c)
@@ -57,11 +57,11 @@ public static class CsvReader
                     field.Clear();
                     afterQuote = false;
                     break;
-                case '\\r':
-                    if (i + 1 < text.Length && text[i + 1] == '\\n') i++;
+                case '\r':
+                    if (i + 1 < text.Length && text[i + 1] == '\n') i++;
                     EndRow();
                     break;
-                case '\\n':
+                case '\n':
                     EndRow();
                     break;
                 default:
