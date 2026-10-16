@@ -128,6 +128,8 @@ public partial class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
             e.HasAlternateKey(x => new { x.Id, x.BusinessId });
             e.HasIndex(x => new { x.BusinessId, x.UserId }).IsUnique();
             e.HasIndex(x => x.UserId);
+            // At most one owner per business, enforced by the database (a business may briefly have none inside a transfer transaction).
+            e.HasIndex(x => x.BusinessId).IsUnique().HasFilter("\"IsOwner\"").HasDatabaseName("UX_Memberships_OneOwner");
             e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         });
 
