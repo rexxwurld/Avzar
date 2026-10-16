@@ -18,7 +18,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
     environment:
-          Database__MigrateOnStartup: "true"
+      Database__MigrateOnStartup: "true"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=tailoring;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       App__WebBaseUrl: ${WEB_BASE_URL}
@@ -39,6 +39,7 @@ services:
     environment:
       API_URL: http://api:8080
       BASE_DOMAIN: ${BASE_DOMAIN:-localhost}
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}   # true only behind a reverse proxy you control that sets X-Forwarded-For
     ports: ["3000:3000"]
 
 volumes:
