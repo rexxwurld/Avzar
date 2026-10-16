@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Tailoring.Domain.Customers;
 using Tailoring.Domain.Finance;
 using Tailoring.Domain.Orders;
+using Tailoring.Domain.Tenancy;
 
 namespace Tailoring.Infrastructure.Persistence;
 
@@ -141,6 +142,7 @@ public partial class AppDbContext
             e.Property(x => x.VoidReason).HasMaxLength(500);
             e.Property(x => x.Version).IsRowVersion();
             e.HasIndex(x => new { x.BusinessId, x.ExpenseDate });
+            e.HasIndex(x => new { x.BusinessId, x.LocationId });
             e.ToTable(t =>
             {
                 t.HasCheckConstraint("CK_Expenses_Amount", "\"Amount\" > 0");
@@ -148,6 +150,8 @@ public partial class AppDbContext
             });
             e.HasOne<ExpenseCategory>().WithMany().HasForeignKey(x => new { x.CategoryId, x.BusinessId })
                 .HasPrincipalKey(c => new { c.Id, c.BusinessId }).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<BusinessLocation>().WithMany().HasForeignKey(x => new { x.LocationId, x.BusinessId })
+                .HasPrincipalKey(l => new { l.Id, l.BusinessId }).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
