@@ -72,7 +72,7 @@ backend/tests/Tailoring.IntegrationTests   PostgreSQL via Testcontainers
 web/                                       Next.js 15 public storefront renderer
 docs/                                      architecture, runbook, static review
 scripts/bootstrap-backend.sh               solution + first migration
-.github/workflows/                         ci.yml, generate-migration.yml
+.github/workflows/                         ci.yml, generate-migration.yml, generate-lockfile.yml, audit.yml
 ```
 
 ## Local development
@@ -94,7 +94,7 @@ Development auto-migrates and seeds plans. Production must apply migrations expl
 
 ```bash
 cd backend && dotnet test -c Release       # needs Docker
-cd web && npm install && npm run typecheck && npm test && npm run build
+cd web && npm ci && npm run typecheck && npm test && npm run build
 ```
 
 ## Configuration
@@ -118,20 +118,18 @@ Persistent ASP.NET Core Data Protection keys are required in production (preview
 
 ## Verification and known limitations
 
-- **CI run #115** (2026-10-16): the `migrations` job succeeded. Its log shows all three committed migrations applied to a clean PostgreSQL 17.11 and a schema of 65 tables, 33 check constraints, 112 foreign keys and 6 partial indexes, with no cascading foreign keys on financial or audit tables. The backend TRX supplied for it reports **560/560 tests passed**; the TRX does not record its run id. The `backend` job also runs a license gate (fails on an empty `SIXLABORS_LICENSE_KEY`), `dotnet ef migrations has-pending-model-changes` and the Release build; the `web` job runs `npm install`, `typecheck`, `test`, `build`. The `backend` and `web` results of #115 were not individually inspected.
-- Run #114 failed one test (multipart upload endpoints returned 415 to an anonymous JSON probe); this was a test bug and is fixed.
-- All three jobs of run #115 (commit `2facba3`) succeeded. The `web` job ran typecheck, 22 unit tests and a production build.
-- **Security:** run #115's `npm install` reported `next@15.1.6` as vulnerable (CVE-2025-66478) with 9 npm vulnerabilities. The repository now pins Next.js 15.5.26 and React ^19.2.8 (not yet built by CI at the time of writing); re-check `npm audit` and the Next.js release notes before any public deployment.
+- **CI run #169** (2026-10-16, commit `9a07dd8`): all three jobs succeeded. The `migrations` job applied all six committed migrations to a clean PostgreSQL 17.11 (66 tables, 33 check constraints, 112 foreign keys, 8 partial indexes, no cascading foreign keys on financial or audit tables). The `web` job ran `npm ci` (0 vulnerabilities, full tree), typecheck, 22 unit tests and a production build. The `backend` job (license gate, Release build, `dotnet test`, `ef has-pending-model-changes`) is green; its test count was not read from #169. The latest backend TRX on record reports **648/648 tests passed** (it has no run id and predates #169).
+- **Dependency security:** `web/package.json` pins Next.js 15.5.28, React ^19.2.8 and Vitest 4.1.11 with a `postcss` override; `web/package-lock.json` is committed, CI and the Docker build use `npm ci`, and CI fails on any high or critical `npm audit` finding in the whole tree. Check the Next.js release notes (Next.js ships monthly security releases) before any public deployment.
 - **Not verified:** `docker compose` startup; full-stack smoke test; storefront publish-to-render; email, S3, ClamAV, Redis, DNS and every other external integration; mobile. There is no staff dashboard or storefront editor yet.
-- Run #115 warned that `checkout@v4`, `setup-dotnet@v4` and `setup-node@v4` target Node 20. The workflows now use `checkout@v6`, `setup-node@v6`, `setup-dotnet@v5`, `upload-artifact@v6` (unverified until CI runs).
+- CI actions are on `checkout@v6`, `setup-node@v6`, `setup-dotnet@v5`, `upload-artifact@v6`; run #169 used them without error.
 - Known design issues: the public site's `frame-ancestors 'none'` will block the editor's preview iframe; nonce CSP makes public pages dynamic (not CDN-cacheable).
 
 ## Roadmap
 
 Planned, in rough priority order (none implemented unless marked above):
 
-1. Verified baseline: migrations applied to a clean PostgreSQL (done in CI), authorization tests via `WebApplicationFactory` (done); still to do: compose smoke test.
-2. Remaining Step A gaps: acting on email bounces (the Resend delivery webhook is written but unverified), Redis caching/queues/SignalR backplane, more CSV import/export, location scoping for customers/expenses/reports, background-job recovery. (Audit-read, TOTP replay protection, join-with-existing-account, ownership transfer, PDF branding and location scoping of orders, finance and tasks are implemented and covered by the passing suite.)
+1. Verified baseline: migrations applied to a clean PostgreSQL (done in CI), authorization tests via `WebApplicationFactory` (done), web dependencies audited clean (done); still to do: compose smoke test.
+2. Remaining Step A gaps: Redis caching/queues/SignalR backplane, more CSV import/export, location scoping for customers/expenses/reports, background-job recovery, ownership-transfer notification emails. (Audit-read, TOTP replay protection, join-with-existing-account, ownership transfer with a one-owner database constraint, PDF branding, location scoping of orders, finance and tasks, the Resend delivery webhook and the email suppression list are implemented and covered by the passing suite.)
 3. Staff dashboard and visual storefront editor (with Playwright tests).
 4. Scheduling, inventory, notifications, reports.
 5. Customer portal, billing, platform admin, AI tools, mobile.
