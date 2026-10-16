@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Tailoring.Application.Abstractions;
 using Tailoring.Application.Common;
+using Tailoring.Application.Locations;
 using Tailoring.Application.Production;
 using Tailoring.Domain.Access;
 using Tailoring.Domain.Orders;
@@ -11,10 +12,28 @@ namespace Tailoring.Infrastructure.Services;
 
 public sealed class TaskService(
     AppDbContext db, ITenantContext tenant, IAuditLogger audit,
-    IProductionPlanner planner, IPermissionService permissions) : ITaskService
+    IProductionPlanner planner, IPermissionService permissions, ILocationScope? locations = null) : ITaskService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
     private Guid? ActorId => tenant.UserId;
+
+    // ------------------------------------------------------------------ location scope
+    // A task follows the location of its order. Callers restricted to some locations (not the owner, no locations.all) see only those;
+    // a hidden task or order looks exactly like a missing one. Unscoped when no scope service is supplied (tests, system flows).
+
+    private async Task<Guid[]?> AllowedLocationsAsync(CancellationToken ct)
+        => locations is null ? null : await locations.AllowedLocationIdsAsync(ct);
+
+    private async Task<bool> OrderVisibleAsync(Guid orderId, CancellationToken ct)
+    {
+        var allowed = await AllowedLocationsAsync(ct);
+        return allowed is null || await db.Orders.AnyAsync(o => o.Id == orderId && allowed.Contains(o.LocationId), ct);
+    }
+
+    private async Task EnsureOrderVisibleAsync(Guid orderId, CancellationToken ct)
+    {
+        if (!await OrderVisibleAsync(orderId, ct)) throw AppException.NotFound("order_not_found", "Order not found.");
+    }
 
     // ------------------------------------------------------------------ queries
 
@@ -22,6 +41,9 @@ public sealed class TaskService(
     {
         var now = DateTime.UtcNow;
         var q = db.ProductionTasks.AsNoTracking().AsQueryable();
+        var allowedLocations = await AllowedLocationsAsync(ct);
+        if (allowedLocations is not null)
+            q = q.Where(t => db.Orders.Any(o => o.Id == t.OrderId && allowedLocations.Contains(o.LocationId)));
 
         if (!string.IsNullOrWhiteSpace(query.Status))
         {
@@ -62,13 +84,17 @@ public sealed class TaskService(
         return new PagedResult<TaskSummaryDto>(rows.Select(r => TaskSupport.ToSummary(r, now)).ToList(), query.Page, query.PageSize, total);
     }
 
-    public Task<TaskDetailDto> GetAsync(Guid id, CancellationToken ct = default)
-        => TaskSupport.LoadDetailAsync(db, id, includeCustomer: true, ct);
+    public async Task<TaskDetailDto> GetAsync(Guid id, CancellationToken ct = default)
+    {
+        await EnsureTaskVisibleAsync(id, ct);
+        return await TaskSupport.LoadDetailAsync(db, id, includeCustomer: true, ct);
+    }
 
     // ------------------------------------------------------------------ create / edit
 
     public async Task<TaskDetailDto> CreateAsync(Guid orderId, CreateTaskRequest req, CancellationToken ct = default)
     {
+        await EnsureOrderVisibleAsync(orderId, ct);
         var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == orderId, ct)
             ?? throw AppException.NotFound("order_not_found", "Order not found.");
         if (order.Status is not (OrderStatus.Confirmed or OrderStatus.InProduction or OrderStatus.Ready))
@@ -233,6 +259,7 @@ public sealed class TaskService(
     public async Task<TaskDetailDto> OverrideAsync(Guid id, OverrideTaskRequest req, CancellationToken ct = default)
     {
         var action = Parse.Value<OverrideAction>(req.Action, "action");
+        await EnsureTaskVisibleAsync(id, ct);
         await RequireOverrideAsync(req.Reason, ct);
 
         var t = await LoadAsync(id, ct);
@@ -268,6 +295,7 @@ public sealed class TaskService(
 
     public async Task<GenerateTasksResult> GenerateForOrderAsync(Guid orderId, GenerateTasksRequest req, CancellationToken ct = default)
     {
+        await EnsureOrderVisibleAsync(orderId, ct);
         var result = await planner.GenerateAsync(orderId, req.WorkflowOverrides, ct);
         audit.Record(BusinessId, ActorId, "order.tasks_generated", nameof(Order), orderId, result);
         await TaskSupport.SaveWithOrderSyncAsync(db, orderId, ct);
@@ -278,6 +306,8 @@ public sealed class TaskService(
     {
         var orderId = await db.OrderGarments.Where(g => g.Id == garmentId).Select(g => (Guid?)g.OrderId).FirstOrDefaultAsync(ct)
             ?? throw AppException.NotFound("garment_not_found", "Garment not found.");
+        if (!await OrderVisibleAsync(orderId, ct)) // a garment at a hidden location looks like a missing one
+            throw AppException.NotFound("garment_not_found", "Garment not found.");
         var orderStatus = await db.Orders.Where(o => o.Id == orderId).Select(o => o.Status).FirstAsync(ct);
         if (orderStatus is not (OrderStatus.Confirmed or OrderStatus.InProduction or OrderStatus.Ready))
             throw AppException.Conflict("order_not_active", "Alterations can only be requested while the order is in production.");
@@ -295,9 +325,20 @@ public sealed class TaskService(
 
     private enum OverrideAction { Start, Complete }
 
+    private async Task EnsureTaskVisibleAsync(Guid id, CancellationToken ct)
+    {
+        var allowed = await AllowedLocationsAsync(ct);
+        if (allowed is null) return;
+        if (!await db.ProductionTasks.AnyAsync(t => t.Id == id && db.Orders.Any(o => o.Id == t.OrderId && allowed.Contains(o.LocationId)), ct))
+            throw AppException.NotFound("task_not_found", "Task not found.");
+    }
+
     private async Task<ProductionTask> LoadAsync(Guid id, CancellationToken ct)
-        => await db.ProductionTasks.FirstOrDefaultAsync(t => t.Id == id, ct)
+    {
+        await EnsureTaskVisibleAsync(id, ct);
+        return await db.ProductionTasks.FirstOrDefaultAsync(t => t.Id == id, ct)
             ?? throw AppException.NotFound("task_not_found", "Task not found.");
+    }
 
     private static void EnsureOpen(ProductionTask t)
     {
