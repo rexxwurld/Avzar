@@ -75,6 +75,54 @@ public static class EmailTemplates
             [$"We received a request to reset your password. The link is valid for {validMinutes} minutes and works once."],
             "Choose a new password", link, "If you did not ask for this, ignore this email; your password will not change.");
 
+    /// <summary>Sent to the person who has just been made the owner. There is no button: nothing in it needs a click.</summary>
+    public static RenderedEmail OwnershipReceived(string fullName, string businessName, string previousOwnerName)
+    {
+        var biz = Clean(businessName, "your business", 80);
+        return RenderNotice($"You are now the owner of {biz}", $"Hello {Clean(fullName, "there", 80)},",
+            [$"{Clean(previousOwnerName, "The previous owner", 80)} has made you the owner of {biz} on Avzar.",
+             "You now have the Owner role, which includes changing business settings and editing roles, and you can hand the business to someone else."],
+            "If you were not expecting this, please contact Avzar support.");
+    }
+
+    /// <summary>Sent to the person who has just handed the business over. It doubles as a security notice, because a stolen session cannot be told apart from the owner.</summary>
+    public static RenderedEmail OwnershipHandedOver(string fullName, string businessName, string newOwnerName, bool nowManager)
+    {
+        var biz = Clean(businessName, "your business", 80);
+        return RenderNotice($"Ownership of {biz} was transferred", $"Hello {Clean(fullName, "there", 80)},",
+            [$"Ownership of {biz} on Avzar was transferred to {Clean(newOwnerName, "another staff member", 80)}.",
+             nowManager
+                ? "Your Owner role has ended and you now have the Manager role. You can keep working, but you can no longer change business settings or edit roles."
+                : "Your Owner role has ended. What you can do now depends on the roles you still hold."],
+            "If you did not do this, change your password immediately and contact Avzar support.");
+    }
+
+    /// <summary>Same look as <see cref="Render"/> but with no button or link.</summary>
+    public static RenderedEmail RenderNotice(string subject, string greeting, IReadOnlyList<string> paragraphs, string footer)
+    {
+        if (!EmailAddressRules.IsSafeHeaderValue(subject)) throw new ArgumentException("Subject must be a single line.", nameof(subject));
+
+        var text = string.Join("\n\n", new[] { greeting }.Concat(paragraphs).Append(footer));
+
+        static string E(string s) => WebUtility.HtmlEncode(s);
+        var body = string.Concat(paragraphs.Select(p => $"<p style=\"margin:0 0 16px\">{E(p)}</p>"));
+        var html = "<!doctype html><html><body style=\"margin:0;padding:24px;background:#f6f5f2;font-family:Arial,Helvetica,sans-serif;color:#1f1f1f\">"
+            + "<div style=\"max-width:520px;margin:0 auto;background:#ffffff;padding:28px;border-radius:8px\">"
+            + $"<p style=\"margin:0 0 16px\">{E(greeting)}</p>{body}"
+            + $"<p style=\"margin:16px 0 0;font-size:13px;color:#555\">{E(footer)}</p>"
+            + "</div></body></html>";
+        return new RenderedEmail(subject, text, html);
+    }
+
+    /// <summary>A user-supplied value for use inside a sentence or a subject: control characters (including line breaks) become spaces,
+    /// runs of spaces collapse, and the result is cut to <paramref name="max"/> characters. Blank input gives the fallback.</summary>
+    private static string Clean(string? value, string fallback, int max)
+    {
+        var t = System.Text.RegularExpressions.Regex.Replace(string.Concat((value ?? "").Select(c => char.IsControl(c) ? ' ' : c)), @"\s{2,}", " ").Trim();
+        if (t.Length == 0) return fallback;
+        return t.Length <= max ? t : t[..(max - 1)].TrimEnd() + "…";
+    }
+
     public static RenderedEmail Render(string subject, string greeting, IReadOnlyList<string> paragraphs, string buttonLabel, string link, string footer)
     {
         if (!Uri.TryCreate(link, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
