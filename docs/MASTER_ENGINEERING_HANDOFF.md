@@ -2,18 +2,16 @@
 
 Repository: `https://github.com/rexxwurld/Avzar.git` (primary branch historically `main`). The supplied archive does not contain `.git`, so its exact branch/HEAD/worktree cannot be verified from this handoff. Always inspect the actual checkout before pushing or merging. Preserve user work, never weaken tests, never expose secrets, use forward-only migrations, and do not deploy or run real email/payment flows without authorization.
 
-## CI run #243 (commit `1409b30b6a424dac763b0a5b1fa9c9dd57a3b7da`, "Update CustomerPortalController.cs") — all three jobs succeeded (latest evidence)
+## CI run #254 (commit `8f18d45bfe57b41513fccf239ca3e8426545c7b8`, "Add files via upload") — all three jobs succeeded (latest evidence)
 
-- **backend (2m13s):** Release build 0 warnings / 0 errors; **704 passed / 0 failed / 0 skipped**; EF model-drift gate: "Committed migrations match the model"; `backend-test-results` artifact uploaded (TRX counters agree: 704/704).
-- **web (48s):** `npm ci` + `npm audit` 0 vulnerabilities; `tsc --noEmit` clean; **Vitest 162 passed in 9 files** (links, proxy, orders, team, production, customers, problem, nav, business-schedule); `next build` compiled successfully on Next.js 15.5.28. The pasted route table was truncated after `/orders/new`, so `/tasks`, `/tasks/schedule`, `/workers/schedule`, `/storefront`, `/settings` routes were NOT seen in the output. Still-open warning: `@types/node@22.10.7` below Vite 8.3.4's peer range (needs lockfile regeneration with registry access).
-- **migrations (1m22s):** job succeeded (clean PostgreSQL service container, licence-key guard passed), but step output was collapsed: applied migration count and schema counts NOT seen.
-- Not covered by any of this: Playwright/browser E2E, Docker Compose smoke (owner has decided not to run it), real email/S3/ClamAV/Redis/DNS/Paystack/OpenAI/SignalR/MAUI. No web tests exist yet for storefront, finance, inventory, workers-schedule or portal helpers.
-- Whether #243's commit equals the working copy in the latest ZIP (which includes a workflow-default edit and doc edits) is unknown (no `.git` in the archive).
+- **backend (2m13s):** TRX artifact: **710 passed / 0 failed / 0 skipped / 0 errors** (704 earlier + 6 new `CrossTenantApiTests`, all six passed). The job's step output was collapsed, so the drift-gate line was not seen for this run; the migrations job's Release build showed 0 warnings / 0 errors.
+- **web (38s):** `npm ci` ok, 0 vulnerabilities; the later steps (typecheck, Vitest, build) were collapsed, so counts for #254 were NOT seen (162 Vitest tests in 9 files were seen in #243). `@types/node@22.10.7` peer warning still present.
+- **migrations (1m06s):** clean PostgreSQL 17.11; applied from `InitialSchema` (visible excerpt lists the first five; the rest of the log was collapsed); schema counts: **73 tables, 38 check constraints, 125 foreign keys, 9 partial indexes**; the "financial/audit FKs that cascade (expect none)" check printed no rows. The `__EFMigrationsHistory does not exist` error line is the expected first-run probe, not a failure. The repo has 13 migrations; do not claim all 13 were seen applying in this log.
+- **Isolation:** the six HTTP cross-business tests (customer, order, invoice, payment, receipt, task; reads, PDFs, lists, writes, foreign `customerId` on create, `businessId` query/header ignored) passed, so no gap was found for those resources. Not yet covered over HTTP: expenses, storefront/media/designs/collections, inventory, portal links, worker availability/leave.
+- Not covered: Playwright/browser E2E, Docker Compose smoke (owner decision: not run), real email/S3/ClamAV/Redis/DNS/Paystack/OpenAI/SignalR/MAUI. No web tests yet for storefront, finance, inventory, worker schedule, reports, billing, AI studio or portal.
 
-## Latest increment (not yet run in CI): cross-business HTTP isolation tests
-- Added `backend/tests/Tailoring.IntegrationTests/CrossTenantApiTests.cs` (5 tests): the owner of business B probes business A's customer, order, invoice, payment, receipt and task ids (reads, PDF/job-sheet routes, lists, writes: void/pay/reverse/reject/cancel/generate-tasks), expects 404 identical to a missing id, confirms A's data is unchanged, refuses a foreign `customerId` on order/invoice create, and shows a `businessId` query/header does not change tenancy. Control reads prove the routes are valid for the real owner.
-- **Status: Written, NOT compiled or run** (no .NET SDK here). Expected backend total after CI: 709 if all five pass (704 + 5). If a probe returns a non-404 the finding is a real isolation gap (or a wrong route/status assumption): investigate, do not weaken the assertion.
-- Remaining isolation gaps to cover next: expenses, storefront/media/designs/collections, inventory and customer-portal endpoints, and worker availability/leave endpoints over HTTP.
+## Previous CI run #243 (commit `1409b30`) — all three jobs succeeded
+- backend 704/704, 0 warnings/errors, model-drift gate clean; web 162 Vitest tests (9 files), typecheck clean, Next 15.5.28 build compiled (route table truncated after `/orders/new`), 0 audit vulnerabilities; migrations succeeded (counts not seen).
 
 ## Previous CI run #238 (commit `40306ac`) — all three jobs succeeded
 
@@ -47,7 +45,7 @@ Decision (project owner): **no Docker Compose / full-stack smoke test will be ru
 Done / no longer open: order UI + production dashboard now pass CI #243 (Vitest, typecheck, build; only the route table was truncated); migrations job succeeded in #243 (counts not seen); Redis report cache, email retry/lease recovery, ownership-transfer notification emails and customer CSV exist in code.
 
 Open, in suggested order:
-1. Run CI for the new `CrossTenantApiTests.cs` (expect 709 backend tests); fix findings. Extend HTTP cross-business tests to expenses, storefront/media/designs/collections, inventory, portal links, worker availability/leave.
+1. [`CrossTenantApiTests.cs` passed in #254: 710/710.] Extend HTTP cross-business tests to expenses, storefront/media/designs/collections, inventory, portal links, worker availability/leave.
 2. Fix `@types/node` (>=22.12.0) + regenerate lockfile (needs registry access).
 3. Web unit tests for the untested areas listed above (extract pure helpers where logic is inline, e.g. `reports/page.tsx` and `dashboard/page.tsx` hold their logic inline).
 4. Finance UI gaps: expense and category CRUD, invoice draft editing, order invoice history.
@@ -69,7 +67,7 @@ Open, in suggested order:
 - Current session working copy for the latest increment: `/mnt/data/avzar-recovered/work/Avzar-main`. The archive has no `.git` metadata, so branch/commit/worktree status cannot be established. Changes have not been committed, pushed, merged or deployed.
 - No production database, customer email or payment action was performed.
 - Latest working-copy increment adds `/tasks` and `/tasks/[id]` manager/worker views and actions, plus query helper tests. `npm ci --no-audit --no-fund` timed out; Vitest and the full Next build remain blocked by unavailable dependencies. Changes remain uncommitted/unpushed.
-- Next action: run CI for the latest increment and fix every compiler/test/migration-drift finding. No Docker smoke test is planned (owner decision); do not merge/deploy until CI passes, and do not claim production readiness.
+- Next action: run CI after each increment and fix every compiler/test/migration-drift finding. No Docker smoke test is planned (owner decision); do not merge/deploy until CI passes, and do not claim production readiness.
 
 ## Latest working-copy increment: storefront editor slice
 - Added `/storefront` plus `StorefrontManager`: create/select storefronts, edit draft page titles/visibility, section visibility/variant/content, add preset sections, reorder/remove sections, and theme JSON; save with the expected draft revision; private preview; publish/unpublish; version history/rollback; contact/settings updates. Displays server-returned plan issues and contrast warnings. Storefront navigation is enabled for `storefront.view` users.
