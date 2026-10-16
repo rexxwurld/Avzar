@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Tailoring.Application.Billing;
 using Tailoring.Application.Common;
+using Tailoring.Application.Email;
 using Tailoring.Application.Locations;
 using Tailoring.Application.Production;
 using Tailoring.Domain.Billing;
