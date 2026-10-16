@@ -1,6 +1,6 @@
 # Architecture - Tailoring Platform
 
-Status (2026-10-15): backend verification artifacts supplied with the source snapshot report 478/478 tests passed and include a generated EF migration. They have not been independently rerun here; branch freshness, live CI provenance, and deployment readiness remain unverified. See `PROGRESS.md`.
+Status (2026-10-16): CI run #207 (commit `3714953`) passed all three jobs: 680/680 backend tests, a clean model-drift gate, and eight migrations applied to a clean PostgreSQL 17.11. Branch freshness beyond that run and deployment readiness remain unverified. See `PROGRESS.md`.
 
 ## 1. Stack and versions
 | Layer | Choice | Pinned in |

@@ -1,4 +1,4 @@
-# Static review (updated 2026-10-15)
+# Static review (updated 2026-10-15; later test and CI evidence is in PROGRESS.md)
 
 The current review workspace has no .NET SDK, Docker, or PostgreSQL client, and could not resolve GitHub. No build or test was independently run here. The supplied backend TRX artifact reports 478/478 passed, and the supplied generated migration was inspected statically; see `PROGRESS.md` for the evidence boundaries. The source archive has no `.git` directory, so live branch ancestry and history could not be checked.
 

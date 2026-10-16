@@ -1,6 +1,6 @@
 # Avzar: first run, test and credentials
 
-Status (2026-10-16): the supplied backend TRX (CI run #115) reports 560/560 tests passed, and the CI `migrations` job applied the three committed migrations to a clean PostgreSQL 17 (65 tables, 33 check constraints, 112 foreign keys, 6 partial indexes). Not rerun in this workspace; see `PROGRESS.md` for evidence and limits. Not a deployment verification (compose and full-stack smoke test are still unrun).
+Status (2026-10-16): CI run #207 (commit `3714953`) passed all three jobs: the backend suite reports 680/680 tests passed with a clean model-drift gate, and the `migrations` job applied the eight committed migrations to a clean PostgreSQL 17.11 (67 tables, 33 check constraints, 113 foreign keys, 8 partial indexes). Not rerun in this workspace; see `PROGRESS.md` for evidence and limits. Not a deployment verification (compose and full-stack smoke test are still unrun).
 
 ## 1. Prerequisites
 - .NET 10 SDK (`backend/global.json` pins 10.0.100) and `dotnet tool install -g dotnet-ef`
@@ -145,5 +145,5 @@ Free for for-profit companies under USD 1M annual revenue: apply at https://lice
 - `web/package-lock.json` is committed. CI and `web/Dockerfile` use `npm ci`; do not switch back to `npm install`.
 - To change a web dependency: edit `web/package.json`, run the "Generate web lockfile" workflow (Actions tab). It installs the latest npm, deletes and regenerates the lockfile, and commits it to `main`. npm 10.9.x can crash on Vitest 4's optional peer dependencies (`Cannot read properties of null (reading 'edgesOut')`), which is why the workflow uses the latest npm. The committed lockfile installs fine with `npm ci` on npm 10.
 - Commits pushed by that workflow do not start CI (default `GITHUB_TOKEN`). Run the CI workflow by hand afterwards and wait for all three jobs.
-- CI runs `npm audit --audit-level=high` on the whole dependency tree and fails the `web` job on a high or critical finding. The manual "Audit report" workflow (`audit.yml`) prints the full and the runtime-only audit to the run summary.
+- CI runs `npm audit --audit-level=high` on the whole dependency tree and fails the `web` job on a high or critical finding. If a manual audit report is needed, run `npm audit` locally in `web/`.
 - `web/package.json` has `overrides: { "postcss": ">=8.5.23 <9" }` to lift the postcss bundled with `next` past a high-severity advisory. Remove it only after upgrading to a `next` release that already bundles a patched postcss, and re-run the audit.
