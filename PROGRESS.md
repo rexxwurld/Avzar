@@ -365,3 +365,9 @@ Environment: no .NET SDK, no npm network, so nothing below was built or run here
 - `npm audit --omit=dev` (runtime): `next` flagged moderate (SSG/ISR cache poisoning, GHSA-4jqv-mc3x-m676, GHSA-mcj8-r9mp-w47p) and `postcss` high (bundled with next, 4 advisories). npm names next@15.5.28 as the fix. Changed `web/package.json` to `next` 15.5.28 (UNVERIFIED until CI).
 - `npm install` also reports 8 vulnerabilities in total (2 critical, 2 high); the audit with dev dependencies included is not yet read. Likely vitest/vite tooling (vitest 2.1.8); not part of the runtime image. Check after the lockfile exists.
 - Still open: commit `web/package-lock.json`, `npm ci` in CI and Dockerfile, make audit blocking once clean.
+
+## CI run #149 (web job), read 2026-10-16
+- `npm ci` works with the committed lockfile; typecheck and 22 tests pass; Next 15.5.28 cleared the two moderate Next advisories.
+- `npm audit --omit=dev` still reports `postcss` <=8.5.22 (high, 4 advisories) nested inside `next`; npm's only offered fix is `next@16.4.2` (breaking). The audit step (non-blocking) therefore still exits 1 and produces the "1 error" annotation.
+- Assessment (not verified): the advisories need attacker-controlled CSS or source-map comments; Next only runs postcss at build time on this repo's own CSS, and storefront content is validated config, not CSS. Low practical exposure, but the audit stays red until fixed.
+- Change prepared (UNVERIFIED until CI): `overrides: { next: { postcss: ">=8.5.23 <9" } }` in `web/package.json`. The lockfile must be regenerated (run "Generate web lockfile") before `npm ci` will accept it. If the build or audit still fails, do NOT upgrade to Next 16 blindly; read the error first.
