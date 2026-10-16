@@ -146,6 +146,8 @@ public sealed class CrossTenantApiTests(ApiFactory factory)
     {
         var a = await RegisterAsync("expense-tenant-a");
         var b = await RegisterAsync("expense-tenant-b");
+        await factory.SeedPlanAsync(a.BusinessId, "professional");
+        await factory.SeedPlanAsync(b.BusinessId, "professional");
         var locationA = await FirstLocationAsync(a);
         var categoryResponse = await SendAsync(a.Http, HttpMethod.Post, "/api/expense-categories", new
         {
@@ -240,6 +242,8 @@ public sealed class CrossTenantApiTests(ApiFactory factory)
     {
         var a = await RegisterAsync("inventory-tenant-a");
         var b = await RegisterAsync("inventory-tenant-b");
+        await factory.SeedPlanAsync(a.BusinessId, "professional");
+        await factory.SeedPlanAsync(b.BusinessId, "professional");
         var locationA = await FirstLocationAsync(a);
         var created = await SendAsync(a.Http, HttpMethod.Post, "/api/inventory", new
         {

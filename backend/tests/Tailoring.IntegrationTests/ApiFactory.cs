@@ -111,6 +111,17 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
+    /// <summary>Moves a business onto a seeded plan (setup only). New businesses start on Free, which excludes expenses and inventory.</summary>
+    public async Task SeedPlanAsync(Guid businessId, string planCode)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var planId = await db.Plans.Where(x => x.Code == planCode).Select(x => x.Id).SingleAsync();
+        var changed = await db.Subscriptions.IgnoreQueryFilters().Where(x => x.BusinessId == businessId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.PlanId, planId));
+        if (changed != 1) throw new InvalidOperationException("Subscription not found.");
+    }
+
     public async Task DeactivateMemberAsync(Guid businessId, Guid membershipId)
     {
         using var scope = Services.CreateScope();
