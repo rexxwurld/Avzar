@@ -88,8 +88,8 @@ jobs:
           node-version: 22
       - run: npm ci
       # Fails the job on any high or critical vulnerability in runtime dependencies (clean since run #152).
-      - name: npm audit (runtime dependencies)
-        run: npm audit --omit=dev --audit-level=high
+      - name: npm audit
+        run: npm audit --audit-level=high
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
