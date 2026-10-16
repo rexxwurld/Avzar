@@ -25,7 +25,7 @@ public sealed record CustomerPortalInvoiceDto(Guid Id, string? Number, string St
 public sealed record CustomerPortalDto(string CustomerName, string BusinessName, string CurrencyCode, IReadOnlyList<CustomerPortalOrderDto> Orders, IReadOnlyList<CustomerPortalInvoiceDto> Invoices);
 
 [ApiController, Route("api/customer-portal")]
-public sealed class CustomerPortalController(AppDbContext db, ITenantContext tenant, IEmailSender email, IConfiguration config) : ControllerBase
+public sealed class CustomerPortalController(AppDbContext db, IEmailSender email, IConfiguration config) : ControllerBase
 {
     [HttpPost("customers/{customerId:guid}/link"), HasPermission(Permissions.CustomersManage), EnableRateLimiting("auth")]
     public async Task<CustomerPortalLinkDto> SendLink(Guid customerId, CancellationToken ct)
