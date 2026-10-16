@@ -15,7 +15,11 @@ public sealed record PdfSection(string Heading, IReadOnlyList<string> Lines);
 public sealed record PdfDoc(
     string Title, string? Number, string BusinessName, string? BusinessAddress,
     IReadOnlyList<PdfKv> Meta, string? PartiesHeading, IReadOnlyList<PdfKv> Parties, PdfTable? Table,
-    IReadOnlyList<PdfKv> Totals, IReadOnlyList<PdfSection> Sections, string? Stamp, string? Footer);
+    IReadOnlyList<PdfKv> Totals, IReadOnlyList<PdfSection> Sections, string? Stamp, string? Footer)
+{
+    /// <summary>Set by PdfService from the business's branding; null draws the neutral default look.</summary>
+    public PdfStyle? Style { get; init; }
+}
 
 public sealed record PdfBranding(string BusinessName, string? Address);
 public sealed record PdfFile(byte[] Content, string FileName);
