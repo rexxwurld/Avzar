@@ -28,6 +28,23 @@ public sealed class EmailWebhookService(AppDbContext db, IOptions<EmailOptions> 
         var emailId = ev.EmailId;
         var at = now.UtcDateTime;
         var detail = ev.Detail;
+
+        // Stop mailing a dead or complaining address. Idempotent and independent of the status update below: a replay, a
+        // duplicate or an out-of-order event still converges on "suppressed". The address is copied inside the database from
+        // the outbox row we sent, never read from the (signed but external) payload.
+        var suppressionReason = EmailDeliveryRules.SuppressionReasonFor(ev.Type, ev.BounceType);
+        if (suppressionReason is not null)
+        {
+            var id = Guid.NewGuid();
+            await db.Database.ExecuteSqlAsync($"""
+                INSERT INTO "EmailSuppressions" ("Id", "CreatedAtUtc", "Address", "Reason")
+                SELECT {id}, {at}, lower(btrim("ToAddress")), {suppressionReason}
+                FROM "EmailOutbox" WHERE "ProviderMessageId" = {emailId}
+                ORDER BY "CreatedAtUtc" LIMIT 1
+                ON CONFLICT ("Address") DO NOTHING
+                """, ct);
+        }
+
         var changed = await db.EmailOutbox
             .Where(m => m.ProviderMessageId == emailId && (m.DeliveryStatus == null || replaceable.Contains(m.DeliveryStatus)))
             .ExecuteUpdateAsync(s => s

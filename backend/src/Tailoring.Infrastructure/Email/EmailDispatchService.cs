@@ -38,6 +38,14 @@ public sealed class EmailDispatchService(AppDbContext db, IEmailTransport transp
             // Fresh load: the raw UPDATE bypassed the change tracker.
             var m = await db.EmailOutbox.AsTracking().FirstAsync(x => x.Id == id, ct);
             TransportResult result;
+            // Checked at send time (not enqueue time) so a bounce that arrives while a message is queued still stops it.
+            var suppressionKey = EmailAddressRules.SuppressionKey(m.ToAddress);
+            if (await db.EmailSuppressions.AnyAsync(x => x.Address == suppressionKey, ct))
+            {
+                // Rejected = permanent: the row goes to Failed and its body is purged, and the transport is never called.
+                result = TransportResult.Reject("Recipient is on the suppression list (earlier permanent bounce or complaint)");
+            }
+            else
             try
             {
                 result = await transport.SendAsync(new OutboundEmail(m.Id, m.ToAddress, m.Subject, m.TextBody, m.HtmlBody), ct);
