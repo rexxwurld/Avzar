@@ -3,13 +3,15 @@ using Tailoring.Application.Abstractions;
 using Tailoring.Application.Billing;
 using Tailoring.Application.Common;
 using Tailoring.Application.Finance;
+using Tailoring.Application.Locations;
 using Tailoring.Domain.Billing;
 using Tailoring.Domain.Finance;
 using Tailoring.Infrastructure.Persistence;
 
 namespace Tailoring.Infrastructure.Services;
 
-public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements) : IExpenseService
+public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements,
+    ILocationScope? locations = null) : IExpenseService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
 
@@ -53,7 +55,8 @@ public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAudi
     public async Task<PagedResult<ExpenseDto>> ListAsync(ExpenseListQuery query, CancellationToken ct = default)
     {
         await GateAsync(ct);
-        var q = db.Expenses.AsNoTracking().AsQueryable();
+        var q = await ScopedAsync(db.Expenses.AsNoTracking(), ct);
+        if (query.LocationId is { } lid) q = q.Where(e => e.LocationId == lid);
         if (!query.IncludeVoid) q = q.Where(e => e.VoidedAtUtc == null);
         if (query.CategoryId is { } cid) q = q.Where(e => e.CategoryId == cid);
         if (query.From is { } from) q = q.Where(e => e.ExpenseDate >= from);
@@ -85,10 +88,12 @@ public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAudi
         await GateAsync(ct);
         var biz = await BusinessAsync(ct);
         await ValidateAsync(req, biz.Today, ct);
+        var locationId = await ResolveLocationAsync(req.LocationId, ct);
         var expense = new Expense { BusinessId = BusinessId, CurrencyCode = biz.Currency, CreatedByUserId = tenant.UserId };
         Apply(expense, req);
+        expense.LocationId = locationId;
         db.Expenses.Add(expense);
-        audit.Record(BusinessId, tenant.UserId, "expense.created", nameof(Expense), expense.Id, new { expense.Amount, expense.Description });
+        audit.Record(BusinessId, tenant.UserId, "expense.created", nameof(Expense), expense.Id, new { expense.Amount, expense.Description, expense.LocationId });
         await db.SaveChangesAsync(ct);
         return await ToDtoAsync(expense, ct);
     }
@@ -102,10 +107,13 @@ public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAudi
 
         var biz = await BusinessAsync(ct);
         await ValidateAsync(req, biz.Today, ct);
+        // Omitted = keep the current location. A changed location must be one the caller may use.
+        var locationId = req.LocationId is null || req.LocationId == expense.LocationId ? expense.LocationId : await ResolveLocationAsync(req.LocationId, ct);
         Apply(expense, req);
+        expense.LocationId = locationId;
         db.Entry(expense).Property(e => e.Version).OriginalValue = req.Version.Value;
         expense.UpdatedAtUtc = DateTime.UtcNow;
-        audit.Record(BusinessId, tenant.UserId, "expense.updated", nameof(Expense), expense.Id, new { expense.Amount });
+        audit.Record(BusinessId, tenant.UserId, "expense.updated", nameof(Expense), expense.Id, new { expense.Amount, expense.LocationId });
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { throw AppException.Conflict("stale_version", "This expense was changed by someone else. Reload and try again."); }
         return await ToDtoAsync(expense, ct);
@@ -124,10 +132,11 @@ public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAudi
         return await ToDtoAsync(expense, ct);
     }
 
-    public async Task<ExpenseSummaryDto> SummaryAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default)
+    public async Task<ExpenseSummaryDto> SummaryAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default, Guid? locationId = null)
     {
         await GateAsync(ct);
-        var q = db.Expenses.AsNoTracking().Where(e => e.VoidedAtUtc == null);
+        var q = (await ScopedAsync(db.Expenses.AsNoTracking(), ct)).Where(e => e.VoidedAtUtc == null);
+        if (locationId is { } lid) q = q.Where(e => e.LocationId == lid);
         if (from is { } f) q = q.Where(e => e.ExpenseDate >= f);
         if (to is { } t) q = q.Where(e => e.ExpenseDate <= t);
 
@@ -139,6 +148,29 @@ public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAudi
     }
 
     // ------------------------------------------------------------------ helpers
+
+    /// <summary>Limits a query to expenses at the caller's locations. An expense with no location is business-wide and visible only to
+    /// callers who see every location. A hidden expense looks exactly like a missing one.</summary>
+    private async Task<IQueryable<Expense>> ScopedAsync(IQueryable<Expense> q, CancellationToken ct)
+    {
+        if (locations is null) return q; // no scope service registered (tests, system flows)
+        var allowed = await locations.AllowedLocationIdsAsync(ct);
+        return allowed is null ? q : q.Where(e => e.LocationId != null && allowed.Contains(e.LocationId.Value));
+    }
+
+    /// <summary>Checks a location chosen on a create or a move. Staff limited to some locations must pick one of theirs; the check runs
+    /// before the existence check so a foreign location id is answered the same way as a real one.</summary>
+    private async Task<Guid?> ResolveLocationAsync(Guid? locationId, CancellationToken ct)
+    {
+        if (locations is not null && await locations.AllowedLocationIdsAsync(ct) is not null)
+        {
+            if (locationId is null) throw AppException.Forbidden("location_forbidden", "Choose one of your locations for this expense.");
+            await locations.EnsureAllowedAsync(locationId.Value, ct);
+        }
+        if (locationId is { } id && !await db.Locations.AnyAsync(l => l.Id == id && l.IsActive, ct))
+            throw AppException.BadRequest("unknown_location", "Location not found or inactive.");
+        return locationId;
+    }
 
     private Task GateAsync(CancellationToken ct) => entitlements.RequireFlagAsync(BusinessId, EntitlementKeys.FinanceExpenses, ct);
 
@@ -176,7 +208,7 @@ public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAudi
 
     private async Task<Expense> LoadAsync(Guid id, bool track, CancellationToken ct)
     {
-        var q = track ? db.Expenses.AsQueryable() : db.Expenses.AsNoTracking();
+        var q = await ScopedAsync(track ? db.Expenses.AsQueryable() : db.Expenses.AsNoTracking(), ct);
         return await q.FirstOrDefaultAsync(e => e.Id == id, ct) ?? throw AppException.NotFound("expense_not_found", "Expense not found.");
     }
 
@@ -190,5 +222,5 @@ public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAudi
         => ToDto(e, await db.ExpenseCategories.AsNoTracking().Where(c => c.Id == e.CategoryId).Select(c => c.Name).FirstAsync(ct));
 
     private static ExpenseDto ToDto(Expense e, string category) => new(e.Id, e.CategoryId, category, e.ExpenseDate, e.Amount, e.CurrencyCode,
-        e.Description, e.Vendor, e.Reference, e.VoidedAtUtc is not null, e.VoidReason, e.Version, e.CreatedAtUtc);
+        e.Description, e.Vendor, e.Reference, e.VoidedAtUtc is not null, e.VoidReason, e.Version, e.CreatedAtUtc, e.LocationId);
 }
