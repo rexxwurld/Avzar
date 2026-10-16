@@ -13,7 +13,7 @@ is not built yet.
 ## Local
 ```bash
 cp .env.example .env.local
-npm install
+npm ci
 npm run dev          # http://localhost:3000/sites/<slug>   (no DNS needed)
 npm run typecheck && npm test
 ```
