@@ -87,10 +87,9 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      # Reports known vulnerabilities in runtime dependencies. Non-blocking until the first clean run, then remove continue-on-error.
+      # Fails the job on any high or critical vulnerability in runtime dependencies (clean since run #152).
       - name: npm audit (runtime dependencies)
         run: npm audit --omit=dev --audit-level=high
-        continue-on-error: true
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
