@@ -13,15 +13,17 @@ export type ReportMetrics = {
   overdueTasks: number;
 };
 
+const fmt = (amount: number, currency: string): string => money(amount, currency) ?? '—';
+
 /** Shared presentation model for dashboard and detailed reports. Keeps labels and revenue semantics consistent. */
 export function dashboardMetricEntries(report: ReportMetrics): [string, string][] {
   return [
     ['Orders created', String(report.ordersCreated)],
     ['Orders delivered', String(report.ordersDelivered)],
-    ['Order value', money(report.orderValue, report.currencyCode)],
-    ['Verified revenue', money(report.verifiedRevenue, report.currencyCode)],
-    ['Expenses', money(report.expenses, report.currencyCode)],
-    ['Revenue less expenses', money(report.grossAfterExpenses, report.currencyCode)],
+    ['Order value', fmt(report.orderValue, report.currencyCode)],
+    ['Verified revenue', fmt(report.verifiedRevenue, report.currencyCode)],
+    ['Expenses', fmt(report.expenses, report.currencyCode)],
+    ['Revenue less expenses', fmt(report.grossAfterExpenses, report.currencyCode)],
     ['Open production tasks', String(report.openTasks)],
     ['Overdue tasks', String(report.overdueTasks)],
   ];
