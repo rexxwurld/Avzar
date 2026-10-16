@@ -28,4 +28,19 @@ public class EmailOutboxMessage : Entity
     public string? ProviderMessageId { get; set; }
     public DateTime? SentAtUtc { get; set; }
     public DateTime? BodyPurgedAtUtc { get; set; }
+
+    /// <summary>What the provider reported AFTER accepting the message (webhook): see <see cref="EmailDeliveryStatus"/>. Null = no report yet.</summary>
+    public string? DeliveryStatus { get; set; }
+    public DateTime? DeliveryUpdatedAtUtc { get; set; }
+    /// <summary>Short provider explanation (for example a bounce message). Never contains the recipient address.</summary>
+    public string? DeliveryDetail { get; set; }
+}
+
+/// <summary>Provider-reported outcomes. Higher-severity reports replace lower ones, never the other way round (see EmailDeliveryRules).</summary>
+public static class EmailDeliveryStatus
+{
+    public const string Delayed = "Delayed";
+    public const string Delivered = "Delivered";
+    public const string Bounced = "Bounced";
+    public const string Complained = "Complained";
 }
