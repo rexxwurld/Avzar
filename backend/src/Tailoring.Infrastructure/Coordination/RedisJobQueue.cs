@@ -64,7 +64,7 @@ public sealed class RedisJobWorker(
                 catch (RedisServerException ex) when (ex.Message.Contains("BUSYGROUP", StringComparison.OrdinalIgnoreCase)) { }
 
                 // Recover abandoned jobs from crashed consumers. The server returns only entries idle beyond ClaimAfter.
-                var pending = await db.StreamPendingMessagesAsync(RedisJobQueue.Stream, Group, 20, minId: "-", maxId: "+");
+                var pending = await db.StreamPendingMessagesAsync(RedisJobQueue.Stream, Group, 20, RedisValue.Null, minId: "-", maxId: "+");
                 foreach (var p in pending.Where(p => p.IdleTimeInMilliseconds >= ClaimAfter.TotalMilliseconds))
                 {
                     var claimed = await db.StreamClaimAsync(RedisJobQueue.Stream, Group, _consumer, ClaimAfter, [p.Id]);
