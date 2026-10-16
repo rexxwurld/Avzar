@@ -2832,16 +2832,6 @@ namespace Tailoring.Infrastructure.Persistence.Migrations
 
 
 
-            modelBuilder.Entity("Tailoring.Domain.Inventory.MaterialStock", b =>
-                {
-                    b.HasOne("Tailoring.Domain.Tenancy.Business", null).WithMany().HasForeignKey("BusinessId").OnDelete(DeleteBehavior.Restrict).IsRequired();
-                    b.HasOne("Tailoring.Domain.Tenancy.BusinessLocation", null).WithMany().HasForeignKey("LocationId", "BusinessId").HasPrincipalKey("Id", "BusinessId").OnDelete(DeleteBehavior.Restrict);
-                });
-            modelBuilder.Entity("Tailoring.Domain.Inventory.StockMovement", b =>
-                {
-                    b.HasOne("Tailoring.Domain.Tenancy.Business", null).WithMany().HasForeignKey("BusinessId").OnDelete(DeleteBehavior.Restrict).IsRequired();
-                    b.HasOne("Tailoring.Domain.Inventory.MaterialStock", null).WithMany().HasForeignKey("MaterialId", "BusinessId").HasPrincipalKey("Id", "BusinessId").OnDelete(DeleteBehavior.Restrict).IsRequired();
-                });
 
             modelBuilder.Entity("Tailoring.Domain.Production.WorkerAvailabilityDay", b =>
                 {
@@ -4465,6 +4455,16 @@ namespace Tailoring.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Tailoring.Domain.Production.ProductionWorkflow", b =>
                 {
                     b.Navigation("Stages");
+                });
+            modelBuilder.Entity("Tailoring.Domain.Inventory.MaterialStock", b =>
+                {
+                    b.HasOne("Tailoring.Domain.Tenancy.Business", null).WithMany().HasForeignKey("BusinessId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("Tailoring.Domain.Tenancy.BusinessLocation", null).WithMany().HasForeignKey("LocationId", "BusinessId").HasPrincipalKey("Id", "BusinessId").OnDelete(DeleteBehavior.Restrict);
+                });
+            modelBuilder.Entity("Tailoring.Domain.Inventory.StockMovement", b =>
+                {
+                    b.HasOne("Tailoring.Domain.Tenancy.Business", null).WithMany().HasForeignKey("BusinessId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("Tailoring.Domain.Inventory.MaterialStock", null).WithMany().HasForeignKey("MaterialId", "BusinessId").HasPrincipalKey("Id", "BusinessId").OnDelete(DeleteBehavior.Restrict).IsRequired();
                 });
 #pragma warning restore 612, 618
         }
