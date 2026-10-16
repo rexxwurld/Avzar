@@ -1,0 +1,75 @@
+name: Mobile build
+
+# Builds mobile/Avzar.Mobile for Android and iOS (simulator, unsigned).
+# Runs when mobile code changes, or by hand from the Actions tab.
+# Place this file at .github/workflows/mobile-build.yml
+
+on:
+  push:
+    branches: [main]
+    paths: ['mobile/**', '.github/workflows/mobile-build.yml']
+  pull_request:
+    paths: ['mobile/**', '.github/workflows/mobile-build.yml']
+  workflow_dispatch:
+    inputs:
+      xcode_version:
+        description: 'Xcode to select on the macOS runner (e.g. 26.2). Leave empty to keep the runner default.'
+        required: false
+        default: ''
+
+jobs:
+  android:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: mobile/Avzar.Mobile
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install MAUI Android workload
+        run: dotnet workload install maui-android
+
+      - name: Build Android (Release, APK)
+        run: dotnet build Avzar.Mobile.csproj -f net10.0-android -c Release -p:TargetFrameworks=net10.0-android -p:AndroidPackageFormat=apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: avzar-android-apk
+          path: mobile/Avzar.Mobile/bin/Release/net10.0-android/**/*.apk
+          if-no-files-found: warn
+
+  ios:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: mobile/Avzar.Mobile
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Select Xcode
+        if: ${{ github.event.inputs.xcode_version != '' }}
+        run: sudo xcode-select -s "/Applications/Xcode_${{ github.event.inputs.xcode_version }}.app"
+
+      - name: Show Xcode version and installed Xcodes
+        run: |
+          xcodebuild -version
+          ls /Applications | grep -i xcode || true
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install MAUI iOS workload
+        run: dotnet workload install maui-ios
+
+      # TargetFrameworks is overridden so restore only needs this job's workload
+      # (the csproj targets both android and ios, which otherwise needs both installed).
+      # Simulator build needs no signing certificate. A device/App Store build
+      # needs an Apple Developer account, certificate and provisioning profile.
+      - name: Build iOS (simulator, unsigned)
+        run: dotnet build Avzar.Mobile.csproj -f net10.0-ios -c Release -p:TargetFrameworks=net10.0-ios -p:RuntimeIdentifier=iossimulator-arm64 -p:EnableCodeSigning=false
