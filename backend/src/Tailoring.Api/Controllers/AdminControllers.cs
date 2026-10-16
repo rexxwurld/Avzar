@@ -101,7 +101,7 @@ public class OwnershipController(IOwnershipService ownership) : ControllerBase
 {
     /// <summary>Re-authenticates the owner and sends a single-use email confirmation. Ownership is unchanged at this stage.</summary>
     [HttpPost, Authorize]
-    public async Task<IActionResult> Request(TransferOwnershipRequest request, CancellationToken ct)
+    public async Task<IActionResult> RequestVerification(TransferOwnershipRequest request, CancellationToken ct)
     { await ownership.RequestVerificationAsync(request, ct); return Accepted(new { status = "verification_sent" }); }
 
     /// <summary>Confirms an ownership transfer using the token sent to the current owner's email.</summary>

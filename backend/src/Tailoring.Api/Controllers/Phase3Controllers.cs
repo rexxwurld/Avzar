@@ -187,6 +187,6 @@ public sealed class WorkerScheduleController(IWorkerScheduleService schedules) :
 public sealed class MyLeaveRequestsController(IWorkerScheduleService schedules) : ControllerBase
 {
     [HttpPost, HasPermission(Permissions.TasksWork)]
-    public Task<WorkerLeaveDto> Request([FromBody] WorkerLeaveCreateRequest request, CancellationToken ct)
+    public Task<WorkerLeaveDto> RequestLeave([FromBody] WorkerLeaveCreateRequest request, CancellationToken ct)
         => schedules.RequestMyLeaveAsync(request, ct);
 }
