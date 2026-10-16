@@ -1190,6 +1190,17 @@ namespace Tailoring.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DeliveryDetail")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("DeliveryStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("DeliveryUpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("HtmlBody")
                         .HasColumnType("text");
 
@@ -1242,6 +1253,9 @@ namespace Tailoring.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("NextAttemptUtc")
                         .HasFilter("\"Status\" = 'Pending'");
+
+                    b.HasIndex("ProviderMessageId")
+                        .HasFilter("\"ProviderMessageId\" IS NOT NULL");
 
                     b.ToTable("EmailOutbox", null, t =>
                         {
