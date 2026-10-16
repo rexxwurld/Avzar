@@ -42,3 +42,36 @@
   .ap-side{border-right:0;border-bottom:1px solid var(--ap-border)}
   .ap-side nav ul{display:flex;flex-wrap:wrap}
 }
+
+/* ---- staff, roles, locations ---- */
+.ap-main h1+.ap-tabs{margin-top:-.25rem}
+.ap-stack{display:grid;gap:1rem}
+.ap-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem}
+.ap-h2{margin:0 0 .75rem;font-size:1.1rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.ap-row .ap-h2{margin:0}
+.ap-small{font-size:.85rem}
+.ap-ok{color:var(--ap-ok,#067647);font-size:.9rem;margin:.5rem 0 0}
+@media (prefers-color-scheme:dark){.ap-ok{color:#6ce9a6}}
+.ap-tabs{display:flex;gap:.25rem;margin:0 0 1rem;border-bottom:1px solid var(--ap-border)}
+.ap-tabs a{padding:.5rem .9rem;text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px}
+.ap-tabs a[aria-current=page]{border-color:var(--ap-accent);font-weight:600}
+.ap-scroll{overflow-x:auto}
+.ap-table{width:100%;border-collapse:collapse;font-size:.95rem}
+.ap-table th,.ap-table td{text-align:left;padding:.6rem .5rem;border-bottom:1px solid var(--ap-border);vertical-align:top}
+.ap-table th{font-size:.8rem;text-transform:uppercase;letter-spacing:.03em;color:var(--ap-muted)}
+.ap-dim{opacity:.65}
+.ap-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ap-badge{display:inline-block;margin-left:.4rem;padding:.05rem .5rem;border-radius:999px;font-size:.75rem;border:1px solid var(--ap-border);color:var(--ap-muted)}
+.ap-badge-on{color:#067647;border-color:#067647;margin-left:0}
+.ap-badge-off{color:var(--ap-danger);border-color:var(--ap-danger);margin-left:0}
+@media (prefers-color-scheme:dark){.ap-badge-on{color:#6ce9a6;border-color:#6ce9a6}}
+.ap-actions{display:flex;flex-wrap:wrap;gap:.4rem}
+.ap-btn-sm{padding:.35rem .7rem;font-size:.85rem}
+.ap-btn-danger{background:var(--ap-danger);color:#fff}
+.ap-fieldset{border:1px solid var(--ap-border);border-radius:8px;padding:.5rem .9rem .75rem;margin:0}
+.ap-fieldset legend{font-weight:600;font-size:.9rem;padding:0 .35rem}
+.ap-check{display:flex;gap:.55rem;align-items:flex-start;margin:.35rem 0}
+.ap-check input{margin-top:.3rem}
+.ap-perms{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.75rem}
+.ap-chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.4rem}
+.ap-chips li{border:1px solid var(--ap-border);border-radius:999px;padding:.1rem .65rem;font-size:.85rem}
