@@ -135,3 +135,8 @@ Free for for-profit companies under USD 1M annual revenue: apply at https://lice
 4. Reports only move a message's status up (Delayed < Delivered < Bounced/Complained); duplicates and out-of-order events are harmless. The recipient address is never stored in the report; the bounce reason is capped at 300 characters.
 5. Check: send a test email, then `select "ToAddress","Status","DeliveryStatus","DeliveryDetail" from "EmailOutbox" order by "CreatedAtUtc" desc limit 5;`
 6. Suppression: the address is copied inside the database from the outbox row, never from the payload. To lift a suppression, delete the row from `EmailSuppressions` (no admin UI yet). Not done: Resend IP allow-listing, other providers' webhooks (SMTP has none).
+
+## Business ownership and the one-owner rule
+- The database allows at most one owner per business (partial unique index `UX_Memberships_OneOwner`). An ownership transfer saves the outgoing owner first and the new owner second, inside one transaction.
+- If the migration that adds the index fails with a duplicate-key error, some business has two owner memberships: fix that data by hand (set `IsOwner` to false on the wrong one and give them the Manager role), then restart.
+- Migration `AddOneOwnerGuardAndLocationsAllBackfill` also gave `locations.all` to the system Manager and Accountant roles of older businesses, except roles whose permissions were ever edited through the API (an audit row `role.permissions_changed` exists). Without that permission a role's holders only see their assigned locations. An owner can add or remove it per role on the roles page.
