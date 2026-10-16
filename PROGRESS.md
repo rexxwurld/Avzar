@@ -377,3 +377,9 @@ Environment: no .NET SDK, no npm network, so nothing below was built or run here
 - Audit step made BLOCKING in `ci.yml` (continue-on-error removed): UNVERIFIED until the next run.
 - Remaining dev-only findings (`npm install` shows 6: 3 moderate, 1 high, 2 critical, all outside the runtime audit; likely vitest/vite tooling): not shipped, review when upgrading vitest.
 - Next: (3) Docker Compose smoke test, (4) Step A leftovers, (5) Step B.
+
+## Step A: one-owner constraint and locations.all back-fill - written 2026-10-16 (UNVERIFIED: not compiled, not run; CI is the first check)
+- Partial unique index `UX_Memberships_OneOwner` on `Memberships(BusinessId) WHERE "IsOwner"`; `OwnershipService.TransferAsync` now saves the outgoing owner first, then the new owner, in the same transaction (the existing ownership tests, including the racing-transfers test, exercise this against the EnsureCreated schema).
+- Migration `20261016220000_AddOneOwnerGuardAndLocationsAllBackfill` (hand-written, Designer copied from the snapshot): back-fills `locations.all` for system Manager/Accountant roles that lack it AND were never edited via the API (no `role.permissions_changed` audit row); then creates the index. It fails loudly if a business already has two owners.
+- Tests: `OwnerGuardAndBackfillTests.cs` (constraint, transfer order, back-fill incl. edited role, custom role with a system name, idempotence). The back-fill SQL is run directly because the xUnit suite uses EnsureCreated; the `migrations` CI job only proves the migration applies to an empty database (no rows to back-fill).
+- Still open in Step A: ownership-transfer notification emails, Redis caching/queues/SignalR backplane, CSV import/export beyond customers, background-job recovery, behavioural location-scope tests and scoping for customers/expenses/reports.
