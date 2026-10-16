@@ -145,6 +145,37 @@ public sealed class EmailWebhookRulesTests
         new EmailOptions { Provider = "log" }.Validate(); // empty = endpoint disabled, which is fine
         Assert.Throws<InvalidOperationException>(() => new EmailOptions { Provider = "log", Resend = { WebhookSecret = "oops" } }.Validate());
     }
+
+    [Theory]
+    [InlineData("email.complained", null, "Complained")]
+    [InlineData("email.complained", "Permanent", "Complained")]
+    [InlineData("email.bounced", "Permanent", "Bounced")]
+    [InlineData("email.bounced", "permanent", "Bounced")]
+    [InlineData("email.bounced", "Transient", null)]       // mailbox full, server down: must not block an address
+    [InlineData("email.bounced", "Undetermined", null)]
+    [InlineData("email.bounced", null, null)]
+    [InlineData("email.delivered", "Permanent", null)]
+    [InlineData("email.delivery_delayed", null, null)]
+    [InlineData(null, "Permanent", null)]
+    public void Only_permanent_bounces_and_complaints_suppress(string? type, string? bounceType, string? expected)
+        => Assert.Equal(expected, EmailDeliveryRules.SuppressionReasonFor(type, bounceType));
+
+    [Fact]
+    public void The_bounce_type_is_parsed_and_absent_when_not_sent()
+    {
+        Assert.True(ResendWebhookEvent.TryParse("{\"type\":\"email.bounced\",\"data\":{\"email_id\":\"em_1\",\"bounce\":{\"type\":\"Permanent\",\"message\":\"x\"}}}", out var a));
+        Assert.Equal("Permanent", a.BounceType);
+        Assert.True(ResendWebhookEvent.TryParse("{\"type\":\"email.bounced\",\"data\":{\"email_id\":\"em_1\",\"bounce\":{\"message\":\"x\"}}}", out var b));
+        Assert.Null(b.BounceType);
+        Assert.True(ResendWebhookEvent.TryParse("{\"type\":\"email.bounced\",\"data\":{\"email_id\":\"em_1\",\"bounce\":{\"type\":7}}}", out var c));
+        Assert.Null(c.BounceType);
+    }
+
+    [Theory]
+    [InlineData("ada@example.com", "ada@example.com")]
+    [InlineData("  Ada.Lovelace@Example.COM ", "ada.lovelace@example.com")]
+    public void Suppression_keys_are_trimmed_and_lower_case(string input, string expected)
+        => Assert.Equal(expected, EmailAddressRules.SuppressionKey(input));
 }
 
 /// <summary>The webhook service against a real PostgreSQL: signed events update the outbox, nothing else does.</summary>
@@ -159,28 +190,31 @@ public sealed class EmailWebhookServiceTests(PostgresFixture fx) : IClassFixture
     private EmailWebhookService Service(AppDbContext db, string secret = Secret)
         => new(db, Options.Create(new EmailOptions { Resend = { WebhookSecret = secret } }), NullLogger<EmailWebhookService>.Instance, new FixedClock(Now));
 
-    private static (string Body, string Id, string Ts, string Sig) Signed(string type, string emailId, string? bounceMessage = null, DateTimeOffset? at = null)
+    private static (string Body, string Id, string Ts, string Sig) Signed(string type, string emailId, string? bounceMessage = null, DateTimeOffset? at = null, string? bounceType = null)
     {
         SvixSignature.TryParseSecret(Secret, out var key);
-        var bounce = bounceMessage is null ? "" : ",\"bounce\":{\"message\":\"" + bounceMessage + "\"}";
+        var parts = new List<string>();
+        if (bounceType is not null) parts.Add("\"type\":\"" + bounceType + "\"");
+        if (bounceMessage is not null) parts.Add("\"message\":\"" + bounceMessage + "\"");
+        var bounce = parts.Count == 0 ? "" : ",\"bounce\":{" + string.Join(",", parts) + "}";
         var body = "{\"type\":\"" + type + "\",\"data\":{\"email_id\":\"" + emailId + "\"" + bounce + "}}";
         var id = "msg_" + Guid.NewGuid().ToString("N");
         var ts = (at ?? Now).ToUnixTimeSeconds().ToString();
         return (body, id, ts, "v1," + SvixSignature.Sign(key, id, ts, body));
     }
 
-    private async Task<WebhookOutcome> SendAsync(string type, string emailId, string? bounce = null)
+    private async Task<WebhookOutcome> SendAsync(string type, string emailId, string? bounce = null, string? bounceType = null)
     {
-        var e = Signed(type, emailId, bounce);
+        var e = Signed(type, emailId, bounce, bounceType: bounceType);
         await using var db = fx.Create(null);
         return await Service(db).HandleResendAsync(e.Body, e.Id, e.Ts, e.Sig);
     }
 
-    private async Task<string> SeedAsync()
+    private async Task<string> SeedAsync(string address = "ada@example.com")
     {
         var providerId = "em_" + Guid.NewGuid().ToString("N");
         await using var db = fx.Create(null);
-        db.EmailOutbox.Add(new EmailOutboxMessage { ToAddress = "ada@example.com", Subject = "Hi", TextBody = "x", Status = EmailStatus.Sent, ProviderMessageId = providerId, SentAtUtc = DateTime.UtcNow });
+        db.EmailOutbox.Add(new EmailOutboxMessage { ToAddress = address, Subject = "Hi", TextBody = "x", Status = EmailStatus.Sent, ProviderMessageId = providerId, SentAtUtc = DateTime.UtcNow });
         await db.SaveChangesAsync();
         return providerId;
     }
@@ -283,6 +317,96 @@ public sealed class EmailWebhookServiceTests(PostgresFixture fx) : IClassFixture
         var b = await SeedAsync();
         await SendAsync("email.bounced", a);
         Assert.Null((await LoadAsync(b)).DeliveryStatus);
+    }
+
+    private static string UniqueAddress(string mixedCaseTag = "Case") => $"{mixedCaseTag}.{Guid.NewGuid():N}@Example.com";
+
+    private async Task<List<EmailSuppression>> SuppressionsAsync(string address)
+    {
+        var key = EmailAddressRules.SuppressionKey(address);
+        await using var db = fx.Create(null);
+        return await db.EmailSuppressions.AsNoTracking().Where(x => x.Address == key).ToListAsync();
+    }
+
+    [Fact]
+    public async Task A_permanent_bounce_suppresses_the_address_in_normalised_form()
+    {
+        var address = UniqueAddress();
+        var pid = await SeedAsync(address);
+        Assert.Equal(WebhookOutcome.Applied, await SendAsync("email.bounced", pid, "No such user", "Permanent"));
+        var rows = await SuppressionsAsync(address);
+        var row = Assert.Single(rows);
+        Assert.Equal(EmailSuppressionReason.Bounced, row.Reason);
+        Assert.Equal(address.ToLowerInvariant(), row.Address);
+    }
+
+    [Theory]
+    [InlineData("Transient")]
+    [InlineData("Undetermined")]
+    [InlineData(null)]
+    public async Task Other_bounces_do_not_suppress(string? bounceType)
+    {
+        var address = UniqueAddress();
+        var pid = await SeedAsync(address);
+        Assert.Equal(WebhookOutcome.Applied, await SendAsync("email.bounced", pid, "Mailbox full", bounceType));
+        Assert.Empty(await SuppressionsAsync(address));
+    }
+
+    [Fact]
+    public async Task A_complaint_suppresses_the_address()
+    {
+        var address = UniqueAddress();
+        var pid = await SeedAsync(address);
+        Assert.Equal(WebhookOutcome.Applied, await SendAsync("email.complained", pid));
+        Assert.Equal(EmailSuppressionReason.Complained, Assert.Single(await SuppressionsAsync(address)).Reason);
+    }
+
+    [Fact]
+    public async Task Replays_and_a_second_message_to_the_same_address_keep_a_single_row_with_the_first_reason()
+    {
+        var address = UniqueAddress();
+        var first = await SeedAsync(address);
+        var second = await SeedAsync(address);
+        await SendAsync("email.bounced", first, null, "Permanent");
+        await SendAsync("email.bounced", first, null, "Permanent");   // duplicate delivery
+        await SendAsync("email.complained", second);                  // a later, different report for the same address
+        var row = Assert.Single(await SuppressionsAsync(address));
+        Assert.Equal(EmailSuppressionReason.Bounced, row.Reason);
+    }
+
+    [Fact]
+    public async Task A_permanent_bounce_still_suppresses_when_the_status_was_already_Bounced()
+    {
+        // A transient bounce is recorded first (rank 3); the permanent one then changes no status but must still suppress.
+        var address = UniqueAddress();
+        var pid = await SeedAsync(address);
+        Assert.Equal(WebhookOutcome.Applied, await SendAsync("email.bounced", pid, null, "Transient"));
+        Assert.Empty(await SuppressionsAsync(address));
+        Assert.Equal(WebhookOutcome.NoChange, await SendAsync("email.bounced", pid, null, "Permanent"));
+        Assert.Single(await SuppressionsAsync(address));
+    }
+
+    [Fact]
+    public async Task A_bad_signature_or_an_unknown_message_suppresses_nothing()
+    {
+        var address = UniqueAddress();
+        var pid = await SeedAsync(address);
+        var e = Signed("email.bounced", pid, null, bounceType: "Permanent");
+        await using (var db = fx.Create(null))
+            Assert.Equal(WebhookOutcome.InvalidSignature, await Service(db).HandleResendAsync(e.Body, e.Id, e.Ts, "v1,AAAA"));
+        Assert.Equal(WebhookOutcome.UnknownMessage, await SendAsync("email.bounced", "em_" + Guid.NewGuid().ToString("N"), null, "Permanent"));
+        Assert.Empty(await SuppressionsAsync(address));
+        await using var all = fx.Create(null);
+        Assert.False(await all.EmailSuppressions.AnyAsync(x => x.Address == EmailAddressRules.SuppressionKey(address)));
+    }
+
+    [Fact]
+    public async Task Parallel_permanent_bounces_for_one_address_converge_on_one_row()
+    {
+        var address = UniqueAddress();
+        var ids = new[] { await SeedAsync(address), await SeedAsync(address), await SeedAsync(address) };
+        await Task.WhenAll(ids.SelectMany(id => new[] { SendAsync("email.bounced", id, null, "Permanent"), SendAsync("email.bounced", id, null, "Permanent") }));
+        Assert.Single(await SuppressionsAsync(address));
     }
 }
 

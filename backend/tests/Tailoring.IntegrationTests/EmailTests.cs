@@ -125,6 +125,34 @@ public sealed class EmailDeliveryTests(PostgresFixture fx) : IClassFixture<Postg
     }
 
     [Fact]
+    public async Task A_suppressed_recipient_is_never_sent_to_and_the_message_is_dead_lettered_with_its_body_purged()
+    {
+        await ResetAsync();
+        var token = Guid.NewGuid().ToString("N");
+        var suppressed = $"Gone.{token}@Example.com";   // mixed case on purpose: matching must ignore case
+        var fine = $"fine.{token}@example.com";
+        await using (var db = fx.Create(null))
+        {
+            db.EmailSuppressions.Add(new EmailSuppression { Address = suppressed.ToLowerInvariant(), Reason = EmailSuppressionReason.Bounced });
+            await db.SaveChangesAsync();
+        }
+        var blocked = await QueueAsync(suppressed);
+        var allowed = await QueueAsync(fine);
+        var t = new ScriptedTransport((_, _) => TransportResult.Ok("prov-ok"));
+        await using (var db = fx.Create(null)) Assert.Equal(2, await Dispatcher(db, t).DispatchOnceAsync());
+
+        Assert.False(t.Calls.ContainsKey(blocked));        // the provider was never contacted for it
+        Assert.True(t.Calls.ContainsKey(allowed));
+        var b = await LoadAsync(blocked);
+        Assert.Equal(EmailStatus.Failed, b.Status);
+        Assert.Contains("suppression list", b.LastError);
+        Assert.Equal("", b.TextBody);                      // one-time links must not linger
+        Assert.Null(b.HtmlBody);
+        Assert.NotNull(b.BodyPurgedAtUtc);
+        Assert.Equal(EmailStatus.Sent, (await LoadAsync(allowed)).Status);
+    }
+
+    [Fact]
     public async Task Queueing_persists_a_pending_message_without_sending()
     {
         await ResetAsync();
