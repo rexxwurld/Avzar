@@ -16,11 +16,13 @@ public sealed class PdfOptions
 /// <summary>Draws a <see cref="PdfDoc"/>. No data access, no business rules.</summary>
 public sealed class QuestPdfRenderer(IOptions<PdfOptions> options) : IPdfRenderer
 {
-    private const string Ink = "#1F1F1F", Muted = "#5F6368", Rule = "#D9D9D9", Accent = "#1F3A5F", Warn = "#B3261E";
+    private const string Ink = "#1F1F1F", Muted = "#5F6368", Rule = "#D9D9D9", DefaultAccent = "#1F3A5F", Warn = "#B3261E";
 
     public byte[] Render(PdfDoc d)
     {
         EnsureLicense();
+        var accent = d.Style?.AccentColor ?? DefaultAccent;
+        var logo = d.Style?.Logo;
         return Document.Create(container => container.Page(page =>
         {
             page.Size(PageSizes.A4);
@@ -31,10 +33,14 @@ public sealed class QuestPdfRenderer(IOptions<PdfOptions> options) : IPdfRendere
             {
                 col.Item().Row(row =>
                 {
+                    if (logo is { Length: > 0 }) row.ConstantItem(84).PaddingRight(10).Height(44).AlignMiddle().Image(logo).FitArea();
                     row.RelativeItem().Column(c =>
                     {
-                        c.Item().Text(d.BusinessName).FontSize(16).Bold().FontColor(Accent);
+                        c.Item().Text(d.BusinessName).FontSize(16).Bold().FontColor(accent);
                         if (!string.IsNullOrWhiteSpace(d.BusinessAddress)) c.Item().Text(d.BusinessAddress).FontSize(9).FontColor(Muted);
+                        var contact = string.Join("  \u00B7  ", new[] { d.Style?.Phone, d.Style?.Email,
+                            string.IsNullOrWhiteSpace(d.Style?.TaxNumber) ? null : "Tax no. " + d.Style!.TaxNumber }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                        if (contact.Length > 0) c.Item().Text(contact).FontSize(9).FontColor(Muted);
                     });
                     row.ConstantItem(190).AlignRight().Column(c =>
                     {
@@ -64,7 +70,7 @@ public sealed class QuestPdfRenderer(IOptions<PdfOptions> options) : IPdfRendere
                     });
                 });
 
-                if (d.Table is { } table) col.Item().Element(e => DrawTable(e, table));
+                if (d.Table is { } table) col.Item().Element(e => DrawTable(e, table, accent));
 
                 if (d.Totals.Count > 0)
                     col.Item().AlignRight().Width(260).Column(c =>
@@ -84,14 +90,14 @@ public sealed class QuestPdfRenderer(IOptions<PdfOptions> options) : IPdfRendere
                 foreach (var s in d.Sections)
                     col.Item().Column(c =>
                     {
-                        c.Item().Text(s.Heading).Bold().FontColor(Accent);
+                        c.Item().Text(s.Heading).Bold().FontColor(accent);
                         foreach (var line in s.Lines) c.Item().Text(line);
                     });
             });
 
             page.Footer().Row(row =>
             {
-                row.RelativeItem().Text(d.Footer ?? "").FontSize(8).FontColor(Muted);
+                row.RelativeItem().Text(string.Join("  |  ", new[] { d.Footer, d.Style?.FooterNote }.Where(x => !string.IsNullOrWhiteSpace(x)))).FontSize(8).FontColor(Muted);
                 row.AutoItem().Text(t =>
                 {
                     t.DefaultTextStyle(x => x.FontSize(8).FontColor(Muted));
@@ -101,7 +107,7 @@ public sealed class QuestPdfRenderer(IOptions<PdfOptions> options) : IPdfRendere
         })).GeneratePdf();
     }
 
-    private static void DrawTable(IContainer container, PdfTable table)
+    private static void DrawTable(IContainer container, PdfTable table, string accent)
     {
         var count = table.Headers.Count;
         container.Table(t =>
@@ -121,7 +127,7 @@ public sealed class QuestPdfRenderer(IOptions<PdfOptions> options) : IPdfRendere
             {
                 for (var i = 0; i < count; i++)
                 {
-                    var cell = h.Cell().BorderBottom(1).BorderColor(Accent).PaddingVertical(4);
+                    var cell = h.Cell().BorderBottom(1).BorderColor(accent).PaddingVertical(4);
                     var text = table.RightAlignedColumns.Contains(i) ? cell.AlignRight() : cell;
                     text.Text(table.Headers[i]).Bold().FontSize(9);
                 }
