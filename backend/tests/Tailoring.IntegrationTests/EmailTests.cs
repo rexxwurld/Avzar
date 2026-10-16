@@ -47,6 +47,45 @@ public sealed class EmailRulesTests
         => Assert.False(EmailAddressRules.TryNormalize(input, out _));
 
     [Fact]
+    public void Ownership_notices_encode_values_and_keep_the_subject_on_one_line()
+    {
+        var mail = EmailTemplates.OwnershipReceived("<i>Ada</i>", "Acme <b>&</b>\r\nBcc: x@y.z", "Bola\nCole");
+        Assert.DoesNotContain("\r", mail.Subject);
+        Assert.DoesNotContain("\n", mail.Subject);
+        Assert.Contains("&lt;i&gt;Ada&lt;/i&gt;", mail.Html);
+        Assert.DoesNotContain("<i>", mail.Html);
+        Assert.DoesNotContain("<b>", mail.Html);
+        Assert.Contains("Acme <b>&</b> Bcc: x@y.z", mail.Text);   // plain text is not encoded
+        Assert.Contains("Bola Cole has made you the owner", mail.Text);
+    }
+
+    [Fact]
+    public void Ownership_notices_have_no_link_and_cut_long_names()
+    {
+        var long80 = EmailTemplates.OwnershipHandedOver("Ada", new string('x', 5000), "Bola", nowManager: true);
+        Assert.True(long80.Subject.Length <= 200);
+        Assert.DoesNotContain("http", long80.Text);
+        Assert.DoesNotContain("href", long80.Html);
+        Assert.DoesNotContain("http", EmailTemplates.OwnershipReceived("Ada", "Acme", "Bola").Text);
+    }
+
+    [Fact]
+    public void Ownership_notices_fall_back_when_names_are_blank()
+    {
+        Assert.Equal("You are now the owner of your business", EmailTemplates.OwnershipReceived("", "   ", "").Subject);
+        Assert.Contains("Hello there,", EmailTemplates.OwnershipReceived("", "Acme", "Bola").Text);
+        Assert.Contains("transferred to another staff member", EmailTemplates.OwnershipHandedOver("Ada", "Acme", " ", true).Text);
+    }
+
+    [Fact]
+    public void The_handed_over_notice_mentions_the_Manager_role_only_when_the_former_owner_has_it()
+    {
+        Assert.Contains("Manager role", EmailTemplates.OwnershipHandedOver("Ada", "Acme", "Bola", nowManager: true).Text);
+        Assert.DoesNotContain("Manager", EmailTemplates.OwnershipHandedOver("Ada", "Acme", "Bola", nowManager: false).Text);
+        Assert.Contains("change your password immediately", EmailTemplates.OwnershipHandedOver("Ada", "Acme", "Bola", nowManager: false).Text);
+    }
+
+    [Fact]
     public void Templates_encode_dynamic_values_and_keep_the_link_intact()
     {
         var mail = EmailTemplates.PasswordReset("<script>alert(1)</script>", "https://app.example.com/reset?token=a&b=c", 30);
