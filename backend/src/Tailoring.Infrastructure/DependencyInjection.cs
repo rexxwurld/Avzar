@@ -128,6 +128,7 @@ public static class DependencyInjection
         services.Configure<Pdf.PdfOptions>(config.GetSection("Pdf"));
         services.AddSingleton<Tailoring.Application.Pdf.IPdfRenderer, Pdf.QuestPdfRenderer>();
         services.AddScoped<Tailoring.Application.Pdf.IPdfService, Pdf.PdfService>();
+        services.AddScoped<Tailoring.Application.Pdf.IBrandingService, BrandingService>();
 
         // Redis is optional. Without a connection string nothing below is registered and limits stay per process.
         var redisCs = config["Redis:ConnectionString"];
