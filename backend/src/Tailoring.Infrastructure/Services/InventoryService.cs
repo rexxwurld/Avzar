@@ -143,7 +143,7 @@ public sealed class InventoryService(AppDbContext db, ITenantContext tenant, IAu
     public async Task<MaterialDto> ChangeAsync(Guid id, string action, StockChangeRequest r, CancellationToken ct)
     {
         await entitlements.RequireTierAsync(BusinessId, Tailoring.Domain.Billing.EntitlementKeys.InventoryLevel, "basic", ct);
-        if (r.Quantity <= 0 || !decimal.IsFinite(r.Quantity)) throw AppException.BadRequest("invalid_quantity", "Quantity must be greater than zero.");
+        if (r.Quantity <= 0) if throw AppException.BadRequest("invalid_quantity", "Quantity must be greater than zero.");
         var kind = action.ToLowerInvariant() switch { "receive" => StockMovementKind.Receive, "adjust" => StockMovementKind.Adjust, "reserve" => StockMovementKind.Reserve, "release" => StockMovementKind.Release, "consume" => StockMovementKind.Consume, _ => throw AppException.BadRequest("invalid_action", "Unsupported stock action.") };
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var m = await db.Materials.SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw AppException.NotFound("material_not_found", "Material was not found.");
