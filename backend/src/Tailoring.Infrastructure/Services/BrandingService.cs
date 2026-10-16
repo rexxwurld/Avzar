@@ -81,7 +81,7 @@ public sealed partial class BrandingService(AppDbContext db, ITenantContext tena
         return v;
     }
 
-    internal static double ContrastOnWhite(string hex)
+    public static double ContrastOnWhite(string hex)
     {
         double Channel(int start)
         {
