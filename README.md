@@ -118,18 +118,18 @@ Persistent ASP.NET Core Data Protection keys are required in production (preview
 
 ## Verification and known limitations
 
-- **CI run #64** (commit `889afec`, `main`) succeeded: backend job 1m52s, web job 47s. The workflow's `backend` job runs a license-presence gate, `dotnet restore`, Release build, `dotnet test`, and `dotnet ef migrations add` (a model-to-migration check); the `web` job runs `npm install`, `typecheck`, `test` and `build`. Because the gate fails on an empty secret, a green run implies the secret was present. Job logs were not re-read for this README.
-- A TRX artifact from the supplied snapshot reports 478/478 backend tests passed; its originating run is not identified in the artifact.
-- **Not verified:** integration tests create the schema with `EnsureCreated`, so **no migration has been applied to PostgreSQL by CI**; `docker compose` startup; full-stack smoke test; storefront publish-to-render; email, S3, ClamAV, Redis, DNS and every other external integration; mobile.
-- CI warns that actions targeting Node.js 20 (`checkout@v4`, `setup-node@v4`, `setup-dotnet@v4`, `upload-artifact@v4`) are forced onto Node 24. Upgrade after checking for compatible newer majors.
+- **CI run #115** (2026-10-16): the `migrations` job succeeded. Its log shows all three committed migrations applied to a clean PostgreSQL 17.11 and a schema of 65 tables, 33 check constraints, 112 foreign keys and 6 partial indexes, with no cascading foreign keys on financial or audit tables. The backend TRX supplied for it reports **560/560 tests passed**; the TRX does not record its run id. The `backend` job also runs a license gate (fails on an empty `SIXLABORS_LICENSE_KEY`), `dotnet ef migrations has-pending-model-changes` and the Release build; the `web` job runs `npm install`, `typecheck`, `test`, `build`. The `backend` and `web` results of #115 were not individually inspected.
+- Run #114 failed one test (multipart upload endpoints returned 415 to an anonymous JSON probe); this was a test bug and is fixed.
+- **Not verified:** `docker compose` startup; full-stack smoke test; storefront publish-to-render; email, S3, ClamAV, Redis, DNS and every other external integration; mobile. There is no staff dashboard or storefront editor yet.
+- CI warns that actions targeting Node.js 20 (seen for `checkout@v4` and `setup-dotnet@v4`; `setup-node@v4` and `upload-artifact@v4` are on the same major) are forced onto Node 24. Upgrade after checking for compatible newer majors.
 - Known design issues: the public site's `frame-ancestors 'none'` will block the editor's preview iframe; nonce CSP makes public pages dynamic (not CDN-cacheable).
 
 ## Roadmap
 
 Planned, in rough priority order (none implemented unless marked above):
 
-1. Verified baseline: migration applied to a clean PostgreSQL, compose smoke test, authorization tests via `WebApplicationFactory`.
-2. Remaining Step A gaps: email webhooks, location scoping for invoices/payments/tasks/customers (orders and fittings are written, unverified), `WebApplicationFactory` authorization tests, PDF branding, Redis caching/queues, more CSV import/export. (Audit-read, TOTP replay protection, join-with-existing-account and ownership transfer are written but not yet verified by CI.)
+1. Verified baseline: migrations applied to a clean PostgreSQL (done in CI), authorization tests via `WebApplicationFactory` (done); still to do: compose smoke test.
+2. Remaining Step A gaps: email webhooks, Redis caching/queues/SignalR backplane, more CSV import/export, location scoping for customers/expenses/reports, background-job recovery. (Audit-read, TOTP replay protection, join-with-existing-account, ownership transfer, PDF branding and location scoping of orders, finance and tasks are implemented and covered by the passing suite.)
 3. Staff dashboard and visual storefront editor (with Playwright tests).
 4. Scheduling, inventory, notifications, reports.
 5. Customer portal, billing, platform admin, AI tools, mobile.
