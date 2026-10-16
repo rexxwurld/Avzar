@@ -131,7 +131,7 @@ Persistent ASP.NET Core Data Protection keys are required in production (preview
 Planned, in rough priority order (none implemented unless marked above):
 
 1. Verified baseline: migrations applied to a clean PostgreSQL (done in CI), authorization tests via `WebApplicationFactory` (done); still to do: compose smoke test.
-2. Remaining Step A gaps: email webhooks, Redis caching/queues/SignalR backplane, more CSV import/export, location scoping for customers/expenses/reports, background-job recovery. (Audit-read, TOTP replay protection, join-with-existing-account, ownership transfer, PDF branding and location scoping of orders, finance and tasks are implemented and covered by the passing suite.)
+2. Remaining Step A gaps: acting on email bounces (the Resend delivery webhook is written but unverified), Redis caching/queues/SignalR backplane, more CSV import/export, location scoping for customers/expenses/reports, background-job recovery. (Audit-read, TOTP replay protection, join-with-existing-account, ownership transfer, PDF branding and location scoping of orders, finance and tasks are implemented and covered by the passing suite.)
 3. Staff dashboard and visual storefront editor (with Playwright tests).
 4. Scheduling, inventory, notifications, reports.
 5. Customer portal, billing, platform admin, AI tools, mobile.
