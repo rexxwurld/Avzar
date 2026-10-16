@@ -113,3 +113,5 @@
 .ap-codearea{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.84rem;line-height:1.5;white-space:pre;overflow:auto;min-height:8rem}
 .ap-codearea:disabled{opacity:.7}
 .ap-stack>.ap-alert ul{margin:.5rem 0 0;padding-left:1.25rem}
+
+.ap-helplink{font-size:.9rem;text-underline-offset:.2em;color:var(--ap-accent)}

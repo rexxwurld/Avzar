@@ -56,6 +56,7 @@ export function AppNav({ items, businessName, fullName, email }: Props) {
             ))}
           </ul>
         </nav>
+        <Link href="/help" className="ap-helplink">Help and support</Link>
         <SignOutButton />
       </aside>
     </>

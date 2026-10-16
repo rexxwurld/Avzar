@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { PublicFooter } from '@/components/site/PublicFooter';
+import { PublicHeader } from '@/components/site/PublicHeader';
 import { lpFont } from './fonts';
+import { InstallButton } from '@/components/site/InstallButton';
 import StoreButton from './store-button';
 import './landing.css';
 
@@ -29,20 +32,7 @@ export default function Home() {
   return (
     <div className={`lp ${lpFont.variable}`}>
       <a href="#main" className="skip">Skip to content</a>
-      <header className="lp-top">
-        <div className="wrap lp-hdr">
-          <Link href="/" className="lp-brand">Avzar</Link>
-          <nav aria-label="Main" className="lp-nav">
-            <a href="#features">Features</a>
-            <a href="#storefront">Storefront</a>
-            <a href="#get-the-app">Get the app</a>
-          </nav>
-          <div className="lp-hdr-actions">
-            <Link href="/login" className="lp-link">Sign in</Link>
-            <Link href="/register" className="lp-btn lp-btn-sm">Get started</Link>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       <main id="main">
         <section className="wrap lp-hero">
@@ -53,7 +43,7 @@ export default function Home() {
             </p>
             <div className="lp-actions">
               <Link href="/register" className="lp-btn">Create a business account</Link>
-              <Link href="/login" className="lp-btn lp-btn-alt">Open the web app</Link>
+              <Link href="/dashboard" className="lp-btn lp-btn-alt">Open the web app</Link>
             </div>
           </div>
           <div className="lp-panel" aria-hidden="true">
@@ -101,8 +91,11 @@ export default function Home() {
           <ul className="lp-list lp-apps">
             <li>
               <h3>Web app</h3>
-              <p>Open Avzar in the browser on your phone, tablet or computer. Nothing to install.</p>
-              <Link href="/login" className="lp-btn lp-app-btn">Open the web app</Link>
+              <p>Open Avzar in the browser on your phone, tablet or computer, or install it so it opens like an app.</p>
+              <div className="lp-actions">
+                <Link href="/dashboard" className="lp-btn lp-app-btn">Open the web app</Link>
+              </div>
+              <InstallButton />
             </li>
             <li>
               <h3>Android</h3>
@@ -127,10 +120,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="wrap lp-ftr">
-        <p>Avzar. Business tools for tailors and fashion brands.</p>
-        <p><Link href="/login">Sign in</Link> <Link href="/register">Create a business account</Link></p>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

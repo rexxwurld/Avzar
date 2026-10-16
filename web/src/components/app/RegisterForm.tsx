@@ -21,6 +21,7 @@ export function RegisterForm() {
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string[]>>({});
+  const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Time zones come from the browser, so they are filled in after mount to keep server and client markup identical.
@@ -39,7 +40,7 @@ export function RegisterForm() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || !agreed) return;
     setBusy(true);
     setError(null);
     setFields({});
@@ -77,7 +78,11 @@ export function RegisterForm() {
       <Field id="locationName" label="First location (optional)" maxLength={120} value={locationName} onChange={setLocationName} error={err('locationName')} hint="For example your shop or studio. You can add more later." />
       <SelectField id="timeZoneId" label="Time zone" value={timeZoneId} onChange={setTimeZoneId} options={zones.map((z) => ({ value: z, label: z }))} error={err('timeZoneId')} />
       <SelectField id="currencyCode" label="Currency" value={currencyCode} onChange={setCurrencyCode} options={CURRENCIES.map((c) => ({ value: c, label: c }))} error={err('currencyCode')} />
-      <button className="ap-btn" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create business'}</button>
+      <label className="ap-check">
+        <input type="checkbox" required checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+        <span>I agree to the <Link href="/terms" target="_blank">Terms</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>.</span>
+      </label>
+      <button className="ap-btn" type="submit" disabled={busy || !agreed}>{busy ? 'Creating…' : 'Create business'}</button>
       <p className="ap-foot">Already have an account? <Link href="/login">Sign in</Link></p>
     </form>
   );
