@@ -60,7 +60,7 @@ public static class SvixSignature
     }
 }
 
-public sealed record ResendWebhookEvent(string Type, string? EmailId, string? Detail)
+public sealed record ResendWebhookEvent(string Type, string? EmailId, string? Detail, string? BounceType = null)
 {
     public static bool TryParse(string body, out ResendWebhookEvent ev)
     {
@@ -70,14 +70,17 @@ public sealed record ResendWebhookEvent(string Type, string? EmailId, string? De
             using var doc = JsonDocument.Parse(body);
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("type", out var t) || t.ValueKind != JsonValueKind.String) return false;
-            string? emailId = null, detail = null;
+            string? emailId = null, detail = null, bounceType = null;
             if (root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
             {
                 if (data.TryGetProperty("email_id", out var id) && id.ValueKind == JsonValueKind.String) emailId = id.GetString();
-                if (data.TryGetProperty("bounce", out var b) && b.ValueKind == JsonValueKind.Object
-                    && b.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String) detail = EmailDeliveryRules.Sanitize(m.GetString(), 300);
+                if (data.TryGetProperty("bounce", out var b) && b.ValueKind == JsonValueKind.Object)
+                {
+                    if (b.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String) detail = EmailDeliveryRules.Sanitize(m.GetString(), 300);
+                    if (b.TryGetProperty("type", out var bt) && bt.ValueKind == JsonValueKind.String) bounceType = EmailDeliveryRules.Sanitize(bt.GetString(), 30);
+                }
             }
-            ev = new ResendWebhookEvent(t.GetString() ?? "", emailId, detail);
+            ev = new ResendWebhookEvent(t.GetString() ?? "", emailId, detail, bounceType);
             return true;
         }
         catch (JsonException) { return false; }
@@ -94,6 +97,17 @@ public static class EmailDeliveryRules
         "email.bounced" => EmailDeliveryStatus.Bounced,
         "email.complained" => EmailDeliveryStatus.Complained,
         _ => null, // sent, opened, clicked and anything new: not tracked
+    };
+
+    /// <summary>
+    /// Whether an event means "stop mailing this address", and why. A spam complaint always does. A bounce does only when the
+    /// provider calls it Permanent: Transient (mailbox full, server down) and Undetermined bounces must not block an address.
+    /// </summary>
+    public static string? SuppressionReasonFor(string? eventType, string? bounceType) => eventType switch
+    {
+        "email.complained" => EmailSuppressionReason.Complained,
+        "email.bounced" when string.Equals(bounceType, "Permanent", StringComparison.OrdinalIgnoreCase) => EmailSuppressionReason.Bounced,
+        _ => null,
     };
 
     private static int Rank(string? status) => status switch

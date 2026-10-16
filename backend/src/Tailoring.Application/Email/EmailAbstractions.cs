@@ -25,6 +25,9 @@ public interface IEmailTransport
 
 public static class EmailAddressRules
 {
+    /// <summary>The form in which addresses are stored in and compared against the suppression list: trimmed, lower-case (invariant).</summary>
+    public static string SuppressionKey(string address) => address.Trim().ToLowerInvariant();
+
     /// <summary>Accepts a plain address only: no display name, no whitespace, no header-injection characters.</summary>
     public static bool TryNormalize(string? input, out string normalized)
     {
