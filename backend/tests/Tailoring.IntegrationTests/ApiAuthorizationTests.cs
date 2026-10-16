@@ -35,7 +35,7 @@ public sealed class ApiAuthorizationTests(ApiFactory factory)
         "POST api/auth/token/revoke",
     };
 
-    private sealed record ControllerEndpoint(string Method, string Pattern, bool Open, bool ExplicitlyAnonymous)
+    private sealed record ControllerEndpoint(string Method, string Pattern, bool Open, bool ExplicitlyAnonymous, bool Multipart = false)
     {
         public string Key => $"{Method} {Pattern}";
     }
@@ -50,7 +50,14 @@ public sealed class ApiAuthorizationTests(ApiFactory factory)
             var method = endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods.FirstOrDefault() ?? "GET";
             var anonymous = endpoint.Metadata.GetMetadata<IAllowAnonymous>() is not null;
             var protectedByAttribute = endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Count > 0;
-            list.Add(new ControllerEndpoint(method, (endpoint.RoutePattern.RawText ?? "").TrimStart('/'), anonymous || !protectedByAttribute, anonymous));
+            // Form-bound actions (IFormFile / [FromForm]) accept only multipart/form-data; the routing layer answers 415 to any other
+            // content type BEFORE authentication runs, so the probe must use the content type the endpoint declares.
+            var multipart = endpoint.Metadata.GetMetadata<IAcceptsMetadata>()?.ContentTypes
+                .Any(c => c.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase)) == true
+                || endpoint.Metadata.GetMetadata<ControllerActionDescriptor>()!.Parameters
+                    .Any(p => p.BindingInfo?.BindingSource == Microsoft.AspNetCore.Mvc.ModelBinding.BindingSource.Form
+                           || p.BindingInfo?.BindingSource == Microsoft.AspNetCore.Mvc.ModelBinding.BindingSource.FormFile);
+            list.Add(new ControllerEndpoint(method, (endpoint.RoutePattern.RawText ?? "").TrimStart('/'), anonymous || !protectedByAttribute, anonymous, multipart));
         }
         return list;
     }
@@ -89,7 +96,10 @@ public sealed class ApiAuthorizationTests(ApiFactory factory)
         {
             using var req = new HttpRequestMessage(new HttpMethod(e.Method), "/" + Fill(e.Pattern));
             req.Headers.Add("X-Forwarded-For", factory.NextIp());
-            if (e.Method is "POST" or "PUT" or "PATCH") req.Content = new StringContent("{}", Encoding.UTF8, "application/json");
+            if (e.Method is "POST" or "PUT" or "PATCH")
+                req.Content = e.Multipart
+                    ? new MultipartFormDataContent { { new StringContent("x"), "probe" } }
+                    : new StringContent("{}", Encoding.UTF8, "application/json");
             using var res = await http.SendAsync(req);
             if (res.StatusCode != HttpStatusCode.Unauthorized) failures.Add($"{e.Method} /{e.Pattern} -> {(int)res.StatusCode}");
         }
