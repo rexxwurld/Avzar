@@ -1,10 +1,13 @@
 # Progress checklist
 
 ## Verification status (read first)
-- **Verified by CI run #37 (GitHub Actions, commit 139b9f0, green):** `dotnet build -c Release`, `dotnet test -c Release` (full backend suite incl. Testcontainers PostgreSQL), `dotnet ef migrations add` (EF model generates a migration), web `npm run typecheck`, `npm test`, `npm run build`.
-- **Not yet verified:** `docker compose up`, publishing a storefront via Swagger and viewing it in the public renderer, exact test counts (see the `backend-test-results` artifact), migration SQL inspection (check constraints, partial unique indexes, composite FKs), and every external integration (email, storage, DNS, etc.).
-- The per-item "(unverified)" tags below pre-date CI #37. A green suite supports them but does not prove each line; retag an item only when a specific test covers it.
-- Dependency security: ImageSharp 4.1.2 (needs a Six Labors license at build time, see docs/RUNBOOK.md section 8); transitive pins for Pkcs, SSH.NET and AWSSDK.Core in `Directory.Packages.props`.
+- **Latest evidence (updated 2026-10-16):** CI run #115 (after the fix to `ApiAuthorizationTests.cs`): the `migrations` job succeeded (all steps, incl. `dotnet ef database update` on a clean PostgreSQL 17 and the schema inspection). The supplied `backend-test-results` TRX reports **560 total / 560 passed / 0 failed** (44 test classes; run window 06:27:01-06:27:44 UTC on 2026-10-16). The TRX does not store the run id, so its link to #115 is by timing and your upload. The `migrations` job log was read in full (see the section at the end: 65 tables, 33 check constraints, 112 foreign keys, 6 partial indexes, no cascades on financial/audit tables). The `backend` and `web` job results of #115 were not shown to me; do not assume them from this line.
+- Run #114 failed one test of 560 (`Anonymous_requests_to_protected_endpoints_get_401`): the three multipart upload endpoints returned 415 because the test sent JSON. A test bug, not an auth gap; fixed by probing multipart endpoints with a multipart body. 559 other tests passed.
+- Earlier baselines: CI #37 (139b9f0) first green build/test/typecheck/build; CI #64 (889afec) 478/478; CI #111 green. Superseded by the line above.
+- **Not yet verified:** `docker compose up`, publishing a storefront and viewing it in the public renderer, and every external integration (email, storage, DNS, Redis, ClamAV, push, payments, AI), mobile builds, and the web dashboard (does not exist yet).
+- Migrations: three committed (`InitialSchema`, `AddLastTotpStep`, `AddPdfBranding`), applied to a clean PostgreSQL by the `migrations` job. Do NOT regenerate `InitialSchema`; add forward migrations only.
+- The per-item "(unverified)" tags below pre-date these runs. A green suite supports them but does not prove each line; retag an item only when a specific test covers it.
+- Dependency security: ImageSharp 4.1.2 (needs a Six Labors license at build time, see docs/RUNBOOK.md section 8); transitive pins for Pkcs, SSH.NET and AWSSDK.Core in `Directory.Packages.props`. The CI license gate fails on an empty `SIXLABORS_LICENSE_KEY`; the secret is now set.
 
 Legend: [x] written  |  [ ] not started  |  "unverified" = written but never compiled or run
 
@@ -19,10 +22,10 @@ Legend: [x] written  |  [ ] not started  |  "unverified" = written but never com
 - [x] Audit log writes for every mutation (unverified)
 - [x] Integration tests for tenant isolation against real PostgreSQL (written, never run)
 - [x] Compile, EF migration generation and tests: green in CI run #37 (see Verification status). Still to do: `./scripts/bootstrap-backend.sh` locally and inspect the generated migration SQL
-- [ ] Audit log read endpoint (`audit.view`)
+- [x] Audit log read endpoint (`audit.view`): `GET /api/audit`, `AuditReadTests` (5) pass in CI #115
 - [ ] Email verification, password reset / account recovery
-- [ ] Join an invitation with an existing account
-- [ ] API tests for authorization (WebApplicationFactory): forbidden without permission, deactivated user locked out
+- [x] Join an invitation with an existing account (`AccountTests`, pass in CI #115)
+- [x] API tests for authorization (WebApplicationFactory): `ApiAuthorizationTests` (7) pass in CI #115 after the multipart fix
 - [ ] Next.js app: register, login, accept-invite, staff & roles screens
 - [ ] Mobile/bearer token flow (Phase 7)
 
@@ -42,7 +45,7 @@ Legend: [x] written  |  [ ] not started  |  "unverified" = written but never com
 - [ ] Customer notifications (Phase 5)
 - [~] Location-scoped staff access: orders, fittings and order search written 2026-10-15 (unverified, see Step A section). Invoices, payments and receipts are scoped since 2026-10-15 (see Step A finance section); tasks are NOT scoped yet
 - [ ] Production-task generation on confirm (Phase 3)
-- [ ] API-level authorization tests (WebApplicationFactory) for the new endpoints
+- [~] API-level authorization: the generic endpoint-surface test (every endpoint protected, 401 anonymous) exists; per-endpoint behavioural tests do not
 - [ ] Next.js screens: customers, measurement forms, order builder
 
 ## Phase 3 - Workflows, tasks, dependencies, assignment
@@ -63,7 +66,7 @@ Legend: [x] written  |  [ ] not started  |  "unverified" = written but never com
 - [ ] Material reservations / shortage handling against stock (Phase 6)
 - [ ] Progress photo attachments
 - [ ] Amendments to confirmed orders
-- [ ] API-level authorization tests (WebApplicationFactory) for the Phase 3 endpoints
+- [~] API-level authorization: generic endpoint-surface test exists; per-endpoint behavioural tests do not
 - [ ] Next.js screens: workflow editor, task board, worker task list
 
 ## Step 1 (master prompt, Phase 1 completion) - Plans and entitlements
@@ -304,3 +307,21 @@ Environment: no .NET SDK, Docker, `.git` or npm network access, so **no build, t
 - Tests: `ILocationScope` is registered; every controller endpoint has `[Authorize]`/`[HasPermission]`/`[AllowAnonymous]` or is on an explicit allow-list of 10 open auth endpoints (a new unprotected endpoint fails the test); every protected endpoint returns 401 anonymously; cookie writes need the CSRF token (missing and wrong token -> 400 `invalid_csrf`); bearer writes are exempt; a bad bearer never falls back to the cookie; another business gets 404 for a customer; a member without the permission gets 403; a deactivated member is refused on the next request.
 - Not covered: behavioural location scoping through HTTP (a restricted member seeing only their location's orders/invoices/tasks); that is covered at service level only.
 - Still to do in Step A: email provider webhooks, remaining CSV import/export, Redis queues and SignalR backplane, background-job recovery.
+
+## CI runs #114 and #115 (2026-10-16): multipart 401 test fixed
+- #114 (commit "Add files via upload"): backend job failed, 559 of 560 passed. Failure: `ApiAuthorizationTests.Anonymous_requests_to_protected_endpoints_get_401` got 415 (not 401) from `POST /api/documents`, `POST /api/customers/import/preview` and `POST /api/media`. Cause: these actions bind `IFormFile`/`[FromForm]`, so routing rejects a JSON body with 415 before authentication. The assertion was not weakened.
+- Fix (commit "Update ApiAuthorizationTests.cs", #115): `ControllerEndpoint` has a `Multipart` flag (from `IAcceptsMetadata` content types, or a form/form-file parameter binding source); those endpoints are probed with a `MultipartFormDataContent`.
+- Result: TRX reports 560/560 passed (see Verification status). The `migrations` job of #115 succeeded. The warning annotation on #115 was not read; it is most likely the known Node 20 action deprecation (unconfirmed).
+- Static findings this session: no root `ci.yml` exists (no duplicate); `ci.yml` has three jobs (`backend`, `web`, `migrations`); all actions are still `@v4`.
+- Still to do in Step A: email provider webhooks, remaining CSV import/export (customers only), Redis caching/queues and SignalR backplane, background-job recovery, behavioural API-level location-scope tests, location scoping for customers/expenses/reports.
+- Next, in order: (1) [done: counts recorded below] confirm the `backend` and `web` jobs of #115 are green; (2) check action releases and bump `checkout`, `setup-node`, `setup-dotnet`, `upload-artifact` in `ci.yml` and `generate-migration.yml`; (3) compose smoke test (needs Docker); (4) finish Step A; (5) Step B dashboard and storefront editor (nothing built yet in `web/` beyond the public renderer and preview).
+
+## CI run #115, `migrations` job log (read in full 2026-10-16)
+- Release build: **0 warnings, 0 errors**. `dotnet-ef` 10.0.13. PostgreSQL service container: 17.11.
+- `dotnet ef database update` on an empty database applied, in order and each recorded in `__EFMigrationsHistory`: `20261015214018_InitialSchema`, `20261015230000_AddLastTotpStep` (`ALTER TABLE "AspNetUsers" ADD "LastTotpStep" bigint`), `20261016120000_AddPdfBranding` (six nullable `Businesses` columns). It ended with "Done."
+- The first `fail: ... SELECT ... FROM "__EFMigrationsHistory"` line (and the matching PostgreSQL `relation ... does not exist` server log) is expected on a clean database; it is not a failure.
+- **Real schema inspection (observed):** `tables=65 check_constraints=33 foreign_keys=112 partial_indexes=6`. The "financial/audit FKs that cascade (expect none)" query printed nothing, so none of Payments, Receipts, CreditNotes, Invoices, Expenses, AuditLogs or Orders has a cascading foreign key of its own. The six partial indexes seen in the log: `Orders`/`Invoices`/`Payments` idempotency keys, `Invoices` number, `Workflows` one-default, `EmailOutbox` pending.
+- Observed and by design (not checked with the owner): child rows cascade from their parent for `InvoiceLines` -> `Invoices`, `OrderGarments` -> `Orders`, and several others. The CI query only inspects each listed table's own foreign keys, so it would not catch a cascade from a parent. Invoices that are issued are never deleted by the application, and `Payments`, `CreditNotes` and `Receipts` reference invoices with `RESTRICT`.
+- What this proves: the committed migrations build the schema on clean PostgreSQL, with composite same-business foreign keys, the check constraints and partial unique indexes present. What it does not prove: that every constraint listed in the model exists (only counts and thresholds are asserted), nor behaviour of the application against a migration-built database beyond what `ApiFactory` exercises.
+- **Warning annotation (observed):** "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: `actions/checkout@v4`, `actions/setup-dotnet@v4`." A Node `punycode` deprecation notice also appears in post-job cleanup; it comes from the runner, not from Avzar code. Both are harmless for now. The `backend` and `web` jobs also use `setup-node@v4` and `upload-artifact@v4`; their own warnings were not read.
+- Still not seen: the `backend` and `web` job results of #115.
