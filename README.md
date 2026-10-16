@@ -132,7 +132,7 @@ Persistent ASP.NET Core Data Protection keys are required in production (preview
 
 Planned, in rough priority order (none implemented unless marked above):
 
-1. Verified baseline: migrations applied to a clean PostgreSQL (done in CI), authorization tests via `WebApplicationFactory` (done), web dependencies audited clean (done); still to do: compose smoke test.
+1. Verified baseline: migrations applied to a clean PostgreSQL (done in CI), authorization tests via `WebApplicationFactory` (done), web dependencies audited clean (done); a compose smoke test is not planned (owner decision), so compose startup and external integrations stay unverified.
 2. Remaining Step A gaps: Redis caching/queues/SignalR backplane, more CSV import/export, background-job recovery, and email extras. HTTP-level location-scope tests for invoices/payments/tasks have been added and are included in the 693-test backend suite. Customers stay unscoped by design. (Audit-read, TOTP replay protection, join-with-existing-account, ownership transfer with a one-owner database constraint, PDF branding, location scoping of orders, finance, tasks and expenses, ownership-transfer notification emails, the Resend delivery webhook and the email suppression list are implemented and covered by the passing suite.)
 3. Staff dashboard: verify order and read-only production UI, then verify task detail/actions and implement schedule planning plus finance workflows; build the visual storefront editor (with Playwright tests).
 4. Scheduling, inventory, notifications, reports.
