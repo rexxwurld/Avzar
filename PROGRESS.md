@@ -357,3 +357,11 @@ Environment: no .NET SDK, no npm network, so nothing below was built or run here
 - Known limits: address matching uses .NET `ToLowerInvariant` on one side and PostgreSQL `lower()` on the other (identical for ASCII addresses); no admin UI to lift a suppression; the provider's `to` field is not used.
 - Tests added in `EmailWebhookTests.cs` (rules, service, parallel) and `EmailTests.cs` (dispatcher). Never run.
 - Web items still open: commit `web/package-lock.json`, switch CI/Dockerfile to `npm ci`, make `npm audit` blocking after reading its output in run #136.
+
+## CI run #144 (commit 63732ee), read 2026-10-16
+- backend: green, 0 warnings, **641/641 tests** (up from 618: the suppression tests ran and passed). The drift-gate output lines were not in the pasted log; the step is green, so no drift.
+- migrations: green (`AddEmailSuppressions` applied to a clean PostgreSQL). Step output collapsed; schema counts not read (expect tables=66).
+- web: green. 22 vitest tests, Next.js 15.5.26 build OK. The "1 error" annotation is the non-blocking `npm audit` step exiting 1.
+- `npm audit --omit=dev` (runtime): `next` flagged moderate (SSG/ISR cache poisoning, GHSA-4jqv-mc3x-m676, GHSA-mcj8-r9mp-w47p) and `postcss` high (bundled with next, 4 advisories). npm names next@15.5.28 as the fix. Changed `web/package.json` to `next` 15.5.28 (UNVERIFIED until CI).
+- `npm install` also reports 8 vulnerabilities in total (2 critical, 2 high); the audit with dev dependencies included is not yet read. Likely vitest/vite tooling (vitest 2.1.8); not part of the runtime image. Check after the lockfile exists.
+- Still open: commit `web/package-lock.json`, `npm ci` in CI and Dockerfile, make audit blocking once clean.
