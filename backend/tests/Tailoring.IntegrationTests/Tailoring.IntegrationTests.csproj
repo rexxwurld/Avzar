@@ -5,8 +5,11 @@
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\src\Tailoring.Api\Tailoring.Api.csproj" />
     <ProjectReference Include="..\..\src\Tailoring.Infrastructure\Tailoring.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Tailoring.Application\Tailoring.Application.csproj" />
     <ProjectReference Include="..\..\src\Tailoring.Domain\Tailoring.Domain.csproj" />
