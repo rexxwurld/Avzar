@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Tailoring.Domain.Access;
+using Tailoring.Domain.Tenancy;
 using Tailoring.Infrastructure.Persistence;
 using Xunit;
 
@@ -87,6 +88,27 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         db.Memberships.Add(membership);
         await db.SaveChangesAsync();
         return (email, membership.Id);
+    }
+
+    /// <summary>Adds a second location to an existing business (setup only; goes straight to the database).</summary>
+    public async Task<Guid> SeedLocationAsync(Guid businessId, string name)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var location = new BusinessLocation { BusinessId = businessId, Name = name };
+        db.Locations.Add(location);
+        await db.SaveChangesAsync();
+        return location.Id;
+    }
+
+    /// <summary>Limits a member to the given locations (setup only).</summary>
+    public async Task AssignLocationsAsync(Guid businessId, Guid membershipId, params Guid[] locationIds)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        foreach (var id in locationIds)
+            db.MembershipLocations.Add(new MembershipLocation { BusinessId = businessId, MembershipId = membershipId, LocationId = id });
+        await db.SaveChangesAsync();
     }
 
     public async Task DeactivateMemberAsync(Guid businessId, Guid membershipId)
