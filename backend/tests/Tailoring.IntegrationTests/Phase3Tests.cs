@@ -4,6 +4,7 @@ using Tailoring.Application.Common;
 using Tailoring.Application.Orders;
 using Tailoring.Application.Production;
 using Tailoring.Domain.Access;
+using Tailoring.Domain.Billing;
 using Tailoring.Domain.Customers;
 using Tailoring.Domain.Production;
 using Tailoring.Domain.Tenancy;
@@ -112,6 +113,96 @@ public sealed class Phase3Tests(PostgresFixture fx) : IClassFixture<PostgresFixt
             done++;
         }
         return done;
+    }
+
+    [Fact]
+    public async Task Schedule_preview_apply_uses_postgres_versions_and_queues_deduplicated_assignment_and_reminder_mail()
+    {
+        var w = await SeedWorldAsync();
+        await Workflows(w).CreateAsync(new UpsertWorkflowRequest
+        {
+            Name = "Single-stage schedule test", GarmentCategories = ["shirt"],
+            Stages = [new StageInput { Key = "cut", Name = "Cut", DefaultMinutes = 60 }]
+        });
+        var order = await ConfirmedOrderAsync(w, category: "shirt");
+        var task = Assert.Single(await AllTasksAsync(w, order.Id));
+        await Tasks(w).AssignAsync(task.Id, new AssignTaskRequest { MembershipId = w.CutterMember, Override = true, Reason = "schedule integration test" });
+
+        var (db, tenant) = Ctx(w, w.OwnerUser);
+        db.BusinessHours.AddRange(Enumerable.Range(0, 7).Select(day => new BusinessHoursDay
+        {
+            BusinessId = w.BusinessId, DayOfWeek = day, IsOpen = true, OpensAt = new TimeOnly(9, 0), ClosesAt = new TimeOnly(17, 0)
+        }));
+        db.EntitlementOverrides.Add(new TenantEntitlementOverride
+        {
+            BusinessId = w.BusinessId, Key = EntitlementKeys.SchedulingShop, Value = "true", Reason = "test fixture"
+        });
+        await db.SaveChangesAsync();
+        var schedule = new ShopScheduleService(db, tenant, new EntitlementService(db),
+            new LocationScope(db, tenant, new PermissionService(db)));
+        var start = new DateTimeOffset(DateTime.UtcNow.AddDays(3).Date.AddHours(9), TimeSpan.Zero);
+        db.WorkerAvailability.AddRange(Enumerable.Range(0, 7).Select(day => new WorkerAvailabilityDay
+        {
+            BusinessId = w.BusinessId, MembershipId = w.CutterMember, DayOfWeek = day, IsAvailable = true,
+            OpensAt = new TimeOnly(9, 0), ClosesAt = new TimeOnly(17, 0), CapacityMinutes = 480
+        }));
+        db.WorkerLeaves.Add(new WorkerLeave
+        {
+            BusinessId = w.BusinessId, MembershipId = w.CutterMember, StartsAtUtc = start.UtcDateTime,
+            EndsAtUtc = start.UtcDateTime.AddHours(2), Reason = "approved leave during the morning"
+        });
+        await db.SaveChangesAsync();
+        var preview = await schedule.PreviewAsync(new ShopSchedulePreviewRequest { StartUtc = start, HorizonDays = 10 });
+        Assert.True(preview.IsPreviewOnly);
+        Assert.Empty(preview.Unscheduled);
+        var proposedSlot = Assert.Single(preview.Scheduled);
+        Assert.Equal(start.UtcDateTime.AddHours(2), proposedSlot.StartUtc); // approved leave blocks 09:00-11:00
+        Assert.Null((await db.ProductionTasks.AsNoTracking().SingleAsync(x => x.Id == task.Id)).PlannedStartUtc);
+
+        var applied = await schedule.ApplyAsync(new ShopScheduleApplyRequest
+        {
+            StartUtc = start, HorizonDays = 10, ExpectedTaskVersions = preview.TaskVersions, ExpectedSlots = preview.Scheduled
+        });
+        Assert.Equal(1, applied.UpdatedTasks);
+        Assert.True(applied.NotificationsQueued);
+        var persisted = await db.ProductionTasks.AsNoTracking().SingleAsync(x => x.Id == task.Id);
+        Assert.Equal(ProductionTaskStatus.Scheduled, persisted.Status);
+        Assert.NotNull(persisted.PlannedStartUtc);
+        Assert.Equal(2, await db.EmailOutbox.CountAsync(x => x.BusinessId == w.BusinessId && x.DeduplicationKey != null));
+
+        var stale = await Assert.ThrowsAsync<AppException>(() => schedule.ApplyAsync(new ShopScheduleApplyRequest
+        {
+            StartUtc = start, HorizonDays = 10, ExpectedTaskVersions = preview.TaskVersions, ExpectedSlots = preview.Scheduled
+        }));
+        Assert.Equal("schedule_preview_stale", stale.Code);
+        Assert.Equal(2, await db.EmailOutbox.CountAsync(x => x.BusinessId == w.BusinessId && x.DeduplicationKey != null));
+    }
+
+    [Fact]
+    public async Task Worker_schedule_api_service_validates_weekly_availability_and_prevents_overlapping_leave()
+    {
+        var w = await SeedWorldAsync();
+        var (db, tenant) = Ctx(w, w.OwnerUser);
+        var service = new WorkerScheduleService(db, tenant, new LocationScope(db, tenant, new PermissionService(db)), new AuditLogger(db));
+        var days = Enumerable.Range(0, 7).Select(day => day == 0
+            ? new WorkerAvailabilityDayInput(day, false, null, null, 0)
+            : new WorkerAvailabilityDayInput(day, true, new TimeOnly(9, 0), new TimeOnly(17, 0), 420)).ToArray();
+        var saved = await service.SetAvailabilityAsync(w.CutterMember, days);
+        Assert.True(saved.IsConfigured);
+        Assert.Equal(7, saved.Days.Count);
+        Assert.False(saved.Days.Single(x => x.DayOfWeek == 0).IsAvailable);
+
+        var start = DateTimeOffset.UtcNow.AddDays(5);
+        start = new DateTimeOffset(start.Year, start.Month, start.Day, 9, 0, 0, TimeSpan.Zero);
+        var request = new WorkerLeaveCreateRequest { StartsAtUtc = start, EndsAtUtc = start.AddHours(3), Reason = "Annual leave" };
+        var created = await service.AddLeaveAsync(w.CutterMember, request);
+        Assert.Equal("Approved", created.Status);
+        var overlap = await Assert.ThrowsAsync<AppException>(() => service.AddLeaveAsync(w.CutterMember,
+            new WorkerLeaveCreateRequest { StartsAtUtc = start.AddHours(1), EndsAtUtc = start.AddHours(4), Reason = "Overlapping leave" }));
+        Assert.Equal("worker_leave_overlap", overlap.Code);
+        await service.CancelLeaveAsync(w.CutterMember, created.Id);
+        var listed = await service.ListLeaveAsync(w.CutterMember, start.AddDays(-1), start.AddDays(1));
+        Assert.Equal("Cancelled", Assert.Single(listed).Status);
     }
 
     // ------------------------------------------------------------------ generation

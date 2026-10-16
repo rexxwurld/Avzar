@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CommunicationLog, type LogEntry } from '@/components/app/CommunicationLog';
+import { CustomerPortalLinkButton } from '@/components/app/CustomerPortalLinkButton';
 import { MergePanel } from '@/components/app/MergePanel';
 import { LoadError, NoAccess } from '@/components/app/Notices';
 import { StatusControl } from '@/components/app/StatusControl';
@@ -55,6 +56,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             <dt>Address</dt><dd>{[c.addressLine, c.city].filter(Boolean).join(', ') || '—'}</dd>
             <dt>Customer since</dt><dd>{formatDate(c.createdAtUtc, me.timeZoneId)}</dd>
           </dl>
+          {manage && <div style={{ marginTop: '1rem' }}><CustomerPortalLinkButton customerId={c.id} /></div>}
           {c.garmentPreferences && <><h3 className="ap-h3">Garment preferences</h3><p className="ap-pre">{c.garmentPreferences}</p></>}
           {c.notes && <><h3 className="ap-h3">Notes</h3><p className="ap-pre">{c.notes}</p></>}
         </section>

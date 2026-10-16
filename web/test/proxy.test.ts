@@ -7,7 +7,7 @@ describe('apiPath: only /api/** is reachable and nothing can climb out of it', (
   it.each([
     [undefined], [[]], [['public', 'sites', 'x']], [['health']], [['api', '..', 'health']], [['api', '.']],
     [['api', 'a/b']], [['api', 'a\\b']], [['api', '%2e%2e']], [['api', '']], [['api', 'x?y=1']], [['api', 'x#y']],
-    [['api', 'webhooks', 'email', 'resend']], [['API', 'Webhooks', 'email']], [['api', 'a\u0000b']],
+    [['api', 'webhooks', 'email', 'resend']], [['API', 'Webhooks', 'email']], [['api', 'billing', 'subscription', 'webhook']], [['api', 'a\u0000b']],
     [Array.from({ length: 13 }, () => 'api')],
   ])('refuses %j', (segs) => expect(apiPath(segs as string[] | undefined)).toBeNull());
 });
@@ -32,14 +32,15 @@ describe('clientIp: only trusted when a proxy you control sets it', () => {
 
 describe('upstreamHeaders: allow-list only', () => {
   const incoming = new Headers({
-    cookie: 'tailoring.session=abc', 'x-xsrf-token': 't', 'content-type': 'application/json', accept: 'application/json',
+    cookie: 'tailoring.session=abc', 'x-xsrf-token': 't', 'content-type': 'application/json', accept: 'application/json', 'idempotency-key': 'order-create-123',
     authorization: 'Bearer stolen', host: 'evil', 'x-forwarded-host': 'evil', 'x-forwarded-for': '9.9.9.9',
   });
-  it('forwards cookie, csrf, content-type and accept', () => {
+  it('forwards cookie, csrf, content-type, accept and idempotency keys', () => {
     const out = upstreamHeaders(incoming, false);
     expect(out.get('cookie')).toBe('tailoring.session=abc');
     expect(out.get('x-xsrf-token')).toBe('t');
     expect(out.get('content-type')).toBe('application/json');
+    expect(out.get('idempotency-key')).toBe('order-create-123');
   });
   it('drops authorization, host and forwarded headers', () => {
     const out = upstreamHeaders(incoming, false);

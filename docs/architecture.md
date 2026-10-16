@@ -1,6 +1,6 @@
 # Architecture - Tailoring Platform
 
-Status (2026-10-16): CI run #207 (commit `3714953`) passed all three jobs: 680/680 backend tests, a clean model-drift gate, and eight migrations applied to a clean PostgreSQL 17.11. Branch freshness beyond that run and deployment readiness remain unverified. See `PROGRESS.md`.
+Status (2026-10-16): supplied CI #230 backend log (commit `c349faf9023a9a0c1c6d5e7ddb5950c76016953c`) reports 693/693 tests passed, a clean Release build and no EF model drift. The web job succeeded, but its exact test/build output and the #230 migration job were not supplied. Historical #207 applied eight migrations to clean PostgreSQL 17.11. The supplied ZIP has no Git metadata, and deployment readiness remains unverified. See `PROGRESS.md` and `docs/MASTER_ENGINEERING_HANDOFF.md`.
 
 ## 1. Stack and versions
 | Layer | Choice | Pinned in |
@@ -70,7 +70,7 @@ All tenant tables carry `BusinessId`. Timestamps are UTC. `Business.Version` map
 Auth: `GET /api/auth/csrf`, `POST /api/auth/register-business`, `/login`, `/accept-invitation`, `/logout`, `GET /api/auth/me`.
 Staff (`staff.view` / `staff.manage`): `GET /api/staff`, `POST /api/staff/invitations`, `POST /api/staff/{id}/deactivate|reactivate`, `PUT /api/staff/{id}/roles|locations`.
 Roles (`roles.manage`): `GET /api/roles`, `GET /api/roles/permissions`, `POST /api/roles`, `PUT /api/roles/{id}/permissions`.
-Locations: `GET /api/locations`, `POST /api/locations` (`locations.manage`). Staff without `locations.all` (and who are not the owner) only see orders and fittings at the locations assigned to them; see `ILocationScope`.
+Locations: `GET /api/locations`, `POST /api/locations` (`locations.manage`). Staff without `locations.all` (and who are not the owner) are restricted to assigned locations for orders, fittings, invoices, payments, receipts, credit notes, expenses and production tasks; see `ILocationScope`. Customers remain business-scoped by design.
 Errors are RFC 7807 problem responses with a stable `code` field. Swagger UI at `/swagger` in Development.
 
 Business rules enforced: the Owner cannot be deactivated or have roles changed; the Owner role cannot be edited or assigned by invitation; users cannot deactivate themselves; role/location ids in requests must belong to the caller's business; invitations store only a SHA-256 hash of the token and expire after 7 days.
@@ -78,8 +78,8 @@ Business rules enforced: the Owner cannot be deactivated or have roles changed; 
 ## 7. Decisions that need your confirmation
 1. **.NET 10** as the target (current LTS). Say so if you need .NET 8/9.
 2. **Cookie auth for web, separate token auth for mobile**, rather than one scheme for both.
-3. **Email is currently logged, not sent.** Real SMTP/provider arrives with the outbox in Phase 5.
-4. **Joining with an existing account** (one person, several businesses) via invitation is not built. The data model supports it.
+3. **Email provider selection:** the outbox supports log, SMTP and Resend. Real delivery still requires valid production credentials and an authorized provider test; the default `log` provider does not deliver mail.
+4. **Existing-account invitations:** accepting an invitation with an existing account is implemented and covered by the backend suite; confirm against current code/tests when changing this flow.
 
 
 ---
@@ -118,7 +118,7 @@ Every link above is a composite FK `(X_Id, BusinessId)`, so a customer, measurem
 - Currency is copied from the business at creation and never changes.
 - Order numbers (`ORD-2026-00042`) come from an atomic per-business/year counter inside the order's transaction.
 - **Measurement snapshot**: each garment can reference a customer profile (which must belong to the order's customer). The chosen revision is copied into the line as frozen JSON. Later re-measuring never alters it. Editing an order keeps existing snapshots unless the caller explicitly picks a different profile or revision.
-- **Idempotency**: send `Idempotency-Key` on create. A retry (even a concurrent one) returns the original order with 200 instead of creating a duplicate.
+- **Idempotency**: send `Idempotency-Key` on create. A retry (even a concurrent one) returns the original order with 200 instead of creating a duplicate. The same-origin web proxy forwards this header explicitly through its request-header allow-list; it continues to strip arbitrary authorization/host/forwarded headers.
 - Lifecycle: `Draft -> Quoted -> Confirmed`, or `Cancelled` (reason required). Editing a Quoted order sends it back to Draft so a changed price must be re-quoted. Confirmed/Cancelled orders are locked.
 - Confirming requires `orders.confirm`, a future promised date (in the business's time zone) and an active customer.
 
@@ -134,8 +134,8 @@ New permissions: `customers.view|manage|merge`, `measurements.templates|record`,
 - **Payments, deposits, outstanding balance, invoices** -> Phase 6. Orders have totals but no payment records yet, so "paid / outstanding" does not exist yet and nothing pretends it does.
 - **Photo and design-reference uploads** -> need object storage and the secure attachment pipeline (planned with Phase 5/6).
 - **Customer notifications** (fitting reminders, status updates) -> Phase 5. Communication log entries are manual for now.
-- **Production tasks on confirm** -> Phase 3. `ConfirmAsync` has a marked hook for it.
-- **Location-restricted staff** (a manager only seeing their own workshop's orders): the data model supports it; enforcement is not built.
+- **Production tasks on confirm** -> implemented: confirming a quoted order generates production tasks in the same unit of work; backend tests cover the workflow.
+- **Location-restricted staff:** server-side scoping is implemented for orders, fittings, invoices, payments, receipts, credit notes, expenses and production tasks. Customers intentionally remain business-scoped rather than location-scoped because customers may visit multiple locations. Backend tests cover service-level scoping and HTTP-level order/finance/task access; check the current `PROGRESS.md` verification summary for the latest test evidence.
 - **Separate `GarmentSpecification` table**: specs live as columns on the order line (fabric, colour, style, alteration notes). Split it out only if specs need their own versioning.
 - **Phone matching** is digits-only, so `+234 803...` and `0803...` are not treated as the same number.
 
@@ -184,10 +184,45 @@ Workers: `GET /api/workers`, `PUT /api/workers/{membershipId}/skills`.
 New permissions: `tasks.view|manage|assign|override|work`, `workflows.manage`, `workers.manage`. Manager gets all; Tailor/Cutter/Finisher/QC get `tasks.work` only.
 
 ## Deliberately NOT in Phase 3
-- **Planned start/end times, daily schedules, availability, leave, double-booking checks, the scheduling engine** -> Phase 4. The columns `PlannedStartUtc/PlannedEndUtc` exist but nothing sets them; the `Scheduled` status exists but nothing uses it yet. A worker's task list is ordered by priority then deadline until then.
+- **Planned start/end times, daily schedules, availability, leave, double-booking checks, the scheduling engine** -> originally Phase 4. The current working copy now includes preview/apply, worker availability/leave/capacity and calendar APIs; see the latest status below. These changes still require compilation and PostgreSQL verification.
 - **Notifications** (new assignment, blocked task, newly eligible next step) -> Phase 5. Task history records everything needed; `Completed` events carry `newlyEligible` task ids for that purpose.
 - **Materials**: tasks hold a free-text requirement list (name/quantity/unit). Reservations and "missing material" shortage handling against stock arrive with inventory in Phase 6. A worker can already report missing materials, which blocks the task.
 - **Progress photos / attachments** -> needs object storage.
 - **Order amendments** after confirmation (changing a confirmed order's garments) -> not built; confirmed orders are locked.
 - **Worker "skills" are free text** typed by managers (lowercase). There is no skill catalogue or qualification expiry.
 - **Offline/mobile conflict handling** -> Phase 7.
+
+
+## Production scheduling status
+Historical checkpoint: the domain-only planner was later connected to preview/apply and worker-calendar persistence. See [`production-scheduling.md`](production-scheduling.md) for the current working-copy behavior and the still-blocked verification steps.
+
+### Shop schedule preview (first API slice)
+
+Historical checkpoint: `POST /api/tasks/schedule/preview` was initially read-only. The current apply endpoint now persists only after recalculating and validating row versions and exact slots; see the latest scheduling status below.
+
+
+### Shop schedule preview
+
+Historical checkpoint: the preview screen was initially preview-only. The current source includes apply, worker-specific availability/leave/capacity, worker calendars, and durable deduplicated assignment/reminder email queueing. See [`production-scheduling.md`](production-scheduling.md).
+
+### Shop schedule apply increment (2026-10-16)
+- Added `POST /api/tasks/schedule/apply`, gated by `tasks.manage` and `scheduling.shop` entitlement.
+- Preview responses now include task row versions. Apply recalculates server-side, rejects stale candidate sets/versions and partial schedules, then saves planned times transactionally with `schedule_applied` task events.
+- The web schedule screen now offers Apply only when every candidate is schedulable and submits the preview's version map; stale plans must be regenerated.
+- Superseded by the current implementation in [`production-scheduling.md`](production-scheduling.md): scheduling emails and worker availability/leave/capacity are present in source, but not compiled or integration-tested in this workspace.
+- Verification remains incomplete: .NET SDK and npm dependencies are unavailable in this environment; no backend compile/integration tests or full web build/tests were run for this increment.
+
+
+### Current working-copy status (2026-10-16)
+
+The current source includes persisted worker availability and approved leave, daily capacity-aware schedule preview/apply, location-filtered individual worker calendars, durable outbox assignment emails and 24-hour reminders with retry/deduplication, and a `/workers/schedule` UI. The storefront editor also has custom page, SEO/navigation, section style, existing-media picker, template-switch and custom-domain verification controls. Two forward migrations add email deduplication and worker schedule tables. **This working copy has not been compiled; migrations have not been applied to PostgreSQL; integration tests and web dependency-backed checks remain blocked by missing .NET/Docker and unavailable npm registry access.** Do not treat this source as release-verified until CI and staging checks pass.
+
+## Roadmap increment (2026-10-16)
+
+- **Inventory:** `Materials` and append-only `StockMovements` are tenant-scoped. CSV import uses a hash-confirmed preview/commit flow, and export uses spreadsheet-formula-safe cells. Task-level batch reservations and consumption are atomic across the submitted materials. Stock changes run in PostgreSQL serializable transactions, compare the xmin-backed version when supplied, protect reserved stock from adjustment, and record actor/order/task references. Material access follows the caller's assigned location scope; location-restricted users cannot see business-wide or other-location stock.
+- **Reports:** `GET /api/reports/summary` returns order value, delivered orders, verified receipts, non-void expenses, and production task metrics. The 30-second cache key includes tenant, date range, and allowed-location scope. Restricted users see only data attributable to their allowed locations; unassigned/business-wide expenses and standalone invoices are excluded from their location-scoped totals.
+- **Customer portal:** owner/manager with customer-management permission can queue a seven-day magic link. Only SHA-256 hashes of random tokens are stored; grants can be revoked. Public access exchanges a fragment-carried random token via POST (so the token is not sent in the initial page URL), then exposes that customer's order status, production-stage progress, invoices and verified receipt history, not internal notes or measurements.
+- **AI:** optional OpenAI image generation and assistant-instruction drafting use server-side keys, rate limiting, permission checks, and plan entitlements (`ai.fashion_design`, `ai.assistant_builder`). Generated images are returned for review and are not silently added to the media library; assistant configurations are drafts and are not auto-published.
+- **Subscriptions/platform administration:** optional Paystack checkout supports NGN plans. Webhooks verify the HMAC and independently verify the transaction with Paystack before changing a subscription. Global plan edits are allowlisted by `PlatformAdmin:Emails`; business-owner permissions alone do not grant platform-admin access.
+- **Realtime/cache:** SignalR `/hubs/business-events` joins only the authenticated caller's business/user groups. Worker task transitions broadcast `task.updated`. Report caching uses Redis when configured and memory otherwise. Email delivery remains a durable PostgreSQL outbox with leased claims/retries/recovery rather than an ephemeral Redis-only queue.
+- **Mobile:** `mobile/Avzar.Mobile` is a .NET MAUI Android/iOS starter using bearer auth, SecureStorage token storage, a cached assigned-task list, and a local queue for worker task actions. This is not yet a complete offline-first client: conflict UX, measurements/orders offline, push notifications, device builds and testing remain open.

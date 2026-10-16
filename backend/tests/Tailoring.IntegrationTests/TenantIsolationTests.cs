@@ -3,6 +3,8 @@ using Testcontainers.PostgreSql;
 using Tailoring.Application.Abstractions;
 using Tailoring.Domain.Access;
 using Tailoring.Domain.Tenancy;
+using Tailoring.Domain.Inventory;
+using Tailoring.Domain.CustomerPortal;
 using Tailoring.Infrastructure.Persistence;
 using Tailoring.Infrastructure.Services;
 using Xunit;
@@ -118,6 +120,38 @@ public sealed class TenantIsolationTests(PostgresFixture fx) : IClassFixture<Pos
             BusinessId = a.BusinessId, MembershipId = a.MembershipId, RoleId = b.RoleId // role belongs to B
         });
         await Assert.ThrowsAsync<DbUpdateException>(() => raw.SaveChangesAsync());
+    }
+
+
+    [Fact]
+    public async Task Inventory_and_customer_portal_grants_are_scoped_to_the_current_business()
+    {
+        var a = await SeedBusinessAsync("inv-a-" + Guid.NewGuid().ToString("N")[..6]);
+        var b = await SeedBusinessAsync("inv-b-" + Guid.NewGuid().ToString("N")[..6]);
+        Guid materialB;
+        await using (var setup = fx.Create(null))
+        {
+            var customer = new Tailoring.Domain.Customers.Customer { BusinessId = b.BusinessId, FullName = "Portal Customer", Email = "portal@test.local" };
+            setup.Customers.Add(customer);
+            var material = new MaterialStock { BusinessId = b.BusinessId, LocationId = b.LocationId, Sku = "FABRIC-1", Name = "Linen", Unit = "m", OnHand = 12, ReorderLevel = 2 };
+            setup.Materials.Add(material);
+            setup.CustomerPortalGrants.Add(new CustomerPortalGrant { BusinessId = b.BusinessId, CustomerId = customer.Id, TokenHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("opaque-token"))), ExpiresAtUtc = DateTime.UtcNow.AddDays(1) });
+            await setup.SaveChangesAsync(); materialB = material.Id;
+        }
+        await using var asA = fx.Create(a.BusinessId);
+        Assert.Empty(await asA.Materials.ToListAsync());
+        Assert.Null(await asA.Materials.FirstOrDefaultAsync(x => x.Id == materialB));
+        Assert.Empty(await asA.CustomerPortalGrants.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Inventory_writes_for_another_business_are_blocked()
+    {
+        var a = await SeedBusinessAsync("inv-write-a-" + Guid.NewGuid().ToString("N")[..6]);
+        var b = await SeedBusinessAsync("inv-write-b-" + Guid.NewGuid().ToString("N")[..6]);
+        await using var asA = fx.Create(a.BusinessId);
+        asA.Materials.Add(new MaterialStock { BusinessId = b.BusinessId, LocationId = b.LocationId, Sku = "CROSS-1", Name = "Blocked", Unit = "piece", OnHand = 1 });
+        await Assert.ThrowsAsync<InvalidOperationException>(() => asA.SaveChangesAsync());
     }
 
     [Fact]

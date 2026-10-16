@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Tailoring.Api.Security;
@@ -102,4 +103,53 @@ public class OwnershipController(IOwnershipService ownership) : ControllerBase
     [HttpPost, Authorize]
     public async Task<IActionResult> Transfer(TransferOwnershipRequest request, CancellationToken ct)
     { await ownership.TransferAsync(request, ct); return NoContent(); }
+}
+
+/// <summary>Global plan controls are restricted to emails explicitly configured in PlatformAdmin:Emails; business-owner permissions do not grant platform administration.</summary>
+[ApiController, Route("api/platform-admin/plans"), Authorize]
+public sealed class PlatformPlanAdminController(Microsoft.EntityFrameworkCore.DbContextOptions<Tailoring.Infrastructure.Persistence.AppDbContext> options, Microsoft.Extensions.Configuration.IConfiguration config) : ControllerBase
+{
+    private Tailoring.Infrastructure.Persistence.AppDbContext CreateContext()
+    {
+        var allowed = (config.GetSection("PlatformAdmin:Emails").Get<string[]>() ?? Array.Empty<string>()).Select(x => x.Trim()).Where(x => x.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? User.Identity?.Name;
+        if (email is null || !allowed.Contains(email)) throw Tailoring.Application.Common.AppException.Forbidden("platform_admin_required", "Platform administrator access is required.");
+        return new Tailoring.Infrastructure.Persistence.AppDbContext(options, new PlatformAdminTenantContext());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> List(CancellationToken ct)
+    {
+        await using var db = CreateContext();
+        var plans = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(db.Set<Tailoring.Domain.Billing.Plan>().Include(x => x.Entitlements).OrderBy(x => x.SortOrder), ct);
+        return Ok(plans.Select(p => new { p.Id, p.Code, p.Name, p.Description, p.IsActive, p.SortOrder, p.CurrencyCode, p.MonthlyPrice, p.AnnualPrice, Entitlements = p.Entitlements.ToDictionary(x => x.Key, x => x.Value) }));
+    }
+
+    [HttpPut("{code}")]
+    public async Task<IActionResult> Update(string code, PlatformPlanUpdateRequest request, CancellationToken ct)
+    {
+        await using var db = CreateContext();
+        var plan = await db.Set<Tailoring.Domain.Billing.Plan>().Include(x => x.Entitlements).SingleOrDefaultAsync(x => x.Code == code, ct)
+            ?? throw Tailoring.Application.Common.AppException.NotFound("plan_not_found", "Plan was not found.");
+        if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 80 || request.MonthlyPrice < 0 || request.AnnualPrice < 0 || request.CurrencyCode.Length != 3)
+            throw Tailoring.Application.Common.AppException.BadRequest("invalid_plan", "Name, currency and non-negative prices are required.");
+        foreach (var pair in request.Entitlements)
+        {
+            var error = Tailoring.Domain.Billing.EntitlementCatalog.Validate(pair.Key, pair.Value);
+            if (error is not null) throw Tailoring.Application.Common.AppException.BadRequest("invalid_entitlement", error);
+            var existing = plan.Entitlements.SingleOrDefault(x => x.Key == pair.Key);
+            if (existing is null) plan.Entitlements.Add(new Tailoring.Domain.Billing.PlanEntitlement { PlanId = plan.Id, Key = pair.Key, Value = pair.Value });
+            else existing.Value = pair.Value;
+        }
+        plan.Name = request.Name.Trim(); plan.Description = request.Description?.Trim(); plan.IsActive = request.IsActive; plan.SortOrder = request.SortOrder; plan.CurrencyCode = request.CurrencyCode.ToUpperInvariant(); plan.MonthlyPrice = request.MonthlyPrice; plan.AnnualPrice = request.AnnualPrice;
+        await db.SaveChangesAsync(ct); return NoContent();
+    }
+}
+
+public sealed record PlatformPlanUpdateRequest(string Name, string? Description, bool IsActive, int SortOrder, string CurrencyCode, decimal MonthlyPrice, decimal? AnnualPrice, Dictionary<string,string> Entitlements);
+
+internal sealed class PlatformAdminTenantContext : Tailoring.Application.Abstractions.ITenantContext
+{
+    public Guid? UserId => null;
+    public Guid? BusinessId => null;
 }

@@ -31,6 +31,8 @@ public static class EntitlementKeys
     public const string SchedulingIndividual = "scheduling.individual";
     public const string SchedulingShop = "scheduling.shop";
     public const string SchedulingAutoPlanning = "scheduling.auto_planning";
+    public const string AiFashionDesign = "ai.fashion_design";
+    public const string AiAssistantBuilder = "ai.assistant_builder";
 
     // Tiers
     public const string StorefrontTemplateTier = "storefront.template_tier";
@@ -68,6 +70,8 @@ public static class EntitlementCatalog
         new(EntitlementKeys.SchedulingIndividual, EntitlementKind.Flag, "Individual worker schedules", "worker schedules"),
         new(EntitlementKeys.SchedulingShop, EntitlementKind.Flag, "Shop-wide schedule", "the shop-wide schedule"),
         new(EntitlementKeys.SchedulingAutoPlanning, EntitlementKind.Flag, "Automatic daily planning", "automatic daily planning"),
+        new(EntitlementKeys.AiFashionDesign, EntitlementKind.Flag, "AI fashion design image generation", "AI fashion design image generation"),
+        new(EntitlementKeys.AiAssistantBuilder, EntitlementKind.Flag, "AI storefront assistant builder", "AI storefront assistant builder"),
 
         new(EntitlementKeys.StorefrontTemplateTier, EntitlementKind.Tier, "Template tier", "this template tier", ["standard", "basic", "advanced", "premium"]),
         new(EntitlementKeys.StorefrontThemeLevel, EntitlementKind.Tier, "Theme customization", "theme customization", Levels4),

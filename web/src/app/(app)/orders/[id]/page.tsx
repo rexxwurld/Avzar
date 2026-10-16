@@ -2,6 +2,8 @@ import { Fragment } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LoadError, NoAccess } from '@/components/app/Notices';
+import { OrderActions } from '@/components/app/OrderActions';
+import { OrderInvoiceAction } from '@/components/app/OrderInvoiceAction';
 import { formatDateTime } from '@/lib/dates';
 import { money } from '@/lib/format';
 import type { Order } from '@/lib/order-types';
@@ -41,6 +43,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       {o.status === 'Cancelled' && o.cancellationReason && <p className="ap-alert" role="status">Cancelled: {o.cancellationReason}</p>}
 
       <div className="ap-stack">
+        <OrderActions order={o} canManage={can(me, 'orders.manage')} canConfirm={can(me, 'orders.confirm')} canEdit={can(me, 'orders.manage') && can(me, 'staff.view')} />
+        <OrderInvoiceAction orderId={o.id} orderStatus={o.status} canManage={can(me, 'invoices.manage')} />
         <section className="ap-panel" aria-labelledby="ord-h">
           <h2 id="ord-h" className="ap-h2">Order</h2>
           <dl className="ap-dl">

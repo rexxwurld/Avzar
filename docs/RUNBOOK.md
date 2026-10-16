@@ -1,6 +1,6 @@
 # Avzar: first run, test and credentials
 
-Status (2026-10-16): CI run #207 (commit `3714953`) passed all three jobs: the backend suite reports 680/680 tests passed with a clean model-drift gate, and the `migrations` job applied the eight committed migrations to a clean PostgreSQL 17.11 (67 tables, 33 check constraints, 113 foreign keys, 8 partial indexes). Not rerun in this workspace; see `PROGRESS.md` for evidence and limits. Not a deployment verification (compose and full-stack smoke test are still unrun).
+Status (2026-10-16): the supplied CI #230 backend log (commit `c349faf9023a9a0c1c6d5e7ddb5950c76016953c`) reports a clean Release build, 693/693 tests passed, and no EF model drift. The web job succeeded and its audit reported zero vulnerabilities, but the supplied excerpt did not include the test/build summaries; the #230 migration job output was not supplied. Historical CI #207 applied eight migrations to clean PostgreSQL 17.11. This is not deployment verification; Compose/full-stack smoke remains deferred until the dashboard and visual editor are ready. See `PROGRESS.md` and `docs/MASTER_ENGINEERING_HANDOFF.md`.
 
 ## 1. Prerequisites
 - .NET 10 SDK (`backend/global.json` pins 10.0.100) and `dotnet tool install -g dotnet-ef`
@@ -61,7 +61,7 @@ Never put any of these in source control. Use environment variables or a secret 
 - Web: `cd web && npm ci && npm run typecheck && npm test`.
 
 ## 6. Known gaps in what exists now (be aware when testing)
-- The current web tree contains the PUBLIC site renderer and its supporting components. The business dashboard and visual builder/editor UI are not implemented yet (use Swagger to drive the existing builder API).
+- The current web tree contains the public storefront renderer and preview plus a partial staff dashboard: auth, staff/roles/locations, customers, and order list/detail/create/edit and quote/confirm/cancel UI. The visual storefront editor is not implemented yet; use the existing API only for builder operations until the editor is built. The new order UI requires a fresh web CI build because local dependency installation was unavailable in the latest workspace.
 - No malware scanner on uploads (images are re-encoded, which disarms image payloads; other file types are refused).
 - With `Email__Provider=log` (default) emails are not delivered; the full message, links included, appears in the application log. Development only.
 - Existing businesses created before a permission was added will not have it on non-owner roles until edited.
@@ -147,3 +147,13 @@ Free for for-profit companies under USD 1M annual revenue: apply at https://lice
 - Commits pushed by that workflow do not start CI (default `GITHUB_TOKEN`). Run the CI workflow by hand afterwards and wait for all three jobs.
 - CI runs `npm audit --audit-level=high` on the whole dependency tree and fails the `web` job on a high or critical finding. If a manual audit report is needed, run `npm audit` locally in `web/`.
 - `web/package.json` has `overrides: { "postcss": ">=8.5.23 <9" }` to lift the postcss bundled with `next` past a high-severity advisory. Remove it only after upgrading to a `next` release that already bundles a patched postcss, and re-run the audit.
+
+## Roadmap increment configuration (2026-10-16)
+
+- **Redis:** set `Redis__ConnectionString` to enable shared rate-limit counters and distributed report caching. Without Redis, the API uses per-process counters and in-memory report cache; do not assume limits/caches are shared across replicas.
+- **AI:** set `AI__OpenAI__ApiKey` in deployment secrets. Optional `AI__OpenAI__TextModel` and `AI__OpenAI__ImageModel` select provider models. Image generation incurs provider charges; only plans with `ai.fashion_design=true` or `ai.assistant_builder=true` can use each route. The output is not automatically saved or published.
+- **Paystack subscriptions:** set `Billing__Paystack__SecretKey` and `Billing__Paystack__CallbackUrl`; register `/api/billing/subscription/webhook` in Paystack. Only NGN plan prices are accepted. Do not manually activate a paid subscription from a browser redirect: webhook HMAC and transaction verification are required. Test duplicate, invalid-signature, wrong-amount, failed and delayed webhook delivery in a non-production account before enabling paid plans.
+- **Platform administration:** set `PlatformAdmin__Emails__0` (and additional indexed values) only for trusted platform staff. The API allowlist, not business role permissions, controls access to `/api/platform-admin/plans`. Review every entitlement key/value before saving because changes affect enforcement for existing subscribers.
+- **Customer portal:** the business must have a valid `App__WebBaseUrl` and the customer must have an email address. Links expire after seven days and can be revoked from the customer record. The token is carried in the browser URL fragment and exchanged via POST; treat it as a bearer credential and never include it in logs or analytics.
+- **Inventory:** apply the new forward migrations before using the inventory API. Restricted staff see only material stock assigned to their allowed locations. Stock reservations tied to production tasks must use the same task ID for reserve, release and consume. Verify the database transaction/concurrency tests against PostgreSQL 17 before production use.
+- **Mobile:** build `mobile/Avzar.Mobile/Avzar.Mobile.csproj` using the .NET 10 MAUI workload. Bearer sign-in requires `Auth__JwtSigningKey` (32+ characters), with issuer/audience matching the mobile client. Device builds and offline conflict tests are still required.

@@ -16,6 +16,8 @@ public class EmailOutboxMessage : Entity
     public string TextBody { get; set; } = "";
     public string? HtmlBody { get; set; }
     public string? TemplateKey { get; set; }
+    /// <summary>Optional stable caller key. A filtered unique index makes retries/replays safe without constraining legacy rows.</summary>
+    public string? DeduplicationKey { get; set; }
 
     public EmailStatus Status { get; set; } = EmailStatus.Pending;
     /// <summary>Delivery attempts started (incremented when a dispatcher claims the row, so a crash mid-send still counts).</summary>

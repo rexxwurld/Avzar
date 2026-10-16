@@ -1,17 +1,12 @@
 # Progress checklist
 
 ## Verification status (read first)
-- **Newest web evidence (2026-10-16, CI run #226, commit `6330712`, "Delete web/src/app/(app)/orders/(id) directory"):** `web` job succeeded (26s), log read: `npm ci` ok, `npm audit` 0 vulnerabilities, `tsc --noEmit` clean, Vitest **7 files / 140 tests passed** (orders 25), `next build` compiled and listed `/orders`. The build route list has **no `/orders/[id]`**: the detail page is NOT in the repository at this commit (a directory literally named `(id)` was uploaded and then deleted). Fix: create `web/src/app/(app)/orders/[id]/page.tsx` with square brackets, then confirm `/orders/[id]` appears in the next build's route list. The route list in the supplied log was cut off after `/staff/locations`, so `/staff/roles` could not be checked. Backend and migrations jobs of #226 were not shown.
-- **Newest evidence (2026-10-16, CI run #212, commit `92f4f14`, "Add files via upload", push to `main`, status Success, 2m 13s):** the run page and web job summary were read. Web: Vitest **6 files / 115 tests passed** (matches the 6 test files in `web/test`). Backend: the run is green and a `backend-test-results` artifact exists, but the test total was NOT read, so the expected 693 (680 + 13 from `FinanceTaskLocationScopeApiTests.cs`) is still unconfirmed; send the TRX or the `dotnet test` summary line to settle it. The `migrations` job result and the Release build/drift-gate output were not shown. This supersedes #207 for web only.
-- **Latest evidence (updated 2026-10-16):** CI run #207 (commit `3714953`, merge of PR #3 `feat/avzar-slice-3-customers`): **all three jobs succeeded**. `backend` (2m 6s, log read): Release build 0 warnings / 0 errors; `dotnet test` printed `Passed! - Failed: 0, Passed: 680, Skipped: 0, Total: 680`; the model-drift gate printed `Committed migrations match the model`. `migrations` (1m 22s, log read): all eight committed migrations applied in order to a clean PostgreSQL 17.11; schema `tables=67 check_constraints=33 foreign_keys=113 partial_indexes=8`; no cascading FKs on financial/audit tables; Release build 0 warnings. `web` (34s): job succeeded; its step output was collapsed in the log we read, so the Vitest count after PR #3 was NOT read (last read: 22/22 in #169). The supplied TRX (680/680, 51 test classes, window 12:13:05-12:14:05 UTC) matches this run; it includes `TaskLocationScopeTests` (10), `ExpenseLocationScopeTests` (9), `LocationScopeApiTests` (5) and `OwnerGuardAndBackfillTests` (7). Superseded by this entry: #169 (648/648 on record, 66 tables), #188 (670/670).
-- Earlier evidence: CI run #115 (after the fix to `ApiAuthorizationTests.cs`): the `migrations` job succeeded (all steps, incl. `dotnet ef database update` on a clean PostgreSQL 17 and the schema inspection). The supplied `backend-test-results` TRX reports **560 total / 560 passed / 0 failed** (44 test classes; run window 06:27:01-06:27:44 UTC on 2026-10-16). The TRX does not store the run id, so its link to #115 is by timing and your upload. **All three jobs of run #115 (commit `2facba3`) succeeded** (`backend` 1m35s, `web` 48s, `migrations` 1m23s). The `migrations` job log was read in full (65 tables, 33 check constraints, 112 foreign keys, 6 partial indexes, no cascades on financial/audit tables); the `web` job log was read in full (see the last section). The `backend` job's step output was only shown as timings, so its green status is read from the run page, not from command output.
-- Run #114 failed one test of 560 (`Anonymous_requests_to_protected_endpoints_get_401`): the three multipart upload endpoints returned 415 because the test sent JSON. A test bug, not an auth gap; fixed by probing multipart endpoints with a multipart body. 559 other tests passed.
-- Earlier baselines: CI #37 (139b9f0) first green build/test/typecheck/build; CI #64 (889afec) 478/478; CI #111 green. Superseded by the latest evidence.
-- **Not yet verified:** `docker compose up`, publishing a storefront and viewing it in the public renderer, and every external integration (email, storage, DNS, Redis, ClamAV, push, payments, AI), mobile builds, and the web dashboard (does not exist yet).
-- Migrations: **eight** committed and applied to a clean PostgreSQL by CI run #207: `InitialSchema`, `AddLastTotpStep`, `AddExpenseLocation`, `AddDataProtectionKeys`, `AddPdfBranding`, `AddEmailDeliveryStatus`, `AddEmailSuppressions`, `AddOneOwnerGuardAndLocationsAllBackfill`. The drift gate passes. Do NOT regenerate `InitialSchema`; add forward migrations only (a new `migration_name`, never a reused one).
-- The per-item "(unverified)" tags below pre-date these runs. A green suite supports them but does not prove each line; retag an item only when a specific test covers it.
-- Dependency security: ImageSharp 4.1.2 (needs a Six Labors license at build time, see docs/RUNBOOK.md section 8); transitive pins for Pkcs, SSH.NET and AWSSDK.Core in `Directory.Packages.props`. The CI license gate fails on an empty `SIXLABORS_LICENSE_KEY`; the secret is now set.
-- Web dependency security (2026-10-16): `npm audit` on the full tree is clean (0 vulnerabilities in run #169). `web/package.json` pins `next` 15.5.28, `react`/`react-dom` ^19.2.8, `vitest` 4.1.11, with `overrides: { "postcss": ">=8.5.23 <9" }`. `web/package-lock.json` is committed; CI and the Dockerfile use `npm ci`; the CI audit step is `npm audit --audit-level=high` on the whole tree (blocking).
+- **Latest supplied CI evidence (2026-10-16, run #230, commit `c349faf9023a9a0c1c6d5e7ddb5950c76016953c`):** backend job succeeded. .NET 10 Release build: **0 warnings / 0 errors**; integration tests: **693 passed / 0 failed / 0 skipped**; EF model-drift gate: `Committed migrations match the model`. The `backend-test-results` artifact was uploaded. The web job succeeded; `npm ci` and `npm audit` completed with **0 reported vulnerabilities**, but the log excerpt supplied did not show the exact Vitest count or typecheck/build summaries. `npm ci` emitted a peer warning: `@types/node@22.10.7` is below Vite 8.3.4's declared `>=22.12.0` range. The migration job output for #230 was not supplied, so clean-PostgreSQL migration application is not confirmed for this run.
+- **Archive inspection:** the supplied ZIP has no `.git` metadata, so branch, HEAD, remotes, worktree changes and slice ancestry cannot be independently established. The archive DOES contain `web/src/app/(app)/orders/[id]/page.tsx`; the older #226 note below saying the detail route was missing is stale for this archive. The web app currently has login/register/invite, staff/roles/locations, customer workflows, order list/detail/create/edit and quote/confirm/cancel UI. The latest working-copy increment also adds a read-only production task dashboard for managers and assigned workers; this increment has not been included in CI.
+- **Local verification limitation:** this environment has Node 22 but no .NET SDK or Docker. `npm ci` timed out before installing dependencies; a subsequent `npm run typecheck` therefore failed because Next/React/Vitest/Node type packages were absent. That is an environment/dependency-install blocker, not a meaningful typecheck of the changed code. No local Vitest or Next production build was completed. Use CI to verify the changed web code.
+- **Still not verified end-to-end:** Docker Compose/full-stack smoke test (explicitly deferred until dashboard and storefront editor are ready), storefront publish-to-render, real email delivery, S3, ClamAV, real Redis, DNS, payments, push, AI, mobile builds, and Data Protection key persistence across the deployed Render API's restart.
+- **Migrations:** the historical run #207 applied eight migrations to clean PostgreSQL 17.11 (67 tables, 33 check constraints, 113 FKs, 8 partial indexes, no cascading FKs on financial/audit tables). Run #230's migration job has not been shown. Never regenerate `InitialSchema`; use forward migrations only.
+- **Dependency maintenance:** `web/package.json` pins Next.js 15.5.28, React `^19.2.8`, Vitest 4.1.11 and a PostCSS override. `web/package-lock.json` is committed and CI uses `npm ci`. Upgrade `@types/node` to a compatible Node 22 release (`>=22.12.0`) when dependencies are next edited; regenerate the lockfile and rerun CI.
 
 Legend: [x] written  |  [ ] not started  |  "unverified" = written but never compiled or run
 
@@ -65,7 +60,7 @@ Legend: [x] written  |  [ ] not started  |  "unverified" = written but never com
 - [x] Worker skills management (unverified)
 - [x] 9 pure unit tests (`ProductionDomainTests`) and 19 integration tests (`Phase3Tests`) (written, never run)
 - [ ] **Compile, create the migration (re-run bootstrap), run all tests** - needs .NET 10 SDK + Docker
-- [ ] Task planned times, daily schedules, availability/leave, scheduling engine (Phase 4)
+- [~] First-pass pure scheduling algorithm added in `Tailoring.Domain.Production.ProductionSchedulePlanner`; tests written but not run. API integration, persistence, worker availability/leave, capacity rules and schedule UI remain outstanding (Phase 4)
 - [ ] Notifications for assignments, blocks, overdue, newly eligible steps (Phase 5)
 - [ ] Material reservations / shortage handling against stock (Phase 6)
 - [ ] Progress photo attachments
@@ -186,14 +181,14 @@ Web screens for Phase 2 do not exist (no Next.js app yet).
 - [x] Next.js public renderer (web/): host to site routing, strict nonce CSP, controlled section components, forms, SEO metadata, JSON-LD, sitemap/robots, preview
 - [x] Tests: 33 pure storefront tests + 25 integration tests (incl. the acceptance scenario: two businesses, different templates/pages/colours/fonts, no leakage) + 22 web unit tests (written, never run)
 - [ ] **Compile, run `dotnet test`, `npm install && npm run typecheck && npm test` in web/**
-- [ ] NOT BUILT: the dashboard and the visual editor (drag-and-drop, live preview iframe, undo/redo). The API for it exists (draft/appearance/switch/publish/versions/presets, and the catalog now includes each section's field schema so the editor can generate forms)
+- [~] Staff dashboard is partially implemented (auth, staff/roles/locations, customers, and order list/detail/create/edit with quote/confirm/cancel UI; current order UI awaits a fresh CI typecheck/test/build). A first storefront draft editor now exists (draft/appearance/publish/version history and section presets); the polished drag-and-drop canvas, undo/redo, media/domain UI and template-switch confirmation remain open.
 - [ ] Not built: pricing page UI, onboarding wizard, customer portal
 - [ ] Data Protection keys must be persisted in production (preview links) - see RUNBOOK
 - [ ] Fonts load from Google Fonts (CSP allows it); self-hosting is a privacy hardening step
 - Page limits default to 5/5/12/25 so each plan can hold its templates' own pages (earlier 1/3/8/20 would not)
 
 ## Phases 4-8
-Not started: scheduling engine & publication, notifications & SignalR & Hangfire, inventory & finance, MAUI app, storefront module, platform admin, deployment hardening.
+Not started or incomplete: scheduling engine and daily plans, notifications/SignalR/Hangfire, inventory/stock reservations, MAUI app/offline sync, completion of the storefront editor, customer portal, platform admin and deployment hardening. Storefront APIs and public renderer are implemented; the editor is an initial JSON-based slice.
 
 
 ## Step A - Foundation gaps (in progress; everything below is unverified: no .NET SDK or Docker was available)
@@ -234,7 +229,7 @@ Not started: scheduling engine & publication, notifications & SignalR & Hangfire
 - [x] PDFs: invoice, receipt, credit note, quotation (order), measurement sheet, job sheet (manager and worker variants). Pure document builders (`PdfDocuments`, tested in `PdfTests.cs`), QuestPDF renderer, endpoints guarded by the permission of the record. NEW PACKAGE (version a guess): `QuestPDF 2025.7.0`. Requires an explicit `Pdf__QuestPdfLicense` decision (see RUNBOOK section 9). NOT done: logos/brand colours, email/share by link (deferred to the customer portal in Step B)
 - [x] Customer CSV import/export: preview then commit with file hash, create-only default, typed confirmation before overwriting, plan limits respected, formula-injection-safe export (`ImportExportTests.cs`). Only customers; other record types are not importable
 - [x] Global search across customers, orders, invoices, designs, inquiries, filtered by the caller's permissions (`SearchTests`)
-- Step A is now code-complete EXCEPT: email provider webhooks (delivered/bounced), join-with-existing-account, ownership transfer, TOTP replay protection, per-user 2FA attempt rate limit beyond lockout, PDF logos, PDF share links, Redis caching/queues. None of Step A has been exercised against real credentials (email, S3, ClamAV, Redis).
+- Historical status at this point in the log (superseded by later implementation and CI evidence): the remaining Step A list included email webhooks, existing-account invitations, ownership transfer, TOTP replay protection, PDF branding/share links and Redis caching/queues. See the current verification summary at the top and later dated CI entries for the reconciled state.
 
 
 ## Session 2026-10-15 (handoff V2 baseline review; read-only, no code changed)
@@ -243,7 +238,7 @@ Environment: no .NET SDK, Docker, `.git` or npm network access, so **no build, t
 - CI run #64 (commit `889afec`) is reported successful from the supplied run page (backend 1m52s, web 47s). Its job logs were not available, so the license gate passing is inferred from the workflow (the step exits 1 on an empty secret), not observed.
 - Found: there is no root `ci.yml` (only `.github/workflows/ci.yml` and `generate-migration.yml`), so the suspected duplicate does not exist in this snapshot.
 - Found: integration tests use `EnsureCreated` (`TenantIsolationTests.cs`), so CI has never applied a migration to PostgreSQL; CI only checks that `dotnet ef migrations add` succeeds. (Stale: a `Migrations` folder with `InitialSchema` is now committed.)
-- Found: `web/` contains only the public renderer and preview; there is no dashboard or editor.
+- Historical 2026-10-15 finding (superseded by later web slices): at that time `web/` contained only the public renderer and preview; the staff dashboard and editor had not been built.
 - Next: (1) in a network-enabled environment, clone `main`, confirm 889afec; (2) decide the migration baseline and apply it to a clean PostgreSQL; (3) compose smoke test; (4) WebApplicationFactory authorization tests; (5) upgrade Actions majors after checking releases; (6) begin dashboard/editor.
 
 ## Artifact review 2026-10-15 (CI run #64 artifacts; static inspection, nothing re-run)
@@ -333,7 +328,7 @@ Environment: no .NET SDK, Docker, `.git` or npm network access, so **no build, t
 ## CI run #115, `web` job log (read in full 2026-10-16)
 - `npm install`, `npm run typecheck` (`tsc --noEmit`), `npm test` (vitest 2.1.8) and `npm run build` (Next.js 15.1.6) all passed. Node 22.23.3.
 - Web tests: **1 file, 22 tests** (`test/links.test.ts`). There are no component or end-to-end tests yet.
-- Build output: 4 pages generated statically and the routes `/`, `/api/inquiry/[slug]`, `/preview/[token]/[[...path]]`, `/sites/[slug]/[[...path]]`, collection and design pages, `robots.txt`, `sitemap.xml`. No dashboard or editor routes exist.
+- Historical build output from the initial renderer-only stage (superseded by later web slices): only public renderer and preview routes existed; dashboard routes were added later.
 - **SECURITY FINDING (open, high priority):** `npm install` printed `npm warn deprecated next@15.1.6: This version has a security vulnerability` (references CVE-2025-66478) and `9 vulnerabilities (3 moderate, 3 high, 3 critical)`. The web app serves the public storefront renderer, so this is internet-facing. Do: run `npm audit` in `web/`, upgrade `next` (and `react`/`react-dom` if the advisory requires it) to the patched release for the 15.1 line or newer, then re-run typecheck, tests and build. Do not use `npm audit fix --force` blindly. Not yet done; CI cannot catch this because the audit does not fail the job.
 - Warning annotation on the `web` job: Node.js 20 deprecation for `actions/checkout@v4` and `actions/setup-node@v4` (forced onto Node 24). Not an error.
 - `npm install` is used (no committed `package-lock.json`), so dependency versions float between runs. Commit a lockfile and switch to `npm ci`.
@@ -438,11 +433,104 @@ Environment: no .NET SDK, no npm network, so nothing below was built or run here
 - New file `backend/tests/Tailoring.IntegrationTests/FinanceTaskLocationScopeApiTests.cs` (13 tests, `[Collection("api")]`, real login, real permission handler). Test-only change: no production code was touched, no migration.
 - Covers: restricted member lists only own-location invoices, payments and tasks; a hidden invoice, payment, receipt or task is 404 with the same code as a missing one; invoices with no order are hidden from restricted callers (fail closed); writes on hidden records (void, delete draft, record payment, reverse, reject, verify, cancel task, generate tasks) are 404 and leave the record unchanged for the owner; hidden invoice, receipt and job-sheet PDFs are 404 (the 404 happens before rendering, so no PDF licence is needed); a member with no locations sees nothing; the owner sees everything.
 - Not covered: positive PDF downloads, credit-note PDFs, worker (`/api/my/tasks`) endpoints (unscoped by design).
-- Expected backend total if everything passes: 693 (680 + 13). Run #212 (92f4f14) is green but its backend count was not read, so this is still an expectation, not a result. If a test fails, read the failure first: it is either a wrong assumption in the test (response code, status string, request shape) or a real scoping gap in a service; fix the cause, do not weaken the assertion.
-- Baseline for comparison: CI run #207 (3714953), 680/680.
+- At the time this entry was written, 693 was an expected backend total (680 + 13). This expectation was later confirmed by the supplied CI #230 backend log: 693 passed, 0 failed, 0 skipped. Baseline before those 13 tests: CI #207 (3714953), 680/680.
 
-## Step B: orders screens (read-only list and detail) (list page verified by CI #226: tsc, 25 Vitest cases, build; detail page NOT yet in the repo, see top of file)
-- Status: **Partially implemented.** Orders list `/orders` (search by order number or customer, status filter, due-date range, paging, late flag) and detail `/orders/[id]` (customer link only with `customers.view`, garments, server-computed totals, derived production progress, timeline, cancellation reason). Nav item "Orders" is now `ready: true`. Gated by `orders.view`; the server stays the authority. Uses the existing `GET /api/orders` and `GET /api/orders/{id}`; no backend or migration change. Costs and margins are not shown (they need `pricing.view`).
-- New files: `web/src/lib/order-types.ts`, `web/src/lib/orders.ts`, `web/src/app/(app)/orders/page.tsx`, `web/src/app/(app)/orders/[id]/page.tsx`, `web/test/orders.test.ts` (about 30 cases: URL parsing, date validation, links, status tones, zone-safe dates, late rule). Only the date/zone logic was sanity-checked with plain Node; Vitest, `tsc` and `next build` were NOT run (no dependencies or network in this session).
-- Not built: create/edit order form, quote/confirm/cancel buttons, pricing view, order-to-invoice links, tasks on the order page. The APIs exist (`POST/PUT /api/orders`, `/quote`, `/confirm`, `/cancel`).
-- Expected web total if all passes: 115 + the new cases (read the real number from CI; do not trust this).
+## Step B: order workflow UI (implemented in the supplied archive; local verification blocked)
+- The archive contains the order list and read-only detail pages, plus this increment's `web/src/app/(app)/orders/new/page.tsx`, `web/src/app/(app)/orders/[id]/edit/page.tsx`, `web/src/components/app/OrderForm.tsx`, and `OrderActions.tsx`.
+- Create order: selects an active customer and active workshop location, supports customer search, promised date, priority, delivery details, notes, garment lines, manual unit prices and discount. Create uses `Idempotency-Key`; totals remain server-calculated. The UI never accepts client-calculated totals or exposes cost/margin data.
+- Edit: sends the API's optimistic-concurrency `version`, retains existing measurement/design links, only offers Draft/Quoted editing, and explains that editing a quoted order returns it to Draft.
+- Lifecycle actions: quote Draft orders, confirm Quoted orders (with `orders.confirm` permission), and cancel eligible orders with a required reason and confirmation prompt. API responses remain authoritative; invoices can block cancellation server-side.
+- Added unit tests for action visibility and permission/status combinations in `web/test/orders.test.ts`. No backend or migration change was made.
+- **Verification:** the supplied CI #230 backend suite passed 693/693 and web job succeeded, but the pasted web log did not include the exact test count or build/typecheck summaries. Local `npm ci` timed out and dependencies were unavailable, so the new UI has not been locally typechecked, tested or production-built. The next CI run must verify the new pages/components and the updated tests.
+- **Known limits:** no design/measurement picker in the order form; garment lines can be entered manually. Invoice creation/payment workflows, delivery action UI, production-task links and pricing calculator integration remain separate increments. The current API controller exposes quote/confirm/cancel but not the service's delivery operation.
+
+
+## Step B: production task dashboard and actions (implemented in working copy; verification blocked)
+- Added `web/src/app/(app)/tasks/page.tsx` and `[id]/page.tsx`: manager users with `tasks.view` get the paged `/api/tasks` list and filters for status, stage and overdue work; worker-only users with `tasks.work` get the caller-scoped `/api/my/tasks` list and open/completed/all views. Task detail shows instructions, requirements, prerequisites and event history.
+- Added `web/src/lib/production-types.ts`, `web/src/lib/production.ts` and `web/src/components/app/TaskActions.tsx`. Worker-only controls call the existing start/pause/resume/complete/report-issue endpoints; completion requires all checklist items. Manager controls call assignment, optional audited override, unblock and cancel endpoints. Added `web/test/production.test.ts` for pure query/display helpers, enabled the Production navigation item and added minimal attention/checkbox styling.
+- This increment is only partially complete: daily schedule planning, planned-time editing, automated reminders/notifications, browser-level action tests and manager task editing are not implemented in the UI yet. The backend remains authoritative for permissions, location scoping, worker assignment and state transitions.
+- Verification: `npm ci --no-audit --no-fund` timed out again. No local Vitest run, full TypeScript typecheck or Next production build could be completed. CI run #230 predates this increment and is not evidence for these changes. No backend code or migration changed.
+- Next: run CI on the combined order + production UI changes, address all failures, then add integration/e2e coverage and daily schedule planning/notifications.
+
+## Step B: storefront draft editor increment (implemented in working copy; verification blocked)
+- Added `/storefront` and `StorefrontManager`: list/select tenant-owned storefronts, create from a plan-allowed template, load the current draft and catalog, edit page title/visibility, section visibility/layout variant/content JSON, add preset sections, reorder/remove sections, and edit theme JSON. It preserves IDs and sends the expected draft revision so the backend rejects stale edits instead of overwriting them silently.
+- Added private preview-link flow, explicit publish confirmation with a version note, unpublish, version history/rollback, and storefront contact/settings form. Publishing is permission-gated in the UI and still enforced by the API. Plan issues and contrast warnings returned by the API are shown to the editor.
+- Enabled Storefront navigation for users with `storefront.view`; API permission/plan validation remains authoritative. Added editor code-area styling.
+- Limitation: this is a first usable draft-management/editor slice, not yet the polished drag-and-drop visual builder. Section props and theme configuration currently use JSON editors; media picker, custom pages, domain management, template-switch confirmation, and browser e2e tests remain open. Template switching's preview/confirm flow is not yet surfaced in the UI.
+- Verification: npm dependency installation timed out again; no local Vitest run, full typecheck, or Next build could be performed. TypeScript syntax transpilation and archive integrity checks are the available local checks. CI #230 predates this change and does not verify it. No backend or migration changed.
+
+## Step B: business hours and closure calendar UI (implemented in working copy; verification blocked)
+- Added `/settings` for members with `business.settings`, backed by the existing business schedule API. The page edits all seven days' open/closed state and opening/closing times, displays the business time zone, and adds/removes named closure dates. API validation remains authoritative; local validation prevents obvious invalid time ranges.
+- Enabled the Settings navigation item for users with `business.settings`.
+- Verification: syntax transpilation is run across the web source/tests; a focused TypeScript check uses temporary dependency stubs because npm cannot reach the registry in this environment. Full `npm ci`, Vitest, full strict typecheck, and Next build remain blocked by npm registry DNS (`EAI_AGAIN`). No backend or migration changed.
+
+## Step B: finance and invoice workflows UI (implemented in working copy; verification blocked)
+- Enabled `/finance` for users with invoice, payment or expense-view permissions. The page provides searchable/status/outstanding/overdue invoice listing, pending payment claims, and an expense-by-category summary, each shown only when the signed-in user has the corresponding permission.
+- Added `/finance/invoices/new` for free-form draft invoices, with active-customer selection, line items, discounts, default/per-line tax, due date, notes and terms. Creation uses a stable idempotency key until the form changes. The server remains authoritative for invoice totals.
+- Added `/finance/invoices/[id]` for invoice detail, server-calculated line totals, PDF link, issue/delete-draft/void/credit-note actions, payment recording, pending-payment verify/reject, verified-payment reversal, and receipt/credit-note PDF links. Permissions control which controls appear; API enforcement remains authoritative.
+- Added an order-detail action to create Full, Deposit or Balance draft invoices for eligible confirmed/in-production/ready orders. It uses an idempotency key and relies on the backend to prevent duplicate billing.
+- Limitations: expense summary is read-only (no expense/category CRUD UI); invoice draft editing, order invoice history, payment search/filtering, and e2e tests remain open. PDF endpoints may return the configured licensing error until production PDF licensing is configured.
+- Verification: syntax transpilation passed for 98 TS/TSX files. Focused typechecking of the new components/pages with temporary dependency stubs passed. A standalone business-schedule helper check passed 6 assertions. Full `npm ci` fails on npm registry DNS (`EAI_AGAIN`), so Vitest, full strict typecheck and Next production build remain unverified. No backend/migration changes; no commit, push, merge or deployment.
+
+
+## Step C1: first-pass production scheduling domain logic (historical increment; superseded by Steps C2 and D)
+- Added `backend/src/Tailoring.Domain/Production/ProductionSchedulePlanner.cs`: deterministic scheduling across configured business hours and holidays; per-worker non-overlap against existing reservations; dependency-aware ordering; priority/deadline/stage ordering; explicit unscheduled reasons for missing assignment/estimate, unresolved prerequisites and no available slot. No estimate or worker is fabricated.
+- Added three pure scheduling cases to `backend/tests/Tailoring.IntegrationTests/ProductionDomainTests.cs` for business-hours/non-overlap, dependencies/reservations, missing estimates and closure dates.
+- Added `docs/production-scheduling.md` with current capabilities, limitations and next steps. Updated architecture and master handoff status.
+- At this earlier checkpoint the planner was domain-only. The API preview was added in Step C2 and the web preview screen in Step D. Schedule persistence/apply, worker availability, and notifications remain open. No migration is needed for preview-only scheduling.
+- Verification at this checkpoint: `.NET` SDK was not installed, so the backend tests and compilation were not run.
+
+
+## Step C: shop schedule preview API (implemented in working copy; not compiled or run)
+- Added `IShopScheduleService` and `ShopScheduleService`, plus `POST /api/tasks/schedule/preview` on `api/tasks`. The endpoint requires `tasks.view`; the service independently checks the `scheduling.shop` entitlement.
+- The service loads the tenant's time zone, seven-day business-hours configuration, closure dates, pending/scheduled tasks and task dependencies. It omits completed/cancelled prerequisites, considers in-progress/paused planned slots as reservations, and applies `ILocationScope` to the task candidates. It returns scheduled and unscheduled task explanations without modifying task records.
+- Added planner tests for dependency cycles, independent-worker progress, UTC start requirements and horizon bounds. Updated the scheduling guide, architecture, README and master handoff.
+- **Verification blocked:** this environment has no .NET SDK, so no C# build or test suite ran. Static inspection and archive validation are not compile verification. No migration, commit, push, merge or deployment was performed.
+- Remaining before schedule apply: worker leave/availability and capacity, robust DST tests, transaction + optimistic concurrency + audit for persisted plan application, HTTP tests for permissions/entitlements/tenant/location isolation, notifications, and web/mobile schedule views.
+
+
+## Step D: shop schedule preview web UI (implemented in working copy; not build-verified)
+
+- Added `/tasks/schedule`, linked in navigation for users with `tasks.view`.
+- UI calls `POST /api/tasks/schedule/preview`, accepts a UTC start date and bounded horizon, shows proposed slots in the business time zone, and lists unscheduled-task reasons.
+- Explicitly labels the output as preview-only; no task times are written.
+- Uses existing same-origin API helper, including CSRF handling.
+- Verification: source-level checks only; `npm ci`, typecheck, Vitest and Next build have not run in this environment.
+
+### Shop schedule apply increment (2026-10-16)
+- Added `POST /api/tasks/schedule/apply`, gated by `tasks.manage` and `scheduling.shop` entitlement.
+- Preview responses now include task row versions. Apply recalculates server-side, rejects stale candidate sets/versions and partial schedules, then saves planned times transactionally with `schedule_applied` task events.
+- The web schedule screen now offers Apply only when every candidate is schedulable and submits the preview's version map; stale plans must be regenerated.
+- Notifications remain unimplemented and the API reports `notificationsQueued: false`. No worker leave/capacity model or mobile calendar yet.
+- Verification remains incomplete: .NET SDK and npm dependencies are unavailable in this environment; no backend compile/integration tests or full web build/tests were run for this increment.
+
+
+## Scheduling hardening follow-up (2026-10-16)
+- Updated the shop schedule preview to treat existing `Scheduled`, `InProgress`, and `Paused` task slots outside the candidate set as worker busy-time reservations. This matters for location-restricted managers: a worker can be assigned across locations, and the manager's visible task set must not permit a schedule that overlaps work already planned elsewhere. Only time ranges are used; hidden task IDs/details are not returned in the preview.
+- Verification boundary: source-level change only in this workspace. The .NET SDK and Docker are unavailable here, so backend compilation and PostgreSQL-backed regression tests have not been run. CI must verify this change before merge/deploy.
+
+- Security follow-up: `ShopScheduleService` now requires `ILocationScope` rather than accepting a nullable optional dependency. A missing registration can no longer silently disable location filtering for schedule previews. Source-level only; CI must compile the constructor/DI wiring and run location-scope tests.
+
+
+## 2026-10-16: worker calendars, schedule notifications, storefront editor extensions (IMPLEMENTED IN WORKING COPY; verification blocked)
+- Added tenant-scoped worker recurring availability, daily capacity, approved leave persistence, API endpoints, and a worker calendar endpoint with location filtering. The planner respects worker-specific hours, approved leave, daily capacity and existing reservations; leave is not counted as productive workload. New forward migration: `20261016233000_AddWorkerAvailabilityAndLeave`.
+- Schedule apply now queues assignment emails and eligible 24-hour reminders through the existing durable email outbox. Added a filtered unique deduplication key and migration `20261016230000_AddEmailDeduplication`; pending schedule mail for superseded time slots is cancelled/purged. Existing retry, leasing, suppression, and provider delivery-status handling remain the delivery path. `NotificationsQueued` only means a new message was queued, not delivered.
+- Added `/workers/schedule` UI for individual calendars, recurring availability/capacity, approved leave, and planned tasks. Updated shop schedule UI messaging to reflect notification queue behavior.
+- Extended storefront editor with custom page add/remove (subject to plan limits), URL slug, SEO title/description, navigation visibility, section style editing, existing-media picker for supported image sections/logo, template-switch preview/apply, and custom-domain DNS verification controls. Existing draft save/preview/publish/version rollback workflows remain server validated; media upload/delete remain in the Media library.
+- Added planner tests for worker availability, leave and capacity, PostgreSQL integration tests for schedule preview/apply and stale preview rejection, and worker availability/leave service tests. Existing order/production, storefront, and finance integration test suites remain in place.
+- **Not verified:** no .NET SDK or Docker is available, and registry DNS is unavailable. Backend compile, PostgreSQL integration tests, migration application/model drift, web typecheck, Vitest and Next production build remain unrun. TypeScript/TSX syntax transpilation passed for all 104 web TypeScript files; this is syntax-only, not a full typecheck. Do not merge/deploy until CI and disposable-PostgreSQL migration checks pass.
+
+## Roadmap implementation increment (2026-10-16)
+
+Added source for the next roadmap slice on top of the recovered 2026-10-16 ZIP:
+
+- Inventory domain/persistence/API/UI: materials, location-scoped stock visibility, movement history, receive/adjust/reserve/release/consume operations, serializable transactions, xmin version checks, low-stock status, and tenant-isolation tests.
+- Reports: date-scoped summary and daily series for order value, delivered orders, verified receipts, non-void expenses, and production workload; tenant/location-aware cache key and 30-second distributed cache (Redis when configured, memory fallback).
+- Customer portal: hashed expiring/revocable email magic links, secure order/progress/invoice/payment read model, and a customer-detail action to send the link.
+- AI studio: optional OpenAI fashion concept image generation and storefront-assistant configuration draft endpoints/UI, guarded by permissions, rate limiting, and plan entitlements.
+- Subscription/platform admin: Paystack NGN checkout initialization, signature + provider verification before applying a plan change, payment attempt persistence, and configuration-allowlisted global plan editing.
+- SignalR business event hub with business/user group isolation; worker task actions broadcast `task.updated`.
+- .NET MAUI Android/iOS starter with bearer login, SecureStorage tokens, refresh-token rotation, assigned-task cache and offline task-action queue.
+- Added forward migrations `20261017090000_AddInventory`, `20261017100000_AddCustomerPortalGrants`, and `20261017110000_AddSubscriptionPayments`; updated model snapshot, tenant isolation tests, config examples and architecture docs.
+
+**Verification is not yet complete.** This environment has no .NET SDK or Docker/PostgreSQL runtime, so C# compilation, EF migration execution/drift checks, integration tests, MAUI builds, and live Paystack/OpenAI/Redis/SignalR checks have not run. The implementation is a source increment, not a production-certified completion. The MAUI client still needs conflict resolution, broader offline data, push notifications and device testing. See `docs/VERIFICATION_REPORT_2026-10-16_ROADMAP.md`.

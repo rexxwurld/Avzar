@@ -1,0 +1,5 @@
+'use client';
+import { useState } from 'react';
+import { api } from '@/lib/client';
+import { messageFor } from '@/lib/problem';
+export function CustomerPortalLinkButton({customerId}:{customerId:string}){const [busy,setBusy]=useState(false);const [message,setMessage]=useState('');const [error,setError]=useState('');async function send(){setBusy(true);setMessage('');setError('');try{const result=await api<{expiresAtUtc:string;maskedEmail:string}>(`/api/customer-portal/customers/${customerId}/link`,{method:'POST',json:{}});setMessage(`Portal link queued for ${result.maskedEmail}. Expires ${new Date(result.expiresAtUtc).toLocaleDateString()}.`);}catch(e){setError(messageFor(e));}finally{setBusy(false);}}return <div className="ap-stack"><button type="button" className="ap-btn ap-btn-quiet" disabled={busy} onClick={()=>void send()}>{busy?'Sending…':'Send customer portal link'}</button>{message&&<p className="ap-ok" role="status">{message}</p>}{error&&<p className="ap-alert" role="alert">{error}</p>}</div>;}

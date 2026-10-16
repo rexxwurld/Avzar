@@ -77,3 +77,14 @@ export function todayIn(timeZone: string, now: Date = new Date()): string {
 /** Late = promised date has passed and the order is neither delivered nor cancelled. */
 export const isLate = (status: string, promisedDate: string, today: string): boolean =>
   status !== 'Delivered' && status !== 'Cancelled' && cleanDay(promisedDate) !== '' && promisedDate < today;
+
+/** Mirrors the UI's action affordances; the API remains authoritative for every transition. */
+export function orderActionAvailability(status: string, canManage: boolean, canConfirm: boolean) {
+  const editable = status === 'Draft' || status === 'Quoted';
+  return {
+    edit: canManage && editable,
+    quote: canManage && status === 'Draft',
+    confirm: canConfirm && status === 'Quoted',
+    cancel: canManage && status !== 'Cancelled' && status !== 'Delivered',
+  };
+}

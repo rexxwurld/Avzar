@@ -34,6 +34,8 @@ public static class DefaultPlans
         [EntitlementKeys.SchedulingIndividual] = sched ? "true" : "false",
         [EntitlementKeys.SchedulingShop] = shop ? "true" : "false",
         [EntitlementKeys.SchedulingAutoPlanning] = auto ? "true" : "false",
+        [EntitlementKeys.AiFashionDesign] = inventory == "full" ? "true" : "false",
+        [EntitlementKeys.AiAssistantBuilder] = template is "advanced" or "premium" ? "true" : "false",
         [EntitlementKeys.StorefrontTemplateTier] = template,
         [EntitlementKeys.StorefrontThemeLevel] = theme,
         [EntitlementKeys.StorefrontBrandingLevel] = branding,

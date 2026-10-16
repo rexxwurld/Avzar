@@ -89,3 +89,13 @@
 .ap-pager{margin-top:1rem}
 .ap-field textarea{font:inherit;color:inherit;background:var(--ap-bg);border:1px solid var(--ap-border);border-radius:8px;padding:.65rem .75rem;width:100%;resize:vertical}
 .ap-field textarea[aria-invalid]{border-color:var(--ap-danger)}
+
+/* ---- production task attention ---- */
+.ap-task-attention td:first-child{border-left:3px solid var(--ap-danger);padding-left:.45rem}
+.ap-check{display:flex;gap:.55rem;align-items:center;font-size:.9rem}
+.ap-check input{margin:0}
+
+/* ---- storefront editor ---- */
+.ap-codearea{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.84rem;line-height:1.5;white-space:pre;overflow:auto;min-height:8rem}
+.ap-codearea:disabled{opacity:.7}
+.ap-stack>.ap-alert ul{margin:.5rem 0 0;padding-left:1.25rem}

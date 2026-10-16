@@ -17,6 +17,7 @@
     <PackageVersion Include="SixLabors.ImageSharp" Version="4.1.2" />
     <!-- Version is a guess (no network when written). Bump to the latest 2.x. -->
     <PackageVersion Include="StackExchange.Redis" Version="2.8.16" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
     <!-- QuestPDF: version is a guess, bump to latest. Needs an explicit license choice (Pdf:QuestPdfLicense); Community is free only below USD 1M annual revenue. See docs/RUNBOOK.md. -->
     <PackageVersion Include="QuestPDF" Version="2025.7.0" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="9.0.6" />

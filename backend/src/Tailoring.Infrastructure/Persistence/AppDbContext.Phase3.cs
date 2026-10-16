@@ -12,6 +12,31 @@ public partial class AppDbContext
         // Tasks reference garments through (Id, BusinessId); add the alternate key Phase 2 did not need.
         b.Entity<OrderGarment>().HasAlternateKey(x => new { x.Id, x.BusinessId });
 
+        // ---------- Worker availability, capacity and leave ----------
+        b.Entity<WorkerAvailabilityDay>(e =>
+        {
+            e.ToTable("WorkerAvailability", t =>
+            {
+                t.HasCheckConstraint("CK_WorkerAvailability_Day", "\"DayOfWeek\" BETWEEN 0 AND 6");
+                t.HasCheckConstraint("CK_WorkerAvailability_Window", "(\"IsAvailable\" = FALSE AND \"OpensAt\" IS NULL AND \"ClosesAt\" IS NULL AND \"CapacityMinutes\" = 0) OR (\"IsAvailable\" = TRUE AND \"OpensAt\" IS NOT NULL AND \"ClosesAt\" IS NOT NULL AND \"OpensAt\" < \"ClosesAt\" AND \"CapacityMinutes\" BETWEEN 1 AND 1440)");
+            });
+            e.HasIndex(x => new { x.BusinessId, x.MembershipId, x.DayOfWeek }).IsUnique();
+            e.HasOne<BusinessMembership>().WithMany()
+                .HasForeignKey(x => new { x.MembershipId, x.BusinessId })
+                .HasPrincipalKey(x => new { x.Id, x.BusinessId }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<WorkerLeave>(e =>
+        {
+            e.ToTable("WorkerLeaves", t => t.HasCheckConstraint("CK_WorkerLeaves_Interval", "\"StartsAtUtc\" < \"EndsAtUtc\""));
+            e.Property(x => x.Reason).HasMaxLength(300).IsRequired();
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(x => new { x.BusinessId, x.MembershipId, x.StartsAtUtc, x.EndsAtUtc });
+            e.HasOne<BusinessMembership>().WithMany()
+                .HasForeignKey(x => new { x.MembershipId, x.BusinessId })
+                .HasPrincipalKey(x => new { x.Id, x.BusinessId }).OnDelete(DeleteBehavior.Cascade);
+        });
+
         // ---------- Workflows ----------
         b.Entity<ProductionWorkflow>(e =>
         {

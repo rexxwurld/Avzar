@@ -18,6 +18,7 @@
     <PackageReference Include="AWSSDK.S3" />
     <PackageReference Include="DnsClient" />
     <PackageReference Include="StackExchange.Redis" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
     <PackageReference Include="QuestPDF" />
     <PackageReference Include="SixLabors.ImageSharp" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design"><PrivateAssets>all</PrivateAssets></PackageReference>

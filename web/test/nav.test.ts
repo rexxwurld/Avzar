@@ -34,3 +34,12 @@ describe('defaultCurrency', () => {
     expect(defaultCurrency('Pacific/Auckland')).toBe('USD');
   });
 });
+
+describe('production schedule navigation', () => {
+  it('shows the shop schedule to users with task-view permission', () => {
+    expect(visibleNav({ isOwner: false, permissions: ['tasks.view'] }).map((i) => i.href)).toContain('/tasks/schedule');
+  });
+  it('does not show the shop schedule to worker-only users', () => {
+    expect(visibleNav({ isOwner: false, permissions: ['tasks.work'] }).map((i) => i.href)).not.toContain('/tasks/schedule');
+  });
+});

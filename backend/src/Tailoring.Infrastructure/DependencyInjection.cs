@@ -32,6 +32,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString, IConfiguration config)
     {
         services.AddDbContext<AppDbContext>(o => o.UseNpgsql(connectionString));
+        services.AddDistributedMemoryCache();
 
         services.AddIdentity<AppUser, IdentityRole<Guid>>(o =>
             {
@@ -85,6 +86,7 @@ public static class DependencyInjection
         services.AddScoped<IInvoiceService, InvoiceService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IExpenseService, ExpenseService>();
+        services.AddScoped<IInventoryService, InventoryService>();
 
         services.Configure<StorefrontOptions>(config.GetSection("Storefront"));
         // The key ring lives in PostgreSQL so sessions, reset/verify links and preview links survive restarts and work across instances.
@@ -92,6 +94,8 @@ public static class DependencyInjection
         services.AddDataProtection().SetApplicationName("avzar").PersistKeysToDbContext<AppDbContext>();
         services.AddSingleton<IDnsTxtResolver, DnsClientTxtResolver>();
         services.AddHttpClient<ICaptchaVerifier, TurnstileCaptchaVerifier>(c => c.Timeout = TimeSpan.FromSeconds(8));
+        services.AddHttpClient("ai", c => c.Timeout = TimeSpan.FromMinutes(2));
+        services.AddHttpClient("paystack", c => c.Timeout = TimeSpan.FromSeconds(15));
         services.AddScoped<IStorefrontService, StorefrontService>();
         services.AddScoped<IPublicSiteService, PublicSiteService>();
         services.AddScoped<IInquiryService, InquiryService>();
@@ -124,6 +128,8 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowService, WorkflowService>();
         services.AddScoped<IProductionPlanner, ProductionPlanner>();
         services.AddScoped<ITaskService, TaskService>();
+        services.AddScoped<IShopScheduleService, ShopScheduleService>();
+        services.AddScoped<IWorkerScheduleService, WorkerScheduleService>();
         services.AddScoped<IMyTaskService, MyTaskService>();
         services.AddScoped<IWorkerService, WorkerService>();
 
@@ -146,6 +152,7 @@ public static class DependencyInjection
                 return StackExchange.Redis.ConnectionMultiplexer.Connect(o);
             });
             services.AddSingleton<Coordination.IRedisCounter, Coordination.RedisCounter>();
+            services.AddStackExchangeRedisCache(o => { o.Configuration = redisCs; o.InstanceName = "avzar:"; });
         }
 
         // Email: durable outbox + background dispatcher + one transport chosen by configuration (Email:Provider = log | smtp | resend).

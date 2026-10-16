@@ -16,6 +16,8 @@ public partial class AppDbContext
             e.Property(x => x.ToAddress).HasMaxLength(254).IsRequired();
             e.Property(x => x.Subject).HasMaxLength(200).IsRequired();
             e.Property(x => x.TemplateKey).HasMaxLength(60);
+            e.Property(x => x.DeduplicationKey).HasMaxLength(200);
+            e.HasIndex(x => x.DeduplicationKey).IsUnique().HasFilter("\"DeduplicationKey\" IS NOT NULL");
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
             e.Property(x => x.LastError).HasMaxLength(400);
             e.Property(x => x.ProviderMessageId).HasMaxLength(200);

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CustomerCsvTools } from '@/components/app/CustomerCsvTools';
 import { LoadError, NoAccess } from '@/components/app/Notices';
 import type { CustomerSummary, Paged } from '@/lib/customer-types';
 import { PAGE_SIZE, STATUS_FILTERS, apiQueryString, listHref, parseListQuery, totalPages } from '@/lib/customers';
@@ -28,6 +29,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         {can(me, 'customers.manage') && <Link href="/customers/new" className="ap-btn" style={{ textDecoration: 'none' }}>New customer</Link>}
       </div>
 
+      {can(me, 'customers.manage') && <div style={{ marginBottom: '1rem' }}><CustomerCsvTools /></div>}
       <form method="get" action="/customers" className="ap-panel ap-filter" role="search">
         <label className="ap-sr" htmlFor="f-search">Search customers</label>
         <input id="f-search" name="search" className="ap-input" placeholder="Search by name, email or phone" defaultValue={q.search} maxLength={100} />

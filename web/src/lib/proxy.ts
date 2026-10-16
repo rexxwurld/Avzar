@@ -2,7 +2,7 @@
 
 const MAX_SEGMENTS = 12;
 /** Provider callbacks (signed webhooks) are never called from a browser, so the proxy does not expose them. */
-const BLOCKED_PREFIXES: string[][] = [['api', 'webhooks']];
+const BLOCKED_PREFIXES: string[][] = [['api', 'webhooks'], ['api', 'billing', 'subscription', 'webhook']];
 
 /** Turns the catch-all segments into a safe upstream path, or null when the request must not be forwarded. Only /api/** is reachable. */
 export function apiPath(segments: string[] | undefined): string | null {
@@ -32,7 +32,7 @@ export function clientIp(h: Headers, trustProxy: boolean): string | null {
   return last && /^[0-9a-fA-F:.]{3,45}$/.test(last) ? last : null;
 }
 
-const FORWARD_REQUEST = ['accept', 'accept-language', 'content-type', 'cookie', 'x-xsrf-token', 'user-agent'];
+const FORWARD_REQUEST = ['accept', 'accept-language', 'content-type', 'cookie', 'idempotency-key', 'x-xsrf-token', 'user-agent'];
 
 /** Only an allow-list of request headers reaches the API (no Authorization, Host or hop-by-hop headers). */
 export function upstreamHeaders(incoming: Headers, trustProxy: boolean): Headers {

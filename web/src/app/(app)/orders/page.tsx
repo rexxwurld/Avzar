@@ -24,7 +24,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <h1 style={{ margin: '0 0 1rem' }}>Orders</h1>
+      <div className="ap-row" style={{ marginBottom: '1rem' }}><h1 style={{ margin: 0 }}>Orders</h1>{can(me, 'orders.manage') && can(me, 'customers.view') && can(me, 'staff.view') && <Link href="/orders/new" className="ap-btn" style={{ textDecoration: 'none' }}>New order</Link>}</div>
       <form method="get" action="/orders" className="ap-panel ap-filter" role="search">
         <label className="ap-sr" htmlFor="o-search">Search orders</label>
         <input id="o-search" name="search" className="ap-input" placeholder="Order number or customer name" defaultValue={q.search} maxLength={100} />

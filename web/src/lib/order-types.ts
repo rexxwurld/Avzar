@@ -1,4 +1,4 @@
-/** Mirror Tailoring.Application.Orders DTOs (read side only; costs live behind pricing.view and are not shown here). */
+/** Mirror Tailoring.Application.Orders DTOs. Costs and margins stay behind pricing.view and are not exposed here. */
 export const ORDER_STATUSES = ['Draft', 'Quoted', 'Confirmed', 'InProduction', 'Ready', 'Delivered', 'Cancelled'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
@@ -27,7 +27,10 @@ export interface OrderGarment {
   colour: string | null;
   styleInstructions: string | null;
   alterationNotes: string | null;
+  measurementSetId: string | null;
   measurementRevision: number | null;
+  measurementSnapshot: unknown | null;
+  designId: string | null;
   designName: string | null;
 }
 
@@ -39,6 +42,7 @@ export interface Order {
   status: string;
   customerId: string;
   customerName: string;
+  locationId: string;
   promisedDate: string;
   priority: string;
   deliveryMethod: string;
@@ -49,6 +53,7 @@ export interface Order {
   subtotal: number;
   discount: number;
   total: number;
+  version: number;
   createdAtUtc: string;
   quotedAtUtc: string | null;
   confirmedAtUtc: string | null;

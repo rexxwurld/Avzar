@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanDay, formatDay, isLate, orderApiQuery, orderListHref, parseOrderQuery, statusLabel, statusTone, todayIn } from '../src/lib/orders';
+import { cleanDay, formatDay, isLate, orderApiQuery, orderListHref, parseOrderQuery, statusLabel, statusTone, todayIn, orderActionAvailability } from '../src/lib/orders';
 
 describe('parseOrderQuery: the URL is untrusted', () => {
   it('defaults', () => expect(parseOrderQuery({})).toEqual({ search: '', status: '', dueFrom: '', dueTo: '', page: 1 }));
@@ -54,5 +54,23 @@ describe('status and dates', () => {
     expect(isLate('Delivered', '2026-10-01', '2026-10-16')).toBe(false);
     expect(isLate('Cancelled', '2026-10-01', '2026-10-16')).toBe(false);
     expect(isLate('Confirmed', 'junk', '2026-10-16')).toBe(false);
+  });
+});
+
+
+describe('order action permissions', () => {
+  it('allows managers to edit and quote drafts, but not confirm them', () => {
+    expect(orderActionAvailability('Draft', true, false)).toEqual({ edit: true, quote: true, confirm: false, cancel: true });
+  });
+  it('allows confirmation only for quoted orders and users with orders.confirm', () => {
+    expect(orderActionAvailability('Quoted', true, false)).toEqual({ edit: true, quote: false, confirm: false, cancel: true });
+    expect(orderActionAvailability('Quoted', false, true)).toEqual({ edit: false, quote: false, confirm: true, cancel: false });
+  });
+  it('never offers cancellation for delivered or cancelled orders', () => {
+    expect(orderActionAvailability('Delivered', true, true).cancel).toBe(false);
+    expect(orderActionAvailability('Cancelled', true, true).cancel).toBe(false);
+  });
+  it('does not offer actions to users without the required permissions', () => {
+    expect(orderActionAvailability('Draft', false, false)).toEqual({ edit: false, quote: false, confirm: false, cancel: false });
   });
 });

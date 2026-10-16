@@ -16,6 +16,7 @@ using Tailoring.Infrastructure;
 using Tailoring.Infrastructure.Coordination;
 using Tailoring.Infrastructure.Persistence;
 using Tailoring.Infrastructure.Services;
+using Tailoring.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 var isDev = builder.Environment.IsDevelopment();
@@ -95,6 +96,7 @@ builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers(o => o.Filters.Add<CsrfFilter>());
+builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<AppExceptionHandler>();
 
@@ -154,6 +156,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<BusinessEventsHub>("/hubs/business-events");
 app.MapHealthChecks("/health");
 app.Run();
 

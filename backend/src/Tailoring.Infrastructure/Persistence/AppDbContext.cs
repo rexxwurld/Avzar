@@ -12,6 +12,9 @@ using Tailoring.Domain.Measurements;
 using Tailoring.Domain.Orders;
 using Tailoring.Domain.Production;
 using Tailoring.Domain.Tenancy;
+using Tailoring.Domain.Inventory;
+using Tailoring.Domain.CustomerPortal;
+using Tailoring.Domain.Billing;
 
 namespace Tailoring.Infrastructure.Persistence;
 
@@ -58,6 +61,8 @@ public partial class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
     public DbSet<TaskDependency> TaskDependencies => Set<TaskDependency>();
     public DbSet<TaskEvent> TaskEvents => Set<TaskEvent>();
     public DbSet<WorkerSkill> WorkerSkills => Set<WorkerSkill>();
+    public DbSet<WorkerAvailabilityDay> WorkerAvailability => Set<WorkerAvailabilityDay>();
+    public DbSet<WorkerLeave> WorkerLeaves => Set<WorkerLeave>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -181,6 +186,9 @@ public partial class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
             e.HasIndex(x => new { x.BusinessId, x.CreatedAtUtc });
         });
 
+        ConfigureInventory(b);
+        ConfigureCustomerPortal(b);
+        ConfigureSubscriptionPayments(b);
         ConfigurePhase2(b);
         ConfigurePhase3(b);
         ConfigureBilling(b);

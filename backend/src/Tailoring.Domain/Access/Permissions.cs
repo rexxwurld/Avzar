@@ -46,6 +46,9 @@ public static class Permissions
     public const string PaymentsVerify = "payments.verify";   // confirm, reject, reverse. The only way money counts.
     public const string ExpensesView = "expenses.view";
     public const string ExpensesManage = "expenses.manage";
+    public const string InventoryView = "inventory.view";
+    public const string InventoryManage = "inventory.manage";
+    public const string ReportsView = "reports.view";
     public const string StorefrontView = "storefront.view";
     public const string StorefrontEdit = "storefront.edit";       // draft, theme, branding, templates
     public const string StorefrontPublish = "storefront.publish"; // publish, unpublish, roll back, domains
@@ -66,7 +69,7 @@ public static class Permissions
         TasksView, TasksManage, TasksAssign, TasksOverride, TasksWork, WorkflowsManage, WorkersManage,
         DesignsView, DesignsManage, MediaView, MediaManage, DocumentsView, DocumentsManage, PricingView, PricingManage,
         StorefrontView, StorefrontEdit, StorefrontPublish, InquiriesView, InquiriesManage,
-        InvoicesView, InvoicesManage, PaymentsView, PaymentsRecord, PaymentsVerify, ExpensesView, ExpensesManage
+        InvoicesView, InvoicesManage, PaymentsView, PaymentsRecord, PaymentsVerify, ExpensesView, ExpensesManage, InventoryView, InventoryManage, ReportsView
     ];
 
     public static bool IsValid(string permission) => All.Contains(permission);
