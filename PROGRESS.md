@@ -1,5 +1,11 @@
 # Progress checklist
 
+## Pass 12 continuation (2026-10-16)
+- Added Redis Streams job-queue primitives: atomic idempotent enqueue, consumer group processing, abandoned-entry claiming, bounded retry and dead-letter stream; wired only when `Redis__ConnectionString` is configured and added Redis to local Docker Compose. This is **not yet an end-to-end job feature**: no business job handlers/producers are registered, and live Redis/compile tests are blocked by the environment.
+- Added the MAUI SignalR client and backend SignalR bearer-query handling, with an HTTP negotiate regression test. See `docs/PASS12_COMPLETION_STATUS.md` for the exact scope and verification boundary.
+- This continuation is **not a completion claim** for the full requested list: durable Redis job queues and non-customer import/export workflows remain unimplemented; the additional test, payment/email, MAUI-device, and deployment checks remain partially or wholly unverified.
+- Local verification attempted: ZIP integrity passed; `npm ci` timed out; .NET SDK and Docker are unavailable. Do not claim backend tests, web tests/build, MAUI builds or live integrations passed for these new changes until CI/device/provider runs confirm them.
+
 ## Verification status (read first)
 - **Newest CI evidence (2026-10-16, run #254, commit `8f18d45bfe57b41513fccf239ca3e8426545c7b8`):** backend, web and migrations all succeeded. Backend TRX: **710/710 passed** (includes six new HTTP cross-business tests in `CrossTenantApiTests.cs`). Web: `npm ci` + audit clean; later step output collapsed (162 Vitest tests seen in #243). Migrations: clean PostgreSQL 17.11, 73 tables / 38 check constraints / 125 FKs / 9 partial indexes, no cascading financial/audit FKs; full migration list not visible in the log.
 - **Newest CI evidence (2026-10-16, run #243, commit `1409b30b6a424dac763b0a5b1fa9c9dd57a3b7da`):** backend, web and migrations all succeeded. Backend: 0 warnings/errors, **704/704 tests**, model-drift gate clean. Web: 0 audit vulnerabilities, typecheck clean, **162 Vitest tests (9 files)**, Next 15.5.28 build compiled (route table in the supplied log was truncated after `/orders/new`). Migrations job: succeeded, counts not seen. See the handoff for gaps.
@@ -537,3 +543,11 @@ Added source for the next roadmap slice on top of the recovered 2026-10-16 ZIP:
 - Added forward migrations `20261017090000_AddInventory`, `20261017100000_AddCustomerPortalGrants`, and `20261017110000_AddSubscriptionPayments`; updated model snapshot, tenant isolation tests, config examples and architecture docs.
 
 **Verification is not yet complete.** This environment has no .NET SDK or Docker/PostgreSQL runtime, so C# compilation, EF migration execution/drift checks, integration tests, MAUI builds, and live Paystack/OpenAI/Redis/SignalR checks have not run. The implementation is a source increment, not a production-certified completion. The MAUI client still needs conflict resolution, broader offline data, push notifications and device testing. See `docs/VERIFICATION_REPORT_2026-10-16_ROADMAP.md`.
+
+
+## Pass 12 — Strict CSV field-boundary validation (2026-10-16)
+
+- Hardened the shared RFC 4180 CSV reader: quotes inside unquoted values and any characters after a closing quote now return the existing `csv_malformed` application error instead of being silently accepted.
+- Preserved support for BOMs, escaped double quotes, quoted commas, embedded newlines, CRLF/LF line endings, blank lines and row limits.
+- Added regression cases for quotes inside unquoted cells, trailing characters after a quoted value, and whitespace after a closing quote.
+- Verification: source and regression tests were reviewed, but execution is **not verified** because the environment has no .NET SDK. `npm ci` also timed out, so web checks were not run. No database, payment, email, or production action was performed.

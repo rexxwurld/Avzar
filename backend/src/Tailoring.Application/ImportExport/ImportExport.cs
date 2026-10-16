@@ -11,16 +11,18 @@ public static class CsvReader
 {
     public static List<string[]> Parse(string text, int maxRows = 100_000)
     {
-        if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
+        if (text.Length > 0 && text[0] == '\\uFEFF') text = text[1..];
         var rows = new List<string[]>();
         var row = new List<string>();
         var field = new StringBuilder();
         var inQuotes = false;
+        var afterQuote = false;
 
         void EndRow()
         {
             row.Add(field.ToString());
             field.Clear();
+            afterQuote = false;
             if (row.Any(c => c.Trim().Length > 0))
             {
                 rows.Add(row.ToArray());
@@ -36,20 +38,40 @@ public static class CsvReader
             {
                 if (c != '"') field.Append(c);
                 else if (i + 1 < text.Length && text[i + 1] == '"') { field.Append('"'); i++; }
-                else inQuotes = false;
+                else { inQuotes = false; afterQuote = true; }
                 continue;
             }
+
+            if (afterQuote && c is not (',' or '\\r' or '\\n'))
+                throw AppException.BadRequest("csv_malformed", "Unexpected characters after a quoted CSV value.");
+
             switch (c)
             {
-                case '"' when field.Length == 0: inQuotes = true; break;
-                case ',': row.Add(field.ToString()); field.Clear(); break;
-                case '\r': if (i + 1 < text.Length && text[i + 1] == '\n') i++; EndRow(); break;
-                case '\n': EndRow(); break;
-                default: field.Append(c); break;
+                case '"' when field.Length == 0 && !afterQuote:
+                    inQuotes = true;
+                    break;
+                case '"' :
+                    throw AppException.BadRequest("csv_malformed", "A quote appeared inside an unquoted CSV value.");
+                case ',':
+                    row.Add(field.ToString());
+                    field.Clear();
+                    afterQuote = false;
+                    break;
+                case '\\r':
+                    if (i + 1 < text.Length && text[i + 1] == '\\n') i++;
+                    EndRow();
+                    break;
+                case '\\n':
+                    EndRow();
+                    break;
+                default:
+                    field.Append(c);
+                    break;
             }
         }
+
         if (inQuotes) throw AppException.BadRequest("csv_malformed", "The file has a quoted value that never closes.");
-        if (field.Length > 0 || row.Count > 0) EndRow();
+        if (field.Length > 0 || row.Count > 0 || afterQuote) EndRow();
         return rows;
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Tailoring.Application.Abstractions;
@@ -640,7 +641,56 @@ public sealed class AccountTests(PostgresFixture fx) : IClassFixture<PostgresFix
     {
         var tenant = new FakeUserTenant(businessId, userId);
         var db = fx.CreateFor(tenant);
-        return new OwnershipService(db, tenant, new AuditLogger(db), h.Users, new OutboxEmailSender(db));
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["App:WebBaseUrl"] = "https://avzar.test"
+        }).Build();
+        return new OwnershipService(db, tenant, new AuditLogger(db), h.Users, new OutboxEmailSender(db), config);
+    }
+
+    [Fact]
+    public async Task Ownership_transfer_requires_email_confirmation_and_the_token_is_single_use()
+    {
+        await using var h = Build();
+        var b = await SeedOwnedBusinessAsync(h);
+        var service = OwnershipFor(h, b.BusinessId, b.Owner.Id);
+        await service.RequestVerificationAsync(new TransferOwnershipRequest { NewOwnerMembershipId = b.Staff[0].Membership, Password = Pw });
+
+        h.Db.ChangeTracker.Clear();
+        Assert.True((await h.Db.Memberships.IgnoreQueryFilters().SingleAsync(m => m.Id == b.OwnerMembership)).IsOwner);
+        Assert.False((await h.Db.Memberships.IgnoreQueryFilters().SingleAsync(m => m.Id == b.Staff[0].Membership)).IsOwner);
+        var challenge = await h.Db.OwnershipTransferChallenges.IgnoreQueryFilters().SingleAsync(c => c.BusinessId == b.BusinessId);
+        Assert.Equal(64, challenge.TokenHash.Length);
+        var message = await h.Db.EmailOutbox.IgnoreQueryFilters().SingleAsync(m => m.TemplateKey == "ownership_transfer_verification");
+        Assert.Contains("Confirm ownership transfer", message.Subject);
+        var match = System.Text.RegularExpressions.Regex.Match(message.TextBody, @"token=([a-f0-9]{64})");
+        Assert.True(match.Success, "The confirmation email should contain a 64-character single-use token.");
+        Assert.NotEqual(match.Groups[1].Value, challenge.TokenHash);
+
+        await service.ConfirmVerificationAsync(match.Groups[1].Value);
+        h.Db.ChangeTracker.Clear();
+        Assert.False((await h.Db.Memberships.IgnoreQueryFilters().SingleAsync(m => m.Id == b.OwnerMembership)).IsOwner);
+        Assert.True((await h.Db.Memberships.IgnoreQueryFilters().SingleAsync(m => m.Id == b.Staff[0].Membership)).IsOwner);
+        Assert.NotNull(await h.Db.OwnershipTransferChallenges.IgnoreQueryFilters().Where(c => c.Id == challenge.Id).Select(c => c.ConsumedAtUtc).SingleAsync());
+
+        var replay = await Assert.ThrowsAsync<AppException>(() => service.ConfirmVerificationAsync(match.Groups[1].Value));
+        Assert.Equal("invalid_transfer_token", replay.Code);
+    }
+
+    [Fact]
+    public async Task A_new_ownership_request_cancels_the_previous_confirmation_link()
+    {
+        await using var h = Build();
+        var b = await SeedOwnedBusinessAsync(h, staffCount: 2);
+        var service = OwnershipFor(h, b.BusinessId, b.Owner.Id);
+        await service.RequestVerificationAsync(new TransferOwnershipRequest { NewOwnerMembershipId = b.Staff[0].Membership, Password = Pw });
+        await service.RequestVerificationAsync(new TransferOwnershipRequest { NewOwnerMembershipId = b.Staff[1].Membership, Password = Pw });
+        h.Db.ChangeTracker.Clear();
+        var rows = await h.Db.OwnershipTransferChallenges.IgnoreQueryFilters().Where(c => c.BusinessId == b.BusinessId).ToListAsync();
+        Assert.Equal(2, rows.Count);
+        Assert.Single(rows, c => c.CancelledAtUtc is not null);
+        Assert.Single(rows, c => c.CancelledAtUtc is null && c.NewOwnerMembershipId == b.Staff[1].Membership);
+        Assert.True((await h.Db.Memberships.IgnoreQueryFilters().SingleAsync(m => m.Id == b.OwnerMembership)).IsOwner);
     }
 
     [Fact]

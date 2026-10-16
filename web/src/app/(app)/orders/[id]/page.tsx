@@ -7,6 +7,7 @@ import { OrderInvoiceAction } from '@/components/app/OrderInvoiceAction';
 import { formatDateTime } from '@/lib/dates';
 import { money } from '@/lib/format';
 import type { Order } from '@/lib/order-types';
+import type { InvoiceSummary, Paged } from '@/lib/finance-types';
 import { formatDay, isLate, statusLabel, statusTone, todayIn } from '@/lib/orders';
 import { getSession, serverGet } from '@/lib/session';
 import { can } from '@/lib/team';
@@ -24,6 +25,9 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const res = await serverGet<Order>(`/api/orders/${id}`);
   if (!res.ok) { if (res.status === 404) notFound(); return <LoadError status={res.status} />; }
   const o = res.data;
+  const invoiceHistory = can(me, 'invoices.view')
+    ? await serverGet<Paged<InvoiceSummary>>(`/api/invoices?orderId=${encodeURIComponent(id)}&page=1&pageSize=50`)
+    : null;
   const tone = statusTone(o.status);
   const late = isLate(o.status, o.promisedDate, todayIn(me.timeZoneId));
   const tz = me.timeZoneId;
@@ -45,6 +49,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       <div className="ap-stack">
         <OrderActions order={o} canManage={can(me, 'orders.manage')} canConfirm={can(me, 'orders.confirm')} canEdit={can(me, 'orders.manage') && can(me, 'staff.view')} />
         <OrderInvoiceAction orderId={o.id} orderStatus={o.status} canManage={can(me, 'invoices.manage')} />
+        {invoiceHistory?.ok && <section className="ap-panel ap-stack"><div className="ap-row"><h2 className="ap-h2">Invoice history</h2><span className="ap-foot">{invoiceHistory.data.totalCount} invoice(s)</span></div><div className="ap-scroll"><table className="ap-table"><thead><tr><th>Invoice</th><th>Status</th><th>Total</th><th>Paid</th><th>Balance</th><th>Due date</th></tr></thead><tbody>{invoiceHistory.data.items.map((invoice) => <tr key={invoice.id}><td><Link href={`/finance/invoices/${invoice.id}`}><strong>{invoice.number ?? 'Draft invoice'}</strong></Link><div className="ap-foot">{invoice.kind}</div></td><td>{invoice.status}{invoice.paymentStatus ? ` · ${invoice.paymentStatus}` : ''}</td><td>{money(invoice.total, invoice.currencyCode)}</td><td>{money(invoice.amountPaid, invoice.currencyCode)}</td><td>{money(invoice.balance, invoice.currencyCode)}</td><td>{invoice.dueDate ?? '—'}</td></tr>)}</tbody></table>{invoiceHistory.data.items.length === 0 && <p className="ap-foot">No invoices are linked to this order yet.</p>}</div></section>}
+        {invoiceHistory && !invoiceHistory.ok && <p className="ap-alert" role="status">Invoice history could not be loaded (HTTP {invoiceHistory.status}).</p>}
         <section className="ap-panel" aria-labelledby="ord-h">
           <h2 id="ord-h" className="ap-h2">Order</h2>
           <dl className="ap-dl">

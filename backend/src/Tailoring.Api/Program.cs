@@ -65,6 +65,7 @@ if (authOptions.MobileTokensEnabled)
         })
         .AddPolicyScheme("Smart", "Cookie or bearer", o => o.ForwardDefaultSelector = ctx =>
             ctx.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                || (ctx.Request.Path.StartsWithSegments("/hubs") && !string.IsNullOrWhiteSpace(ctx.Request.Query["access_token"]))
                 ? JwtTokenIssuer.Scheme : IdentityConstants.ApplicationScheme)
         .AddJwtBearer(JwtTokenIssuer.Scheme, o =>
         {
@@ -79,6 +80,14 @@ if (authOptions.MobileTokensEnabled)
             };
             o.Events = new JwtBearerEvents
             {
+                // SignalR WebSocket transports send the access token in the query string because browsers
+                // cannot set arbitrary WebSocket headers. Accept it only for the authenticated hub route.
+                OnMessageReceived = ctx =>
+                {
+                    if (ctx.Request.Path.StartsWithSegments("/hubs") && !string.IsNullOrWhiteSpace(ctx.Request.Query["access_token"]))
+                        ctx.Token = ctx.Request.Query["access_token"];
+                    return Task.CompletedTask;
+                },
                 // Revoking a device takes effect on its very next request, not when the access token expires.
                 OnTokenValidated = async ctx =>
                 {
@@ -96,7 +105,18 @@ builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers(o => o.Filters.Add<CsrfFilter>());
-builder.Services.AddSignalR();
+// A configured Redis connection enables cross-instance SignalR fan-out. Single-instance
+// development keeps the default in-memory lifetime manager. Redis remains optional.
+var signalRRedis = builder.Configuration["Redis:ConnectionString"];
+var signalRBuilder = builder.Services.AddSignalR();
+if (!string.IsNullOrWhiteSpace(signalRRedis))
+{
+    signalRBuilder.AddStackExchangeRedis(signalRRedis, options =>
+    {
+        options.Configuration.AbortOnConnectFail = false;
+        options.Configuration.ChannelPrefix = StackExchange.Redis.RedisChannel.Literal("avzar:signalr");
+    });
+}
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<AppExceptionHandler>();
 
@@ -110,6 +130,8 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("upload", c => RateLimitPolicies.Fixed(Redis(c), "upload", c.User.Identity?.Name ?? Ip(c), 30, TimeSpan.FromMinutes(1)));
     o.AddPolicy("public-submit", c => RateLimitPolicies.Fixed(Redis(c), "public-submit", Ip(c), 5, TimeSpan.FromMinutes(1)));
     o.AddPolicy("public", c => RateLimitPolicies.Fixed(Redis(c), "public", Ip(c), 600, TimeSpan.FromMinutes(1)));
+    // Provider webhooks can arrive in bursts; keep a separate bounded policy rather than sharing the public-form budget.
+    o.AddPolicy("webhook", c => RateLimitPolicies.Fixed(Redis(c), "webhook", Ip(c), 120, TimeSpan.FromMinutes(1)));
 });
 
 var health = builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("postgres");

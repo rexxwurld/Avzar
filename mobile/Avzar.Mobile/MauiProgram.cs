@@ -11,6 +11,7 @@ public static class MauiProgram
 #endif
         builder.Services.AddSingleton<AvzarApi>();
         builder.Services.AddSingleton<OfflineSyncQueue>();
+        builder.Services.AddSingleton<BusinessEventsClient>();
         return builder.Build();
     }
 }

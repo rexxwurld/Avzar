@@ -60,6 +60,18 @@ public sealed class EmailRulesTests
     }
 
     [Fact]
+    public void Ownership_transfer_confirmation_has_expiry_warning_and_safe_absolute_link()
+    {
+        var mail = EmailTemplates.OwnershipTransferVerification("Ada <script>", "Acme", "https://app.example.com/ownership-transfer/confirm?token=abc123", 30);
+        Assert.Contains("30 minutes", mail.Text);
+        Assert.Contains("Ownership has not changed", mail.Text);
+        Assert.Contains("https://app.example.com/ownership-transfer/confirm?token=abc123", mail.Text);
+        Assert.Contains("&lt;script&gt;", mail.Html);
+        Assert.DoesNotContain("<script>", mail.Html);
+        Assert.Throws<ArgumentException>(() => EmailTemplates.OwnershipTransferVerification("Ada", "Acme", "javascript:alert(1)", 30));
+    }
+
+    [Fact]
     public void Ownership_notices_have_no_link_and_cut_long_names()
     {
         var long80 = EmailTemplates.OwnershipHandedOver("Ada", new string('x', 5000), "Bola", nowManager: true);

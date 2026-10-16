@@ -145,6 +145,31 @@ public sealed class ApiAuthorizationTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task SignalR_negotiate_accepts_mobile_bearer_token_from_hub_query_only()
+    {
+        var account = await RegisterAsync("signalr-token");
+        using var mobile = factory.NewClient(cookies: false);
+        var signIn = await SendAsync(mobile, HttpMethod.Post, "/api/auth/token", new
+        {
+            email = account.Email,
+            password = ApiFactory.DefaultPassword,
+            deviceName = "signalr-test"
+        });
+        Assert.Equal(HttpStatusCode.OK, signIn.StatusCode);
+        using var tokens = JsonDocument.Parse(await signIn.Content.ReadAsStringAsync());
+        var access = tokens.RootElement.GetProperty("accessToken").GetString()!;
+
+        // Browser/WebSocket transports cannot reliably attach an Authorization header. SignalR therefore
+        // sends access_token on the hub negotiate/WebSocket URL; the API must accept it only under /hubs.
+        using var response = await mobile.PostAsync(
+            "/hubs/business-events/negotiate?negotiateVersion=1&access_token=" + Uri.EscapeDataString(access),
+            new StringContent(string.Empty));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("connectionToken", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Another_business_cannot_read_a_customer()
     {
         var a = await RegisterAsync("tenant-a");

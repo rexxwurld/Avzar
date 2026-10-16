@@ -200,6 +200,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
         ConfigureFinance(b);
         ConfigureStorefront(b);
         ConfigureEmail(b);
+        ConfigureOwnership(b);
         ConfigureAccount(b);
     }
 

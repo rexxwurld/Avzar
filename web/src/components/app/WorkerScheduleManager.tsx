@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '@/lib/client';
 import { messageFor } from '@/lib/problem';
+import { validLeaveInterval } from '@/lib/worker-schedule-view-model';
 
 type Worker = { membershipId: string; displayName: string; isActive: boolean; skills: string[]; openTasks: number };
 type Day = { dayOfWeek: number; isAvailable: boolean; opensAt: string | null; closesAt: string | null; capacityMinutes: number };
@@ -14,7 +15,7 @@ const emptyWeek = (): Day[] => DAYS.map((_, dayOfWeek) => ({ dayOfWeek, isAvaila
 const isoDate = (date: Date) => date.toISOString().slice(0, 10);
 const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 
-export function WorkerScheduleManager({ initialWorkers, canManage, timeZoneId }: { initialWorkers: Worker[]; canManage: boolean; timeZoneId: string }) {
+export function WorkerScheduleManager({ initialWorkers, canManage, canRequest, timeZoneId }: { initialWorkers: Worker[]; canManage: boolean; canRequest: boolean; timeZoneId: string }) {
   const workers = initialWorkers.filter((w) => w.isActive);
   const [membershipId, setMembershipId] = useState(workers[0]?.membershipId ?? '');
   const [availability, setAvailability] = useState<Availability | null>(null);
@@ -29,6 +30,7 @@ export function WorkerScheduleManager({ initialWorkers, canManage, timeZoneId }:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [pendingRequests, setPendingRequests] = useState<Leave[]>([]);
 
   const refresh = useCallback(async () => {
     if (!membershipId) return;
@@ -41,6 +43,7 @@ export function WorkerScheduleManager({ initialWorkers, canManage, timeZoneId }:
       ]);
       setAvailability(a); setDays(a.isConfigured && a.days.length === 7 ? [...a.days].sort((x, y) => x.dayOfWeek - y.dayOfWeek) : emptyWeek());
       setLeave(l); setCalendar(c);
+      if (canManage) setPendingRequests(await api<Leave[]>(`/api/workers/${membershipId}/schedule/leave-requests/pending`).catch(() => []));
     } catch (e) { setError(messageFor(e)); }
     finally { setBusy(false); }
   }, [membershipId, fromDate, toDate]);
@@ -59,7 +62,9 @@ export function WorkerScheduleManager({ initialWorkers, canManage, timeZoneId }:
     finally { setBusy(false); }
   }
   async function addLeave(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setError(''); setMessage('');
+    event.preventDefault();
+    if (!validLeaveInterval(leaveStart, leaveEnd)) { setError('Choose a valid leave end time after the start time.'); return; }
+    setBusy(true); setError(''); setMessage('');
     try {
       await api<Leave>(`/api/workers/${membershipId}/schedule/leave`, { method: 'POST', json: { startsAtUtc: new Date(leaveStart).toISOString(), endsAtUtc: new Date(leaveEnd).toISOString(), reason: leaveReason.trim() } });
       setLeaveStart(''); setLeaveEnd(''); setLeaveReason(''); setMessage('Approved leave added. The scheduler will avoid this interval.'); await refresh();
@@ -72,6 +77,23 @@ export function WorkerScheduleManager({ initialWorkers, canManage, timeZoneId }:
     try { await api(`/api/workers/${membershipId}/schedule/leave/${item.id}`, { method: 'DELETE' }); setMessage('Leave cancelled.'); await refresh(); }
     catch (e) { setError(messageFor(e)); }
     finally { setBusy(false); }
+  }
+
+  async function reviewRequest(item: Leave, approve: boolean) {
+    setBusy(true); setError(''); setMessage('');
+    try {
+      await api<Leave>(`/api/workers/${membershipId}/schedule/leave-requests/${item.id}/review`, { method: 'POST', json: { approve } });
+      setMessage(approve ? 'Leave request approved.' : 'Leave request rejected.'); await refresh();
+    } catch (e) { setError(messageFor(e)); } finally { setBusy(false); }
+  }
+  async function requestMyLeave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!validLeaveInterval(leaveStart, leaveEnd)) { setError('Choose a valid leave end time after the start time.'); return; }
+    setBusy(true); setError(''); setMessage('');
+    try {
+      await api<Leave>('/api/my/leave-requests', { method: 'POST', json: { startsAtUtc: new Date(leaveStart).toISOString(), endsAtUtc: new Date(leaveEnd).toISOString(), reason: leaveReason.trim() } });
+      setLeaveStart(''); setLeaveEnd(''); setLeaveReason(''); setMessage('Leave request submitted for approval.'); await refresh();
+    } catch (e) { setError(messageFor(e)); } finally { setBusy(false); }
   }
 
   if (workers.length === 0) return <section className="ap-panel"><p style={{ margin: 0 }}>No active workers are available to schedule yet.</p></section>;
@@ -96,6 +118,8 @@ export function WorkerScheduleManager({ initialWorkers, canManage, timeZoneId }:
     </section>
     <section className="ap-panel ap-stack">
       <h2 className="ap-h2">Leave and time off</h2>
+      {canManage && <div className="ap-stack"><h3 className="ap-h2">Pending leave requests</h3>{pendingRequests.length === 0 ? <p className="ap-foot">No pending requests.</p> : <div className="ap-scroll"><table className="ap-table"><thead><tr><th>Worker</th><th>Starts (UTC)</th><th>Ends (UTC)</th><th>Reason</th><th>Review</th></tr></thead><tbody>{pendingRequests.map((item) => <tr key={item.id}><td>{workers.find((w) => w.membershipId === item.membershipId)?.displayName ?? item.membershipId}</td><td>{formatDate(item.startsAtUtc)}</td><td>{formatDate(item.endsAtUtc)}</td><td>{item.reason}</td><td><button type="button" className="ap-btn ap-btn-sm" disabled={busy} onClick={() => void reviewRequest(item, true)}>Approve</button> <button type="button" className="ap-btn ap-btn-danger ap-btn-sm" disabled={busy} onClick={() => void reviewRequest(item, false)}>Reject</button></td></tr>)}</tbody></table></div>}</div>}
+      {canRequest && <form className="ap-grid2" onSubmit={(e) => void requestMyLeave(e)}><div className="ap-field"><label htmlFor="request-leave-start">Request leave from</label><input id="request-leave-start" className="ap-input" type="datetime-local" required value={leaveStart} disabled={busy} onChange={(e) => setLeaveStart(e.target.value)} /></div><div className="ap-field"><label htmlFor="request-leave-end">Request leave until</label><input id="request-leave-end" className="ap-input" type="datetime-local" required value={leaveEnd} disabled={busy} onChange={(e) => setLeaveEnd(e.target.value)} /></div><div className="ap-field"><label htmlFor="request-leave-reason">Reason</label><input id="request-leave-reason" className="ap-input" maxLength={300} minLength={2} required value={leaveReason} disabled={busy} onChange={(e) => setLeaveReason(e.target.value)} /></div><div><button className="ap-btn" disabled={busy || !leaveStart || !leaveEnd || new Date(leaveEnd) <= new Date(leaveStart)}>Submit leave request</button></div></form>}
       {canManage && <form className="ap-grid2" onSubmit={(e) => void addLeave(e)}><div className="ap-field"><label htmlFor="leave-start">Starts (your local time)</label><input id="leave-start" className="ap-input" type="datetime-local" required value={leaveStart} disabled={busy} onChange={(e) => setLeaveStart(e.target.value)} /></div><div className="ap-field"><label htmlFor="leave-end">Ends (your local time)</label><input id="leave-end" className="ap-input" type="datetime-local" required value={leaveEnd} disabled={busy} onChange={(e) => setLeaveEnd(e.target.value)} /></div><div className="ap-field"><label htmlFor="leave-reason">Reason</label><input id="leave-reason" className="ap-input" maxLength={300} minLength={2} required value={leaveReason} disabled={busy} onChange={(e) => setLeaveReason(e.target.value)} /></div><div><button className="ap-btn" disabled={busy || !leaveStart || !leaveEnd || new Date(leaveEnd) <= new Date(leaveStart)}>Add approved leave</button></div></form>}
       <div className="ap-scroll"><table className="ap-table"><thead><tr><th>Starts (UTC)</th><th>Ends (UTC)</th><th>Reason</th><th>Status</th>{canManage && <th>Action</th>}</tr></thead><tbody>{leave.map((item) => <tr key={item.id}><td>{formatDate(item.startsAtUtc)}</td><td>{formatDate(item.endsAtUtc)}</td><td>{item.reason}</td><td>{item.status}</td>{canManage && <td>{item.status === 'Approved' && <button type="button" className="ap-btn ap-btn-danger ap-btn-sm" disabled={busy} onClick={() => void cancelLeave(item)}>Cancel</button>}</td>}</tr>)}</tbody></table>{leave.length === 0 && <p className="ap-foot">No leave in this date range.</p>}</div>
     </section>

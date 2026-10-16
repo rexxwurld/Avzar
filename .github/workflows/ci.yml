@@ -78,6 +78,11 @@ jobs:
 
   web:
     runs-on: ubuntu-24.04
+    env:
+      PLAYWRIGHT_BASE_URL: ${{ vars.PLAYWRIGHT_BASE_URL }}
+      PLAYWRIGHT_EMAIL: ${{ secrets.PLAYWRIGHT_EMAIL }}
+      PLAYWRIGHT_PASSWORD: ${{ secrets.PLAYWRIGHT_PASSWORD }}
+      PLAYWRIGHT_ALLOW_MUTATIONS: ${{ vars.PLAYWRIGHT_ALLOW_MUTATIONS }}
     defaults:
       run:
         working-directory: web
@@ -90,9 +95,23 @@ jobs:
       # Fails the job on any high or critical vulnerability in runtime dependencies (clean since run #152).
       - name: npm audit
         run: npm audit --audit-level=high
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: Web unit tests (verbose test names and totals)
+        run: npm test -- --reporter=verbose
+      - name: Install Playwright Chromium for staging lifecycle tests
+        if: ${{ env.PLAYWRIGHT_BASE_URL != '' && env.PLAYWRIGHT_EMAIL != '' && env.PLAYWRIGHT_PASSWORD != '' && env.PLAYWRIGHT_ALLOW_MUTATIONS == 'true' }}
+        run: npx playwright install --with-deps chromium
+      - name: Playwright storefront edit, publish and rollback
+        if: ${{ env.PLAYWRIGHT_BASE_URL != '' && env.PLAYWRIGHT_EMAIL != '' && env.PLAYWRIGHT_PASSWORD != '' && env.PLAYWRIGHT_ALLOW_MUTATIONS == 'true' }}
+        run: npm run test:e2e
+      - name: Build web and retain route table
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee ../web-build.log
+          echo "--- Next.js generated route table ---"
+          grep -E '^[[:space:]]*[├└]─|Route \(app\)|○|ƒ|●' ../web-build.log || true
 
   # Applies the COMMITTED migrations to a clean PostgreSQL and inspects the real schema.
   # The backend tests use EnsureCreated, so this is the only job that proves the migration SQL runs.
@@ -141,6 +160,13 @@ jobs:
       - name: Require committed migrations
         run: |
           [ -d src/Tailoring.Infrastructure/Persistence/Migrations ] || { echo "::error::No committed migrations. Run the 'Generate initial migration' workflow first."; exit 1; }
+
+      - name: List committed migrations
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          echo "--- Migrations in assembly ---"
+          dotnet ef migrations list \
+            --project src/Tailoring.Infrastructure --startup-project src/Tailoring.Api
 
       - name: Apply migrations to clean PostgreSQL
         run: |

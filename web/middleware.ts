@@ -7,19 +7,21 @@ const TURNSTILE = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 const isDev = process.env.NODE_ENV !== 'production';
 
 /** Per-request nonce so inline scripts Next needs are allowed and nothing else is. */
-function csp(nonce: string): string {
-  const cf = TURNSTILE ? ' https://challenges.cloudflare.com' : '';
+function csp(nonce: string, frameAncestors = "'none'", allowEditorPreview = false): string {
+  const cfScript = TURNSTILE ? ' https://challenges.cloudflare.com' : '';
+  const cfFrame = TURNSTILE ? 'https://challenges.cloudflare.com' : '';
+  const frameSources = [allowEditorPreview ? "'self'" : '', cfFrame].filter(Boolean).join(' ') || "'none'";
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${cf}${isDev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${cfScript}${isDev ? " 'unsafe-eval'" : ''}`,
     // Colours and sizes come from validated values (#RRGGBB, bounded numbers) as inline style ATTRIBUTES only; style elements stay locked down.
     "style-src 'self' https://fonts.googleapis.com" + (isDev ? " 'unsafe-inline'" : ''),
     "style-src-attr 'unsafe-inline'",
     "font-src 'self' https://fonts.gstatic.com",
     `img-src 'self' data: ${MEDIA_ORIGIN}`.trim(),
     "connect-src 'self'",
-    `frame-src ${TURNSTILE ? 'https://challenges.cloudflare.com' : "'none'"}`,
-    "frame-ancestors 'none'",
+    `frame-src ${frameSources}`,
+    `frame-ancestors ${frameAncestors}`,
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
@@ -53,7 +55,11 @@ export async function middleware(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.delete('x-site-root'); // never trust a client-supplied value; it is only set below for tenant hosts
   headers.set('x-nonce', nonce);
-  headers.set('content-security-policy', csp(nonce)); // Next reads the nonce from here and applies it to its own scripts
+  // Only tokenized editor previews may be embedded, and only by the same origin. Public storefronts and all other routes
+  // retain frame-ancestors 'none' to prevent clickjacking.
+  const frameAncestors = path.startsWith('/preview/') ? "'self'" : "'none'";
+  const allowEditorPreview = path === '/storefront';
+  headers.set('content-security-policy', csp(nonce, frameAncestors, allowEditorPreview)); // Next reads the nonce from here and applies it to its own scripts
 
   let res: NextResponse;
   if (slug) {
@@ -64,7 +70,7 @@ export async function middleware(req: NextRequest) {
   } else {
     res = NextResponse.next({ request: { headers } });
   }
-  res.headers.set('content-security-policy', csp(nonce));
+  res.headers.set('content-security-policy', csp(nonce, frameAncestors, allowEditorPreview));
   return res;
 }
 

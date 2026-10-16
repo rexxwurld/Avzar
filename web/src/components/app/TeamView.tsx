@@ -177,9 +177,49 @@ function MemberRow({ member, me, roles, locations, canManage }: { member: StaffM
   );
 }
 
+function OwnershipTransferPanel({ staff }: { staff: StaffMember[] }) {
+  const [targetId, setTargetId] = useState('');
+  const [password, setPassword] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+  const candidates = staff.filter((m) => m.status === 'Active' && !m.isOwner);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (busy || !targetId) return;
+    setBusy(true); setError(null); setSent(false);
+    try {
+      await api<{ status: string }>('/api/business/ownership-transfer', { method: 'POST', json: {
+        newOwnerMembershipId: targetId, password: password,
+        twoFactorCode: twoFactorCode.trim() || undefined, recoveryCode: recoveryCode.trim() || undefined,
+      } });
+      setSent(true); setPassword(''); setTwoFactorCode(''); setRecoveryCode('');
+    } catch (err) { setError(messageFor(err)); }
+    finally { setBusy(false); }
+  }
+
+  return <section className="ap-panel ap-stack" aria-labelledby="ownership-transfer-heading">
+    <h2 id="ownership-transfer-heading" className="ap-h2">Transfer business ownership</h2>
+    <p className="ap-foot">This does not transfer ownership immediately. After you re-enter your password, Avzar emails you a one-time confirmation link that expires in 30 minutes. The transfer occurs only after you open that link while signed in and confirm.</p>
+    {error && <p role="alert" className="ap-alert">{error}</p>}
+    {sent && <p role="status" className="ap-ok">Confirmation email queued. Ownership has not changed. Open the link sent to your account email to finish the transfer.</p>}
+    {candidates.length === 0 ? <p className="ap-hint">There are no other active staff members to transfer ownership to.</p> : <form className="ap-form" onSubmit={submit}>
+      <div className="ap-field"><label htmlFor="ownership-target">New owner</label><select id="ownership-target" className="ap-input" required value={targetId} disabled={busy} onChange={(e) => setTargetId(e.target.value)}><option value="">Choose an active staff member</option>{candidates.map((m) => <option key={m.membershipId} value={m.membershipId}>{m.displayName} · {m.email}</option>)}</select></div>
+      <div className="ap-field"><label htmlFor="ownership-password">Your password</label><input id="ownership-password" className="ap-input" type="password" autoComplete="current-password" required maxLength={128} value={password} disabled={busy} onChange={(e) => setPassword(e.target.value)} /></div>
+      <div className="ap-field"><label htmlFor="ownership-2fa">Authenticator code (if enabled)</label><input id="ownership-2fa" className="ap-input" inputMode="numeric" autoComplete="one-time-code" maxLength={10} value={twoFactorCode} disabled={busy} onChange={(e) => setTwoFactorCode(e.target.value)} /></div>
+      <div className="ap-field"><label htmlFor="ownership-recovery">Recovery code (instead of authenticator code)</label><input id="ownership-recovery" className="ap-input" autoComplete="off" maxLength={80} value={recoveryCode} disabled={busy} onChange={(e) => setRecoveryCode(e.target.value)} /></div>
+      <button className="ap-btn ap-btn-danger" type="submit" disabled={busy || !targetId || !password.trim()}>{busy ? 'Requesting confirmation…' : 'Email confirmation link'}</button>
+    </form>}
+  </section>;
+}
+
 export function TeamView({ me, staff, roles, locations, canManage }: Props) {
   return (
     <div className="ap-stack">
+      {me.isOwner && <OwnershipTransferPanel staff={staff} />}
       {canManage && <InvitePanel roles={roles} locations={locations} />}
       <section className="ap-panel" aria-labelledby="team-h">
         <h2 id="team-h" className="ap-h2">Team ({staff.length})</h2>

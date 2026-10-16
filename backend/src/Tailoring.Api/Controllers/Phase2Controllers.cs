@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
+using System.Text;
 using Tailoring.Api.Security;
 using Tailoring.Application.Collections;
 using Tailoring.Application.Common;
 using Tailoring.Application.Customers;
 using Tailoring.Application.Designs;
 using Tailoring.Application.Measurements;
+using Tailoring.Application.ImportExport;
 using Tailoring.Application.Orders;
 using Tailoring.Application.Pricing;
 using Tailoring.Domain.Access;
@@ -152,6 +155,30 @@ public class FittingsController(IFittingService fittings) : ControllerBase
 [ApiController, Route("api/designs")]
 public class DesignsController(IDesignService designs) : ControllerBase
 {
+    [HttpGet("export"), HasPermission(Permissions.DesignsView)]
+    public async Task<IActionResult> Export([FromQuery] DesignListQuery query, CancellationToken ct)
+    {
+        var rows = new List<DesignSummaryDto>();
+        var page = 1;
+        var total = 0;
+        do
+        {
+            var result = await designs.ListAsync(query with { Page = page, PageSize = 100 }, ct);
+            rows.AddRange(result.Items);
+            total = result.TotalCount;
+            page++;
+            if (result.Items.Count == 0 || rows.Count >= total || rows.Count >= 100_000) break;
+        } while (true);
+
+        var csv = new StringBuilder().Append(CsvWriter.Row("Design ID", "Name", "Slug", "Kind", "Category", "Base price", "Currency", "Featured", "Visibility", "Status", "Tags", "Created UTC")).Append("\r\n");
+        foreach (var row in rows)
+            csv.Append(CsvWriter.Row(row.Id.ToString(), row.Name, row.Slug, row.Kind, row.CategoryName,
+                row.BasePrice?.ToString(CultureInfo.InvariantCulture), row.CurrencyCode, row.IsFeatured ? "yes" : "no",
+                row.Visibility, row.Status, string.Join("; ", row.Tags), row.CreatedAtUtc.ToString("O", CultureInfo.InvariantCulture))).Append("\r\n");
+        var bytes = new UTF8Encoding(true).GetPreamble().Concat(Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
+        return File(bytes, "text/csv; charset=utf-8", $"designs-{DateTime.UtcNow:yyyyMMdd}.csv");
+    }
+
     [HttpGet, HasPermission(Permissions.DesignsView)]
     public async Task<PagedResult<DesignSummaryDto>> List([FromQuery] DesignListQuery query, CancellationToken ct)
         => await designs.ListAsync(query, ct);
@@ -209,6 +236,30 @@ public class DesignCategoriesController(IDesignService designs) : ControllerBase
 [ApiController, Route("api/collections")]
 public class CollectionsController(ICollectionService collections) : ControllerBase
 {
+    [HttpGet("export"), HasPermission(Permissions.DesignsView)]
+    public async Task<IActionResult> Export([FromQuery] CollectionListQuery query, CancellationToken ct)
+    {
+        var rows = new List<CollectionSummaryDto>();
+        var page = 1;
+        var total = 0;
+        do
+        {
+            var result = await collections.ListAsync(query with { Page = page, PageSize = 100 }, ct);
+            rows.AddRange(result.Items);
+            total = result.TotalCount;
+            page++;
+            if (result.Items.Count == 0 || rows.Count >= total || rows.Count >= 100_000) break;
+        } while (true);
+
+        var csv = new StringBuilder().Append(CsvWriter.Row("Collection ID", "Name", "Slug", "Visibility", "Sort order", "Design count", "Public design count")).Append("\r\n");
+        foreach (var row in rows)
+            csv.Append(CsvWriter.Row(row.Id.ToString(), row.Name, row.Slug, row.Visibility,
+                row.SortOrder.ToString(CultureInfo.InvariantCulture), row.DesignCount.ToString(CultureInfo.InvariantCulture),
+                row.PublicDesignCount.ToString(CultureInfo.InvariantCulture))).Append("\r\n");
+        var bytes = new UTF8Encoding(true).GetPreamble().Concat(Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
+        return File(bytes, "text/csv; charset=utf-8", $"collections-{DateTime.UtcNow:yyyyMMdd}.csv");
+    }
+
     [HttpGet, HasPermission(Permissions.DesignsView)]
     public async Task<PagedResult<CollectionSummaryDto>> List([FromQuery] CollectionListQuery query, CancellationToken ct)
         => await collections.ListAsync(query, ct);

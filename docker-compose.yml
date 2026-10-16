@@ -13,14 +13,26 @@ services:
       interval: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
   api:
     build: ./backend
     depends_on:
       postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
     environment:
       Database__MigrateOnStartup: "true"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=tailoring;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Redis__ConnectionString: redis:6379,abortConnect=false
       App__WebBaseUrl: ${WEB_BASE_URL}
       Billing__SeedPlansOnStartup: "true"   # inserts missing plans only; requires migrations to have been applied
       Storage__LocalRoot: /data/media
@@ -45,3 +57,4 @@ services:
 volumes:
   pgdata:
   mediadata:
+  redisdata:

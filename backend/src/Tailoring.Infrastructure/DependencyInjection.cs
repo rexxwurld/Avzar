@@ -152,6 +152,8 @@ public static class DependencyInjection
                 return StackExchange.Redis.ConnectionMultiplexer.Connect(o);
             });
             services.AddSingleton<Coordination.IRedisCounter, Coordination.RedisCounter>();
+            services.AddSingleton<Coordination.IRedisJobQueue, Coordination.RedisJobQueue>();
+            services.AddHostedService<Coordination.RedisJobWorker>();
             services.AddStackExchangeRedisCache(o => { o.Configuration = redisCs; o.InstanceName = "avzar:"; });
         }
 

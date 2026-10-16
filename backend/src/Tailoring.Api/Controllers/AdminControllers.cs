@@ -99,11 +99,18 @@ public class AuditController(Tailoring.Application.Audit.IAuditReadService audit
 [ApiController, Route("api/business/ownership-transfer")]
 public class OwnershipController(IOwnershipService ownership) : ControllerBase
 {
-    /// <summary>Owner only (enforced in the service, after re-entering the password and any second factor).</summary>
+    /// <summary>Re-authenticates the owner and sends a single-use email confirmation. Ownership is unchanged at this stage.</summary>
     [HttpPost, Authorize]
-    public async Task<IActionResult> Transfer(TransferOwnershipRequest request, CancellationToken ct)
-    { await ownership.TransferAsync(request, ct); return NoContent(); }
+    public async Task<IActionResult> Request(TransferOwnershipRequest request, CancellationToken ct)
+    { await ownership.RequestVerificationAsync(request, ct); return Accepted(new { status = "verification_sent" }); }
+
+    /// <summary>Confirms an ownership transfer using the token sent to the current owner's email.</summary>
+    [HttpPost("confirm"), Authorize]
+    public async Task<IActionResult> Confirm(ConfirmOwnershipTransferRequest request, CancellationToken ct)
+    { await ownership.ConfirmVerificationAsync(request.Token, ct); return NoContent(); }
 }
+
+public sealed record ConfirmOwnershipTransferRequest([System.ComponentModel.DataAnnotations.Required] string Token);
 
 /// <summary>Global plan controls are restricted to emails explicitly configured in PlatformAdmin:Emails; business-owner permissions do not grant platform administration.</summary>
 [ApiController, Route("api/platform-admin/plans"), Authorize]

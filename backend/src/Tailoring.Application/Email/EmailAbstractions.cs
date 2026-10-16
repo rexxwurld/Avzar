@@ -75,6 +75,16 @@ public static class EmailTemplates
             [$"We received a request to reset your password. The link is valid for {validMinutes} minutes and works once."],
             "Choose a new password", link, "If you did not ask for this, ignore this email; your password will not change.");
 
+    public static RenderedEmail OwnershipTransferVerification(string fullName, string businessName, string link, int validMinutes)
+    {
+        var biz = Clean(businessName, "your business", 80);
+        return Render($"Confirm ownership transfer for {biz}", $"Hello {Clean(fullName, "there", 80)},",
+            [$"A request was made to transfer ownership of {biz} on Avzar. Confirm this request only if you initiated it.",
+             $"This single-use confirmation link expires in {validMinutes} minutes. Ownership will not change until you open the link while signed in and confirm."],
+            "Review and confirm transfer", link,
+            "If you did not request this transfer, ignore this email. Ownership has not changed. You can also cancel the request by initiating a new transfer request only if you intend to transfer ownership.");
+    }
+
     /// <summary>Sent to the person who has just been made the owner. There is no button: nothing in it needs a click.</summary>
     public static RenderedEmail OwnershipReceived(string fullName, string businessName, string previousOwnerName)
     {

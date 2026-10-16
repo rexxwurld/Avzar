@@ -34,6 +34,13 @@ public sealed class CsvRulesTests
     }
 
     [Theory]
+    [InlineData("name\nAda\"Obi", "csv_malformed")]
+    [InlineData("name\n\"Ada\"tail", "csv_malformed")]
+    [InlineData("name\n\"Ada\" tail", "csv_malformed")]
+    public void Reader_rejects_quotes_that_break_csv_field_boundaries(string csv, string code)
+        => Assert.Equal(code, Assert.Throws<AppException>(() => CsvReader.Parse(csv)).Code);
+
+    [Theory]
     [InlineData("=HYPERLINK(\"http://evil\")", "\"'=HYPERLINK(\"\"http://evil\"\")\"")]
     [InlineData("+2348031234567", "'+2348031234567")]
     [InlineData("-1", "'-1")]

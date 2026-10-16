@@ -15,7 +15,7 @@ public sealed class WorkerAvailabilityDay : Entity, ITenantScoped
     public int CapacityMinutes { get; set; }
 }
 
-public enum WorkerLeaveStatus { Approved = 0, Cancelled = 1 }
+public enum WorkerLeaveStatus { Pending = 0, Approved = 1, Rejected = 2, Cancelled = 3 }
 
 /// <summary>Approved absence interval in UTC. Leave is a scheduling constraint, not a production task.</summary>
 public sealed class WorkerLeave : Entity, ITenantScoped
@@ -27,4 +27,7 @@ public sealed class WorkerLeave : Entity, ITenantScoped
     public string Reason { get; set; } = "";
     public WorkerLeaveStatus Status { get; set; } = WorkerLeaveStatus.Approved;
     public Guid? CreatedByUserId { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public DateTime? ReviewedAtUtc { get; set; }
+    public string? ReviewNote { get; set; }
 }

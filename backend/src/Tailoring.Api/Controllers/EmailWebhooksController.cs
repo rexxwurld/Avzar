@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Tailoring.Application.Email;
 
 namespace Tailoring.Api.Controllers;
@@ -9,7 +10,7 @@ namespace Tailoring.Api.Controllers;
 /// Delivery reports from the email provider. There is no user, cookie or CSRF token here: the provider's signature (checked against
 /// Email:Resend:WebhookSecret) is the only authentication. Without a configured secret the endpoint does not exist (404).
 /// </summary>
-[ApiController, Route("api/webhooks/email"), AllowAnonymous, IgnoreAntiforgeryToken]
+[ApiController, Route("api/webhooks/email"), AllowAnonymous, IgnoreAntiforgeryToken, EnableRateLimiting("webhook")]
 public class EmailWebhooksController(IEmailWebhookService webhooks) : ControllerBase
 {
     private const int MaxBodyBytes = 64 * 1024;

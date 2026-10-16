@@ -2841,6 +2841,27 @@ namespace Tailoring.Infrastructure.Persistence.Migrations
                     b.ToTable("CustomerPortalGrants", t => t.HasCheckConstraint("CK_CustomerPortalGrants_UseCount", "\"UseCount\" >= 0"));
                 });
 
+            modelBuilder.Entity("Tailoring.Domain.Access.OwnershipTransferChallenge", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<Guid>("BusinessId").HasColumnType("uuid");
+                    b.Property<Guid>("RequestingUserId").HasColumnType("uuid");
+                    b.Property<Guid>("NewOwnerMembershipId").HasColumnType("uuid");
+                    b.Property<string>("TokenHash").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<DateTime>("ExpiresAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<DateTime?>("ConsumedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<DateTime?>("CancelledAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("timestamp with time zone");
+                    b.HasKey("Id");
+                    b.HasIndex("BusinessId");
+                    b.HasIndex("TokenHash").IsUnique();
+                    b.HasIndex("BusinessId", "RequestingUserId", "ExpiresAtUtc");
+                    b.HasIndex("BusinessId", "ConsumedAtUtc", "CancelledAtUtc");
+                    b.HasIndex("NewOwnerMembershipId", "BusinessId");
+                    b.ToTable("OwnershipTransferChallenges");
+                });
+
             modelBuilder.Entity("Tailoring.Domain.Billing.SubscriptionPayment", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid"); b.Property<Guid>("BusinessId").HasColumnType("uuid"); b.Property<Guid>("PlanId").HasColumnType("uuid");
@@ -2885,6 +2906,9 @@ namespace Tailoring.Infrastructure.Persistence.Migrations
                     b.Property<string>("Reason").IsRequired().HasMaxLength(300).HasColumnType("character varying(300)");
                     b.Property<string>("Status").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
                     b.Property<Guid?>("CreatedByUserId").HasColumnType("uuid");
+                    b.Property<Guid?>("ReviewedByUserId").HasColumnType("uuid");
+                    b.Property<DateTime?>("ReviewedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("ReviewNote").HasMaxLength(500).HasColumnType("character varying(500)");
                     b.Property<DateTime>("CreatedAtUtc").HasColumnType("timestamp with time zone");
                     b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("timestamp with time zone");
                     b.HasKey("Id");
@@ -4484,6 +4508,11 @@ namespace Tailoring.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("Tailoring.Domain.Tenancy.Business", null).WithMany().HasForeignKey("BusinessId").OnDelete(DeleteBehavior.Restrict).IsRequired();
                     b.HasOne("Tailoring.Domain.Inventory.MaterialStock", null).WithMany().HasForeignKey("MaterialId", "BusinessId").HasPrincipalKey("Id", "BusinessId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                });
+            modelBuilder.Entity("Tailoring.Domain.Access.OwnershipTransferChallenge", b =>
+                {
+                    b.HasOne("Tailoring.Domain.Tenancy.Business", null).WithMany().HasForeignKey("BusinessId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("Tailoring.Domain.Access.BusinessMembership", null).WithMany().HasForeignKey("NewOwnerMembershipId", "BusinessId").HasPrincipalKey("Id", "BusinessId").OnDelete(DeleteBehavior.Restrict).IsRequired();
                 });
             modelBuilder.Entity("Tailoring.Domain.CustomerPortal.CustomerPortalGrant", b =>
                 {

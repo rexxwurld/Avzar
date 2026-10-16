@@ -58,9 +58,9 @@ public sealed class WorkerScheduleService(AppDbContext db, ITenantContext tenant
         ValidateRange(fromUtc, toUtc);
         var rows = await db.WorkerLeaves.AsNoTracking().Where(x => x.MembershipId == membershipId && x.StartsAtUtc < toUtc.UtcDateTime && x.EndsAtUtc > fromUtc.UtcDateTime)
             .OrderBy(x => x.StartsAtUtc)
-            .Select(x => new { x.Id, x.MembershipId, x.StartsAtUtc, x.EndsAtUtc, x.Reason, x.Status })
+            .Select(x => new { x.Id, x.MembershipId, x.StartsAtUtc, x.EndsAtUtc, x.Reason, x.Status, x.ReviewNote })
             .ToListAsync(ct);
-        return rows.Select(x => new WorkerLeaveDto(x.Id, x.MembershipId, x.StartsAtUtc, x.EndsAtUtc, x.Reason, x.Status.ToString())).ToList();
+        return rows.Select(x => new WorkerLeaveDto(x.Id, x.MembershipId, x.StartsAtUtc, x.EndsAtUtc, x.Reason, x.Status.ToString(), x.ReviewNote)).ToList();
     }
 
     public async Task<WorkerLeaveDto> AddLeaveAsync(Guid membershipId, WorkerLeaveCreateRequest request, CancellationToken ct = default)
@@ -79,8 +79,56 @@ public sealed class WorkerScheduleService(AppDbContext db, ITenantContext tenant
         audit.Record(BusinessId, tenant.UserId, "worker.leave_added", nameof(WorkerLeave), row.Id,
             new { membershipId, startsAtUtc = start, endsAtUtc = end, reason });
         await db.SaveChangesAsync(ct);
-        return new WorkerLeaveDto(row.Id, row.MembershipId, row.StartsAtUtc, row.EndsAtUtc, row.Reason, row.Status.ToString());
+        return new WorkerLeaveDto(row.Id, row.MembershipId, row.StartsAtUtc, row.EndsAtUtc, row.Reason, row.Status.ToString(), row.ReviewNote);
     }
+
+
+    public async Task<WorkerLeaveDto> RequestMyLeaveAsync(WorkerLeaveCreateRequest request, CancellationToken ct = default)
+    {
+        var userId = tenant.UserId ?? throw AppException.Unauthorized("not_authenticated", "Sign in to request leave.");
+        var membership = await db.Memberships.FirstOrDefaultAsync(m => m.UserId == userId && m.BusinessId == BusinessId && m.Status == MembershipStatus.Active, ct)
+            ?? throw AppException.NotFound("worker_not_found", "No active membership was found in this business.");
+        ValidateLeaveRequest(request);
+        var row = new WorkerLeave { BusinessId = BusinessId, MembershipId = membership.Id, StartsAtUtc = request.StartsAtUtc.UtcDateTime, EndsAtUtc = request.EndsAtUtc.UtcDateTime, Reason = request.Reason.Trim(), Status = WorkerLeaveStatus.Pending, CreatedByUserId = userId };
+        db.WorkerLeaves.Add(row);
+        audit.Record(BusinessId, userId, "worker.leave_requested", nameof(WorkerLeave), row.Id, new { row.MembershipId, row.StartsAtUtc, row.EndsAtUtc });
+        await db.SaveChangesAsync(ct);
+        return ToDto(row);
+    }
+
+    public async Task<IReadOnlyList<WorkerLeaveDto>> ListPendingLeaveRequestsAsync(CancellationToken ct = default)
+    {
+        var rows = await db.WorkerLeaves.AsNoTracking().Where(x => x.BusinessId == BusinessId && x.Status == WorkerLeaveStatus.Pending)
+            .OrderBy(x => x.StartsAtUtc).Select(x => new { x.Id, x.MembershipId, x.StartsAtUtc, x.EndsAtUtc, x.Reason, x.Status, x.ReviewNote }).ToListAsync(ct);
+        return rows.Select(x => new WorkerLeaveDto(x.Id, x.MembershipId, x.StartsAtUtc, x.EndsAtUtc, x.Reason, x.Status.ToString(), x.ReviewNote)).ToList();
+    }
+
+    public async Task<WorkerLeaveDto> ReviewLeaveRequestAsync(Guid leaveId, WorkerLeaveReviewRequest request, CancellationToken ct = default)
+    {
+        var userId = tenant.UserId ?? throw AppException.Unauthorized("not_authenticated", "Sign in to review leave.");
+        var row = await db.WorkerLeaves.FirstOrDefaultAsync(x => x.Id == leaveId && x.BusinessId == BusinessId, ct)
+            ?? throw AppException.NotFound("worker_leave_not_found", "That leave request was not found.");
+        if (row.Status != WorkerLeaveStatus.Pending) throw AppException.Conflict("leave_request_already_reviewed", "Only pending leave requests can be reviewed.");
+        var note = request.Note?.Trim();
+        if (note?.Length > 500) throw AppException.BadRequest("invalid_review_note", "Review note cannot exceed 500 characters.");
+        if (request.Approve && await db.WorkerLeaves.AnyAsync(x => x.Id != row.Id && x.MembershipId == row.MembershipId && x.Status == WorkerLeaveStatus.Approved && x.StartsAtUtc < row.EndsAtUtc && x.EndsAtUtc > row.StartsAtUtc, ct))
+            throw AppException.Conflict("worker_leave_overlap", "This request overlaps existing approved leave.");
+        row.Status = request.Approve ? WorkerLeaveStatus.Approved : WorkerLeaveStatus.Rejected;
+        row.ReviewedByUserId = userId; row.ReviewedAtUtc = DateTime.UtcNow; row.ReviewNote = string.IsNullOrWhiteSpace(note) ? null : note;
+        audit.Record(BusinessId, userId, request.Approve ? "worker.leave_approved" : "worker.leave_rejected", nameof(WorkerLeave), row.Id, new { row.MembershipId, row.ReviewNote });
+        await db.SaveChangesAsync(ct);
+        return ToDto(row);
+    }
+
+    private static void ValidateLeaveRequest(WorkerLeaveCreateRequest request)
+    {
+        if (request.StartsAtUtc.Offset != TimeSpan.Zero || request.EndsAtUtc.Offset != TimeSpan.Zero || request.EndsAtUtc <= request.StartsAtUtc)
+            throw AppException.BadRequest("invalid_worker_leave", "Leave times must be UTC and the end must be after the start.");
+        var reason = request.Reason?.Trim() ?? "";
+        if (reason.Length is < 2 or > 300) throw AppException.BadRequest("invalid_worker_leave", "Leave reason must be between 2 and 300 characters.");
+    }
+
+    private static WorkerLeaveDto ToDto(WorkerLeave row) => new(row.Id, row.MembershipId, row.StartsAtUtc, row.EndsAtUtc, row.Reason, row.Status.ToString(), row.ReviewNote);
 
     public async Task CancelLeaveAsync(Guid membershipId, Guid leaveId, CancellationToken ct = default)
     {

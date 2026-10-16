@@ -30,6 +30,7 @@ public partial class AppDbContext
         {
             e.ToTable("WorkerLeaves", t => t.HasCheckConstraint("CK_WorkerLeaves_Interval", "\"StartsAtUtc\" < \"EndsAtUtc\""));
             e.Property(x => x.Reason).HasMaxLength(300).IsRequired();
+            e.Property(x => x.ReviewNote).HasMaxLength(500);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.HasIndex(x => new { x.BusinessId, x.MembershipId, x.StartsAtUtc, x.EndsAtUtc });
             e.HasOne<BusinessMembership>().WithMany()

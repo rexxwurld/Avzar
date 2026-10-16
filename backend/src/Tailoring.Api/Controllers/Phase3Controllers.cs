@@ -169,7 +169,24 @@ public sealed class WorkerScheduleController(IWorkerScheduleService schedules) :
         return NoContent();
     }
 
+    [HttpGet("leave-requests/pending"), HasPermission(Permissions.WorkersManage)]
+    public Task<IReadOnlyList<WorkerLeaveDto>> PendingLeaveRequests(CancellationToken ct)
+        => schedules.ListPendingLeaveRequestsAsync(ct);
+
+    [HttpPost("leave-requests/{leaveId:guid}/review"), HasPermission(Permissions.WorkersManage)]
+    public Task<WorkerLeaveDto> ReviewLeaveRequest(Guid leaveId, WorkerLeaveReviewRequest request, CancellationToken ct)
+        => schedules.ReviewLeaveRequestAsync(leaveId, request, ct);
+
     [HttpGet("calendar"), HasPermission(Permissions.TasksView)]
     public Task<IReadOnlyList<WorkerCalendarItemDto>> Calendar(Guid membershipId, [FromQuery] DateTimeOffset fromUtc, [FromQuery] DateTimeOffset toUtc, CancellationToken ct)
         => schedules.GetCalendarAsync(membershipId, fromUtc, toUtc, ct);
+}
+
+
+[ApiController, Route("api/my/leave-requests")]
+public sealed class MyLeaveRequestsController(IWorkerScheduleService schedules) : ControllerBase
+{
+    [HttpPost, HasPermission(Permissions.TasksWork)]
+    public Task<WorkerLeaveDto> Request([FromBody] WorkerLeaveCreateRequest request, CancellationToken ct)
+        => schedules.RequestMyLeaveAsync(request, ct);
 }

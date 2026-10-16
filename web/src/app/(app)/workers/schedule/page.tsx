@@ -15,6 +15,6 @@ export default async function WorkerSchedulesPage() {
   if (!result.ok) return <LoadError status={result.status} />;
   return <div className="ap-stack">
     <div className="ap-row" style={{ marginBottom: '.25rem' }}><div><h1 style={{ margin: 0 }}>Worker schedules</h1><p className="ap-foot" style={{ margin: '.35rem 0 0' }}>Manage individual availability, daily workload capacity, approved leave and assigned task calendars.</p></div></div>
-    <WorkerScheduleManager initialWorkers={result.data} canManage={can(me, 'workers.manage')} timeZoneId={me.timeZoneId} />
+    <WorkerScheduleManager initialWorkers={result.data} canManage={can(me, 'workers.manage')} canRequest={can(me, 'tasks.work')} timeZoneId={me.timeZoneId} />
   </div>;
 }

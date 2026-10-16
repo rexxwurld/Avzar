@@ -28,5 +28,5 @@ export default async function StorefrontPage() {
   ]);
   if (!sites.ok) return <LoadError status={sites.status} />;
   if (!catalog.ok) return <LoadError status={catalog.status} />;
-  return <StorefrontManager initialSites={sites.data} catalog={catalog.data} canEdit={can(me, 'storefront.edit')} canPublish={can(me, 'storefront.publish')} canViewMedia={can(me, 'media.view')} />;
+  return <StorefrontManager initialSites={sites.data} catalog={catalog.data} canEdit={can(me, 'storefront.edit')} canPublish={can(me, 'storefront.publish')} canViewMedia={can(me, 'media.view')} canManageMedia={can(me, 'media.manage')} />;
 }

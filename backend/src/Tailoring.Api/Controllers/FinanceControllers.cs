@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
+using System.Text;
 using Tailoring.Api.Security;
 using Tailoring.Application.Common;
 using Tailoring.Application.Finance;
+using Tailoring.Application.ImportExport;
 using Tailoring.Domain.Access;
 
 namespace Tailoring.Api.Controllers;
@@ -100,6 +103,32 @@ public class ExpensesController(IExpenseService expenses) : ControllerBase
     [HttpPut("api/expense-categories/{id:guid}"), HasPermission(Permissions.ExpensesManage)]
     public async Task<ExpenseCategoryDto> UpdateCategory(Guid id, UpsertExpenseCategoryRequest request, CancellationToken ct)
         => await expenses.UpdateCategoryAsync(id, request, ct);
+
+    [HttpGet("api/expenses/export"), HasPermission(Permissions.ExpensesView)]
+    public async Task<IActionResult> Export([FromQuery] ExpenseListQuery query, CancellationToken ct)
+    {
+        // Export is tenant-scoped by IExpenseService just like the ledger. Page in bounded batches so larger ledgers do not require
+        // one unbounded database query; preserve any date/category/location/search filters supplied by the user.
+        var rows = new List<ExpenseDto>();
+        var page = 1;
+        int totalCount;
+        do
+        {
+            var result = await expenses.ListAsync(query with { Page = page, PageSize = 100 }, ct);
+            rows.AddRange(result.Items);
+            totalCount = result.TotalCount;
+            page++;
+            if (rows.Count >= totalCount || result.Items.Count == 0) break;
+        } while (rows.Count < totalCount && rows.Count < 100_000);
+
+        var csv = new StringBuilder().Append(CsvWriter.Row("Expense ID", "Date", "Category", "Amount", "Currency", "Description", "Vendor", "Reference", "Location ID", "Voided", "Void reason")).Append("\r\n");
+        foreach (var row in rows)
+            csv.Append(CsvWriter.Row(row.Id.ToString(), row.ExpenseDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), row.CategoryName,
+                row.Amount.ToString(CultureInfo.InvariantCulture), row.CurrencyCode, row.Description, row.Vendor, row.Reference,
+                row.LocationId?.ToString(), row.IsVoid ? "yes" : "no", row.VoidReason)).Append("\r\n");
+        var bytes = new UTF8Encoding(true).GetPreamble().Concat(Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
+        return File(bytes, "text/csv; charset=utf-8", $"expenses-{DateTime.UtcNow:yyyyMMdd}.csv");
+    }
 
     [HttpGet("api/expenses"), HasPermission(Permissions.ExpensesView)]
     public async Task<PagedResult<ExpenseDto>> List([FromQuery] ExpenseListQuery query, CancellationToken ct) => await expenses.ListAsync(query, ct);

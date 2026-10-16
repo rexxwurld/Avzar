@@ -10,6 +10,12 @@ public sealed class AvzarApi
     private static readonly string BaseUrl = (Environment.GetEnvironmentVariable("AVZAR_API_URL") ?? "https://avzar-api.onrender.com").TrimEnd('/');
     private readonly HttpClient _http = new() { BaseAddress = new Uri(BaseUrl), Timeout = TimeSpan.FromSeconds(20) };
     private const string AccessKey = "avzar.mobile.access"; private const string RefreshKey = "avzar.mobile.refresh"; private const string ExpiryKey = "avzar.mobile.access-expiry";
+    public string BusinessEventsHubUrl => new Uri(_http.BaseAddress!, "/hubs/business-events").ToString();
+    public async Task<string?> GetRealtimeAccessTokenAsync(CancellationToken ct = default)
+    {
+        await RefreshIfNeeded(ct);
+        return await SecureStorage.Default.GetAsync(AccessKey);
+    }
     public async Task<MobileTokens> SignInAsync(string email, string password, Guid? businessId = null, CancellationToken ct = default)
     {
         using var response = await _http.PostAsJsonAsync("/api/auth/token", new { email, password, businessId, deviceName = DeviceInfo.Name }, ct);

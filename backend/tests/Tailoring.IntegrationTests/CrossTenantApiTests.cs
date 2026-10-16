@@ -141,6 +141,198 @@ public sealed class CrossTenantApiTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.NotFound, (await w.B.Http.SendAsync(req)).StatusCode);
     }
 
+    [Fact]
+    public async Task Expenses_and_categories_are_isolated_between_businesses_for_reads_and_writes()
+    {
+        var a = await RegisterAsync("expense-tenant-a");
+        var b = await RegisterAsync("expense-tenant-b");
+        var locationA = await FirstLocationAsync(a);
+        var categoryResponse = await SendAsync(a.Http, HttpMethod.Post, "/api/expense-categories", new
+        {
+            name = "Tenant A materials", isActive = true, sortOrder = 1,
+        }, a.Csrf);
+        Assert.Equal(HttpStatusCode.Created, categoryResponse.StatusCode);
+        using var categoryDoc = JsonDocument.Parse(await categoryResponse.Content.ReadAsStringAsync());
+        var categoryId = categoryDoc.RootElement.GetProperty("id").GetGuid();
+
+        var expenseResponse = await SendAsync(a.Http, HttpMethod.Post, "/api/expenses", new
+        {
+            categoryId, expenseDate = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"), amount = 1250m,
+            description = "Fabric purchase for tenant A", vendor = "Local supplier", locationId = locationA,
+        }, a.Csrf);
+        Assert.Equal(HttpStatusCode.Created, expenseResponse.StatusCode);
+        using var expenseDoc = JsonDocument.Parse(await expenseResponse.Content.ReadAsStringAsync());
+        var expenseId = expenseDoc.RootElement.GetProperty("id").GetGuid();
+        var version = expenseDoc.RootElement.GetProperty("version").GetUInt32();
+
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync(a.Http, HttpMethod.Get, $"/api/expenses/{expenseId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Get, $"/api/expenses/{expenseId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Put, $"/api/expenses/{expenseId}", new
+        {
+            categoryId, expenseDate = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"), amount = 9999m,
+            description = "Unauthorized edit", version,
+        }, b.Csrf)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Post, $"/api/expenses/{expenseId}/void", new
+        {
+            reason = "Unauthorized void attempt",
+        }, b.Csrf)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Put, $"/api/expense-categories/{categoryId}", new
+        {
+            name = "Hijacked category", isActive = true, sortOrder = 1,
+        }, b.Csrf)).StatusCode);
+
+        var exportA = await SendAsync(a.Http, HttpMethod.Get, "/api/expenses/export");
+        Assert.Equal(HttpStatusCode.OK, exportA.StatusCode);
+        Assert.Contains("Fabric purchase for tenant A", await exportA.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        var exportB = await SendAsync(b.Http, HttpMethod.Get, "/api/expenses/export");
+        Assert.Equal(HttpStatusCode.OK, exportB.StatusCode);
+        Assert.DoesNotContain("Fabric purchase for tenant A", await exportB.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        var foreignExpenseList = await SendAsync(b.Http, HttpMethod.Get, "/api/expenses");
+        Assert.Equal(HttpStatusCode.OK, foreignExpenseList.StatusCode);
+        Assert.DoesNotContain(expenseId.ToString(), await foreignExpenseList.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+        var foreignCategories = await SendAsync(b.Http, HttpMethod.Get, "/api/expense-categories");
+        Assert.Equal(HttpStatusCode.OK, foreignCategories.StatusCode);
+        Assert.DoesNotContain(categoryId.ToString(), await foreignCategories.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+
+        // Verify the denied writes did not mutate the owning tenant's records.
+        var unchanged = await SendAsync(a.Http, HttpMethod.Get, $"/api/expenses/{expenseId}");
+        Assert.Equal(HttpStatusCode.OK, unchanged.StatusCode);
+        var unchangedBody = await unchanged.Content.ReadAsStringAsync();
+        Assert.Contains("Fabric purchase for tenant A", unchangedBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unauthorized edit", unchangedBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Worker_availability_and_leave_are_isolated_between_businesses()
+    {
+        var a = await RegisterAsync("schedule-tenant-a");
+        var b = await RegisterAsync("schedule-tenant-b");
+        var workersA = await SendAsync(a.Http, HttpMethod.Get, "/api/workers");
+        Assert.Equal(HttpStatusCode.OK, workersA.StatusCode);
+        using var workerDoc = JsonDocument.Parse(await workersA.Content.ReadAsStringAsync());
+        Assert.True(workerDoc.RootElement.GetArrayLength() > 0, "The registered business should have an owner membership.");
+        var memberId = workerDoc.RootElement[0].GetProperty("membershipId").GetGuid();
+        var start = new DateTimeOffset(DateTime.UtcNow.AddDays(8).Date.AddHours(9), TimeSpan.Zero);
+        var created = await SendAsync(a.Http, HttpMethod.Post, $"/api/workers/{memberId}/schedule/leave", new
+        {
+            startsAtUtc = start, endsAtUtc = start.AddHours(2), reason = "Isolation test leave",
+        }, a.Csrf);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var leaveDoc = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var leaveId = leaveDoc.RootElement.GetProperty("id").GetGuid();
+
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync(a.Http, HttpMethod.Get, $"/api/workers/{memberId}/schedule/availability")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Get, $"/api/workers/{memberId}/schedule/availability")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Get,
+            $"/api/workers/{memberId}/schedule/leave?fromUtc={Uri.EscapeDataString(start.AddDays(-1).ToString("O"))}&toUtc={Uri.EscapeDataString(start.AddDays(1).ToString("O"))}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Delete,
+            $"/api/workers/{memberId}/schedule/leave/{leaveId}", csrf: b.Csrf)).StatusCode);
+
+        var ownLeave = await SendAsync(a.Http, HttpMethod.Get,
+            $"/api/workers/{memberId}/schedule/leave?fromUtc={Uri.EscapeDataString(start.AddDays(-1).ToString("O"))}&toUtc={Uri.EscapeDataString(start.AddDays(1).ToString("O"))}");
+        Assert.Equal(HttpStatusCode.OK, ownLeave.StatusCode);
+        Assert.Contains(leaveId.ToString(), await ownLeave.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Inventory_items_and_movements_are_isolated_between_businesses()
+    {
+        var a = await RegisterAsync("inventory-tenant-a");
+        var b = await RegisterAsync("inventory-tenant-b");
+        var locationA = await FirstLocationAsync(a);
+        var created = await SendAsync(a.Http, HttpMethod.Post, "/api/inventory", new
+        {
+            sku = "FAB-" + Guid.NewGuid().ToString("N")[..8], name = "Tenant A fabric", unit = "metre", locationId = locationA,
+            openingStock = 25m, reorderLevel = 5m, notes = "Isolation test fixture",
+        }, a.Csrf);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var itemDoc = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var itemId = itemDoc.RootElement.GetProperty("id").GetGuid();
+
+        var ownList = await SendAsync(a.Http, HttpMethod.Get, "/api/inventory");
+        Assert.Contains(itemId.ToString(), await ownList.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+        var foreignList = await SendAsync(b.Http, HttpMethod.Get, "/api/inventory");
+        Assert.Equal(HttpStatusCode.OK, foreignList.StatusCode);
+        Assert.DoesNotContain(itemId.ToString(), await foreignList.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Get, $"/api/inventory/{itemId}/movements")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Post, $"/api/inventory/{itemId}/receive", new
+        {
+            quantity = 100m, note = "Unauthorized stock increase", expectedVersion = 1,
+        }, b.Csrf)).StatusCode);
+
+        var ownerHistory = await SendAsync(a.Http, HttpMethod.Get, $"/api/inventory/{itemId}/movements");
+        Assert.Equal(HttpStatusCode.OK, ownerHistory.StatusCode);
+        Assert.DoesNotContain("Unauthorized stock increase", await ownerHistory.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Storefront_design_and_collection_resources_are_isolated_between_businesses()
+    {
+        var a = await RegisterAsync("catalog-tenant-a");
+        var b = await RegisterAsync("catalog-tenant-b");
+
+        var designResponse = await SendAsync(a.Http, HttpMethod.Post, "/api/designs", new
+        {
+            name = "Private Tenant A Design", kind = "ReadyMade",
+        }, a.Csrf);
+        Assert.Equal(HttpStatusCode.Created, designResponse.StatusCode);
+        var designId = await IdOfAsync(designResponse);
+
+        var collectionResponse = await SendAsync(a.Http, HttpMethod.Post, "/api/collections", new
+        {
+            name = "Private Tenant A Collection", visibility = "Private",
+        }, a.Csrf);
+        Assert.Equal(HttpStatusCode.Created, collectionResponse.StatusCode);
+        var collectionId = await IdOfAsync(collectionResponse);
+
+        var storefrontResponse = await SendAsync(a.Http, HttpMethod.Post, "/api/storefronts", new
+        {
+            name = "Tenant A Atelier", slug = "tenant-a-" + Guid.NewGuid().ToString("N")[..8], templateKey = "standard",
+        }, a.Csrf);
+        Assert.Equal(HttpStatusCode.Created, storefrontResponse.StatusCode);
+        var storefrontId = await IdOfAsync(storefrontResponse);
+
+        foreach (var url in new[] { $"/api/designs/{designId}", $"/api/collections/{collectionId}", $"/api/storefronts/{storefrontId}", $"/api/storefronts/{storefrontId}/draft" })
+            Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Get, url)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Put, $"/api/collections/{collectionId}", new
+        {
+            name = "Hijacked", visibility = "Private", version = 1,
+        }, b.Csrf)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Post, $"/api/designs/{designId}/visibility", new
+        {
+            visibility = "Public",
+        }, b.Csrf)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Put, $"/api/storefronts/{storefrontId}/settings", new
+        {
+            version = 1, name = "Hijacked Atelier", workflowInquiry = true, workflowContact = true,
+        }, b.Csrf)).StatusCode);
+
+        foreach (var (url, foreignId) in new[] { ("/api/designs", designId), ("/api/collections", collectionId), ("/api/storefronts", storefrontId) })
+        {
+            var response = await SendAsync(b.Http, HttpMethod.Get, url);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.DoesNotContain(foreignId.ToString(), await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public async Task Customer_portal_link_revocation_cannot_target_another_business_customer()
+    {
+        var a = await RegisterAsync("portal-tenant-a");
+        var b = await RegisterAsync("portal-tenant-b");
+        var customer = await SendAsync(a.Http, HttpMethod.Post, "/api/customers", new
+        {
+            fullName = "Portal Customer A", email = "portal-a@example.test",
+        }, a.Csrf);
+        Assert.Equal(HttpStatusCode.Created, customer.StatusCode);
+        var customerId = await IdOfAsync(customer);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await SendAsync(a.Http, HttpMethod.Delete, $"/api/customer-portal/customers/{customerId}/links", csrf: a.Csrf)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(b.Http, HttpMethod.Delete, $"/api/customer-portal/customers/{customerId}/links", csrf: b.Csrf)).StatusCode);
+    }
+
     // ---- setup ---------------------------------------------------------------------------------------------------------------
 
     private static string[] OwnReadRoutes(World w) =>

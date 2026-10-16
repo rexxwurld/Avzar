@@ -45,7 +45,8 @@ public sealed record WorkerLeaveCreateRequest
     [Required] public DateTimeOffset EndsAtUtc { get; init; }
     [Required, StringLength(300, MinimumLength = 2)] public string Reason { get; init; } = "";
 }
-public sealed record WorkerLeaveDto(Guid Id, Guid MembershipId, DateTime StartsAtUtc, DateTime EndsAtUtc, string Reason, string Status);
+public sealed record WorkerLeaveDto(Guid Id, Guid MembershipId, DateTime StartsAtUtc, DateTime EndsAtUtc, string Reason, string Status, string? ReviewNote = null);
+public sealed record WorkerLeaveReviewRequest { public bool Approve { get; init; } public string? Note { get; init; } }
 public sealed record WorkerCalendarItemDto(Guid TaskId, Guid OrderId, string Title, string Status, DateTime StartUtc, DateTime EndUtc, DateTime? DeadlineUtc);
 
 public interface IWorkerScheduleService
@@ -54,6 +55,9 @@ public interface IWorkerScheduleService
     Task<WorkerAvailabilityDto> SetAvailabilityAsync(Guid membershipId, IReadOnlyList<WorkerAvailabilityDayInput> days, CancellationToken ct = default);
     Task<IReadOnlyList<WorkerLeaveDto>> ListLeaveAsync(Guid membershipId, DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken ct = default);
     Task<WorkerLeaveDto> AddLeaveAsync(Guid membershipId, WorkerLeaveCreateRequest request, CancellationToken ct = default);
+    Task<WorkerLeaveDto> RequestMyLeaveAsync(WorkerLeaveCreateRequest request, CancellationToken ct = default);
+    Task<IReadOnlyList<WorkerLeaveDto>> ListPendingLeaveRequestsAsync(CancellationToken ct = default);
+    Task<WorkerLeaveDto> ReviewLeaveRequestAsync(Guid leaveId, WorkerLeaveReviewRequest request, CancellationToken ct = default);
     Task CancelLeaveAsync(Guid membershipId, Guid leaveId, CancellationToken ct = default);
     Task<IReadOnlyList<WorkerCalendarItemDto>> GetCalendarAsync(Guid membershipId, DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken ct = default);
 }

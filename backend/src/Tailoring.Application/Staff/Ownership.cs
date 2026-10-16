@@ -15,6 +15,10 @@ public sealed record TransferOwnershipRequest
 
 public interface IOwnershipService
 {
-    /// <summary>The signed-in owner hands the business to another active staff member and steps down to the Manager role.</summary>
+    /// <summary>Re-authenticates the current owner and emails a short-lived confirmation link. Does not transfer ownership yet.</summary>
+    Task RequestVerificationAsync(TransferOwnershipRequest request, CancellationToken ct = default);
+    /// <summary>Consumes a single-use emailed token and performs the transfer atomically.</summary>
+    Task ConfirmVerificationAsync(string token, CancellationToken ct = default);
+    /// <summary>Internal/service-level transfer operation retained for trusted workflows and tests. Public API uses request/confirm.</summary>
     Task TransferAsync(TransferOwnershipRequest request, CancellationToken ct = default);
 }
