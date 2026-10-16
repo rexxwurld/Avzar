@@ -29,6 +29,8 @@ public sealed class EmailOptions
     {
         public string ApiKey { get; set; } = "";
         public string BaseUrl { get; set; } = "https://api.resend.com";
+        /// <summary>Signing secret of the Resend webhook ("whsec_..."). Empty = the webhook endpoint is disabled (404).</summary>
+        public string WebhookSecret { get; set; } = "";
     }
 
     /// <summary>Fail fast at startup instead of at the first email.</summary>
@@ -40,6 +42,8 @@ public sealed class EmailOptions
         if (BatchSize is < 1 or > 200) throw new InvalidOperationException("Email:BatchSize must be 1-200.");
         if (PollSeconds < 1) throw new InvalidOperationException("Email:PollSeconds must be at least 1.");
         if (LeaseMinutes < 1) throw new InvalidOperationException("Email:LeaseMinutes must be at least 1.");
+        if (!string.IsNullOrWhiteSpace(Resend.WebhookSecret) && !Tailoring.Application.Email.SvixSignature.TryParseSecret(Resend.WebhookSecret, out _))
+            throw new InvalidOperationException("Email:Resend:WebhookSecret must look like whsec_ followed by base64 (copy it from the Resend webhook page).");
         if (p == "log") return;
         if (!Tailoring.Application.Email.EmailAddressRules.TryNormalize(FromAddress, out _)) throw new InvalidOperationException("Email:FromAddress must be a valid address when a real provider is used.");
         if (p == "smtp" && (string.IsNullOrWhiteSpace(Smtp.Host) || Smtp.Port is < 1 or > 65535)) throw new InvalidOperationException("Email:Smtp:Host and a valid Port are required.");
