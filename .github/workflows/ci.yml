@@ -86,7 +86,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: npm install   # switch to `npm ci` once package-lock.json is committed
+      - run: npm ci
       # Reports known vulnerabilities in runtime dependencies. Non-blocking until the first clean run, then remove continue-on-error.
       - name: npm audit (runtime dependencies)
         run: npm audit --omit=dev --audit-level=high
