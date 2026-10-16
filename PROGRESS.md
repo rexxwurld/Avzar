@@ -371,3 +371,9 @@ Environment: no .NET SDK, no npm network, so nothing below was built or run here
 - `npm audit --omit=dev` still reports `postcss` <=8.5.22 (high, 4 advisories) nested inside `next`; npm's only offered fix is `next@16.4.2` (breaking). The audit step (non-blocking) therefore still exits 1 and produces the "1 error" annotation.
 - Assessment (not verified): the advisories need attacker-controlled CSS or source-map comments; Next only runs postcss at build time on this repo's own CSS, and storefront content is validated config, not CSS. Low practical exposure, but the audit stays red until fixed.
 - Change prepared (UNVERIFIED until CI): `overrides: { next: { postcss: ">=8.5.23 <9" } }` in `web/package.json`. The lockfile must be regenerated (run "Generate web lockfile") before `npm ci` will accept it. If the build or audit still fails, do NOT upgrade to Next 16 blindly; read the error first.
+
+## CI run #152 (web job), read 2026-10-16: STEP 0 CLOSED
+- `npm ci` from the committed lockfile; `npm audit --omit=dev --audit-level=high` reports **0 vulnerabilities** (the postcss override worked); typecheck, 22 tests and the Next 15.5.28 build pass.
+- Audit step made BLOCKING in `ci.yml` (continue-on-error removed): UNVERIFIED until the next run.
+- Remaining dev-only findings (`npm install` shows 6: 3 moderate, 1 high, 2 critical, all outside the runtime audit; likely vitest/vite tooling): not shipped, review when upgrading vitest.
+- Next: (3) Docker Compose smoke test, (4) Step A leftovers, (5) Step B.
