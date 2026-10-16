@@ -19,12 +19,10 @@ jobs:
         with:
           node-version: 22
 
-      # Writes package-lock.json only; does not install node_modules.
-            # Rebuilds package-lock.json from scratch; does not install node_modules.
       - name: Generate lockfile
         run: |
           rm -f package-lock.json
-          npm install --package-lock-only --no-audit --no-fund
+          npm install --package-lock-only --no-audit --no-fund || { echo "--- npm debug log ---"; tail -n 60 ~/.npm/_logs/*-debug-0.log; exit 1; }
 
       - name: Show audit (runtime dependencies, informational)
         run: npm audit --omit=dev --audit-level=high || true
