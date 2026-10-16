@@ -2,13 +2,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Tailoring.Application.Abstractions;
 using Tailoring.Application.Common;
+using Tailoring.Application.Email;
 using Tailoring.Application.Staff;
 using Tailoring.Domain.Access;
 using Tailoring.Infrastructure.Persistence;
 
 namespace Tailoring.Infrastructure.Services;
 
-public sealed class OwnershipService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, UserManager<AppUser> users) : IOwnershipService
+public sealed class OwnershipService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, UserManager<AppUser> users, IEmailSender email) : IOwnershipService
 {
     public async Task TransferAsync(TransferOwnershipRequest req, CancellationToken ct = default)
     {
@@ -49,7 +50,8 @@ public sealed class OwnershipService(AppDbContext db, ITenantContext tenant, IAu
             throw AppException.Conflict("already_owner", "That person is already the owner.");
         if (target.Status != MembershipStatus.Active)
             throw AppException.BadRequest("target_inactive", "Reactivate this staff member before making them the owner.");
-        if (await users.FindByIdAsync(target.UserId.ToString()) is not { } targetUser || targetUser.LockoutEnd == DateTimeOffset.MaxValue)
+        var targetUser = await users.FindByIdAsync(target.UserId.ToString());
+        if (targetUser is null || targetUser.LockoutEnd == DateTimeOffset.MaxValue)
             throw AppException.BadRequest("target_unavailable", "That account is no longer available.");
 
         var systemRoles = await db.BusinessRoles.Where(r => r.IsSystem && (r.Name == DefaultRoles.Owner || r.Name == DefaultRoles.Manager)).ToListAsync(ct);
@@ -73,6 +75,33 @@ public sealed class OwnershipService(AppDbContext db, ITenantContext tenant, IAu
         audit.Record(businessId, actorId, "business.ownership_transferred", nameof(BusinessMembership), target.Id,
             new { fromMembershipId = current.Id, toMembershipId = target.Id });
         await db.SaveChangesAsync(ct);
+
+        // The notices go to the durable outbox INSIDE the transaction: either the transfer and both notices are saved, or none of them.
+        // A provider outage cannot fail the transfer, because delivery happens later in the background.
+        await QueueNoticesAsync(businessId, current, actor, target, targetUser, managerRole is not null, ct);
         await tx.CommitAsync(ct);
     }
+
+    /// <summary>One notice to the new owner and one (also a security notice) to the former owner. An address that is not a usable
+    /// email address is skipped rather than blocking the transfer.</summary>
+    private async Task QueueNoticesAsync(Guid businessId, BusinessMembership former, AppUser formerUser, BusinessMembership heir, AppUser heirUser,
+        bool formerIsManager, CancellationToken ct)
+    {
+        var businessName = await db.Businesses.Where(b => b.Id == businessId).Select(b => b.Name).FirstOrDefaultAsync(ct) ?? "";
+        var formerName = Pick(former.DisplayName, formerUser.FullName);
+        var heirName = Pick(heir.DisplayName, heirUser.FullName);
+
+        if (EmailAddressRules.TryNormalize(heirUser.Email, out var heirAddress))
+        {
+            var mail = EmailTemplates.OwnershipReceived(heirName, businessName, formerName);
+            await email.QueueAsync(new EmailRequest(heirAddress, mail.Subject, mail.Text, mail.Html, businessId, "ownership_received"), ct);
+        }
+        if (EmailAddressRules.TryNormalize(formerUser.Email, out var formerAddress))
+        {
+            var mail = EmailTemplates.OwnershipHandedOver(formerName, businessName, heirName, formerIsManager);
+            await email.QueueAsync(new EmailRequest(formerAddress, mail.Subject, mail.Text, mail.Html, businessId, "ownership_handed_over"), ct);
+        }
+    }
+
+    private static string Pick(string? preferred, string? fallback) => !string.IsNullOrWhiteSpace(preferred) ? preferred : fallback ?? "";
 }
