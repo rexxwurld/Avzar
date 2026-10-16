@@ -105,7 +105,8 @@ public class ExpensesController(IExpenseService expenses) : ControllerBase
     public async Task<PagedResult<ExpenseDto>> List([FromQuery] ExpenseListQuery query, CancellationToken ct) => await expenses.ListAsync(query, ct);
 
     [HttpGet("api/expenses/summary"), HasPermission(Permissions.ExpensesView)]
-    public async Task<ExpenseSummaryDto> Summary([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct) => await expenses.SummaryAsync(from, to, ct);
+    public async Task<ExpenseSummaryDto> Summary([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] Guid? locationId, CancellationToken ct)
+        => await expenses.SummaryAsync(from, to, ct, locationId);
 
     [HttpGet("api/expenses/{id:guid}"), HasPermission(Permissions.ExpensesView)]
     public async Task<ExpenseDto> Get(Guid id, CancellationToken ct) => await expenses.GetAsync(id, ct);
