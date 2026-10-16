@@ -58,7 +58,7 @@ Never put any of these in source control. Use environment variables or a secret 
 - The API must be reachable ONLY through the web container (it trusts X-Forwarded-For when `Proxy__TrustForwardedHeaders=true`). Do not publish port 8080.
 - Persist ASP.NET Data Protection keys (preview links) when running more than one instance or restarting: configure a key ring location (volume or database) before production.
 - Optional: Cloudflare Turnstile. Site key (`TURNSTILE_SITE_KEY`, public) + secret (`Storefront__CaptchaSecretKey`, server only).
-- Web: `cd web && npm install && npm run typecheck && npm test`.
+- Web: `cd web && npm ci && npm run typecheck && npm test`.
 
 ## 6. Known gaps in what exists now (be aware when testing)
 - The current web tree contains the PUBLIC site renderer and its supporting components. The business dashboard and visual builder/editor UI are not implemented yet (use Swagger to drive the existing builder API).
@@ -140,3 +140,10 @@ Free for for-profit companies under USD 1M annual revenue: apply at https://lice
 - The database allows at most one owner per business (partial unique index `UX_Memberships_OneOwner`). An ownership transfer saves the outgoing owner first and the new owner second, inside one transaction.
 - If the migration that adds the index fails with a duplicate-key error, some business has two owner memberships: fix that data by hand (set `IsOwner` to false on the wrong one and give them the Manager role), then restart.
 - Migration `AddOneOwnerGuardAndLocationsAllBackfill` also gave `locations.all` to the system Manager and Accountant roles of older businesses, except roles whose permissions were ever edited through the API (an audit row `role.permissions_changed` exists). Without that permission a role's holders only see their assigned locations. An owner can add or remove it per role on the roles page.
+
+## 11. Web dependencies and the lockfile (2026-10-16)
+- `web/package-lock.json` is committed. CI and `web/Dockerfile` use `npm ci`; do not switch back to `npm install`.
+- To change a web dependency: edit `web/package.json`, run the "Generate web lockfile" workflow (Actions tab). It installs the latest npm, deletes and regenerates the lockfile, and commits it to `main`. npm 10.9.x can crash on Vitest 4's optional peer dependencies (`Cannot read properties of null (reading 'edgesOut')`), which is why the workflow uses the latest npm. The committed lockfile installs fine with `npm ci` on npm 10.
+- Commits pushed by that workflow do not start CI (default `GITHUB_TOKEN`). Run the CI workflow by hand afterwards and wait for all three jobs.
+- CI runs `npm audit --audit-level=high` on the whole dependency tree and fails the `web` job on a high or critical finding. The manual "Audit report" workflow (`audit.yml`) prints the full and the runtime-only audit to the run summary.
+- `web/package.json` has `overrides: { "postcss": ">=8.5.23 <9" }` to lift the postcss bundled with `next` past a high-severity advisory. Remove it only after upgrading to a `next` release that already bundles a patched postcss, and re-run the audit.
