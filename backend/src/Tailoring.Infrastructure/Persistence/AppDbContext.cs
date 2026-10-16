@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ using Tailoring.Domain.Tenancy;
 
 namespace Tailoring.Infrastructure.Persistence;
 
-public partial class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
+public partial class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>, IDataProtectionKeyContext
 {
     private readonly ITenantContext _tenant;
 
@@ -23,6 +24,9 @@ public partial class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
 
     /// <summary>Read by the global query filters at query time (EF parameterises it per context instance).</summary>
     public Guid? CurrentBusinessId => _tenant.BusinessId;
+
+    /// <summary>ASP.NET Data Protection key ring (cookies, antiforgery, reset/verify tokens, preview links). Not tenant data.</summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     public DbSet<Business> Businesses => Set<Business>();
     public DbSet<BusinessLocation> Locations => Set<BusinessLocation>();
