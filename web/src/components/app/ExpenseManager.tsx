@@ -34,7 +34,7 @@ export function ExpenseManager({ canManage }: { canManage: boolean }) {
         api<Paged<Expense>>(`/api/expenses?page=1&pageSize=50${search.trim() ? `&search=${encodeURIComponent(search.trim().slice(0, 100))}` : ''}&includeVoid=true`),
       ]);
       setCategories(c); setExpenses(e);
-      if (!categoryId && c.length) setCategoryId(c.find((x) => x.isActive)?.id ?? c[0].id);
+      if (!categoryId && c.length) setCategoryId(c.find((x) => x.isActive)?.id ?? c[0]!.id);
     } catch (ex) { setError(messageFor(ex)); }
     finally { setBusy(false); }
   }, [search, categoryId]);
