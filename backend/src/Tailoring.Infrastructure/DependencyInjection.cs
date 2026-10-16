@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -86,7 +87,9 @@ public static class DependencyInjection
         services.AddScoped<IExpenseService, ExpenseService>();
 
         services.Configure<StorefrontOptions>(config.GetSection("Storefront"));
-        services.AddDataProtection();   // production: persist keys (see docs/RUNBOOK.md) so preview links survive restarts and work across instances
+        // The key ring lives in PostgreSQL so sessions, reset/verify links and preview links survive restarts and work across instances.
+        // Keys are stored unencrypted at rest; protect the database accordingly (add ProtectKeysWithCertificate later if required).
+        services.AddDataProtection().SetApplicationName("avzar").PersistKeysToDbContext<AppDbContext>();
         services.AddSingleton<IDnsTxtResolver, DnsClientTxtResolver>();
         services.AddHttpClient<ICaptchaVerifier, TurnstileCaptchaVerifier>(c => c.Timeout = TimeSpan.FromSeconds(8));
         services.AddScoped<IStorefrontService, StorefrontService>();
