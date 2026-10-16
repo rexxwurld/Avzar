@@ -157,6 +157,7 @@ public static class DependencyInjection
         }
         services.AddScoped<IEmailSender, Email.OutboxEmailSender>();
         services.AddScoped<Email.EmailDispatchService>();
+        services.AddScoped<Tailoring.Application.Email.IEmailWebhookService, Email.EmailWebhookService>();
         services.AddHostedService<Email.EmailDispatcherWorker>();
         return services;
     }
