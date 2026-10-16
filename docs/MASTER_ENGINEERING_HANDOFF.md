@@ -2,10 +2,18 @@
 
 Repository: `https://github.com/rexxwurld/Avzar.git` (primary branch historically `main`). The supplied archive does not contain `.git`, so its exact branch/HEAD/worktree cannot be verified from this handoff. Always inspect the actual checkout before pushing or merging. Preserve user work, never weaken tests, never expose secrets, use forward-only migrations, and do not deploy or run real email/payment flows without authorization.
 
-## CI run #238 (commit `40306ac`) — all three jobs succeeded
+## CI run #243 (commit `1409b30b6a424dac763b0a5b1fa9c9dd57a3b7da`, "Update CustomerPortalController.cs") — all three jobs succeeded (latest evidence)
+
+- **backend (2m13s):** Release build 0 warnings / 0 errors; **704 passed / 0 failed / 0 skipped**; EF model-drift gate: "Committed migrations match the model"; `backend-test-results` artifact uploaded (TRX counters agree: 704/704).
+- **web (48s):** `npm ci` + `npm audit` 0 vulnerabilities; `tsc --noEmit` clean; **Vitest 162 passed in 9 files** (links, proxy, orders, team, production, customers, problem, nav, business-schedule); `next build` compiled successfully on Next.js 15.5.28. The pasted route table was truncated after `/orders/new`, so `/tasks`, `/tasks/schedule`, `/workers/schedule`, `/storefront`, `/settings` routes were NOT seen in the output. Still-open warning: `@types/node@22.10.7` below Vite 8.3.4's peer range (needs lockfile regeneration with registry access).
+- **migrations (1m22s):** job succeeded (clean PostgreSQL service container, licence-key guard passed), but step output was collapsed: applied migration count and schema counts NOT seen.
+- Not covered by any of this: Playwright/browser E2E, Docker Compose smoke, real email/S3/ClamAV/Redis/DNS/Paystack/OpenAI/SignalR/MAUI. No web tests exist yet for storefront, finance, inventory, workers-schedule or portal helpers.
+- Whether #243's commit equals the working copy in the latest ZIP (which includes a workflow-default edit and doc edits) is unknown (no `.git` in the archive).
+
+## Previous CI run #238 (commit `40306ac`) — all three jobs succeeded
 
 backend, web and migrations all reported "succeeded" on the run page (backend 2m13s, web 50s, migrations 1m32s). The pasted logs had collapsed steps, so exact test counts, the Vitest/build summaries and the migration schema counts were NOT seen; do not quote numbers for #238. Runs #231–#237 failed on, in order: missing `using` directives, `decimal.IsFinite`, a strict-index TS error, a syntax error from a manual edit, a missing `Microsoft.AspNetCore.Authorization` using in `CustomerPortalController`, and relationship blocks placed before their principal entity in `AppDbContextModelSnapshot.cs` and three Designer files (`AddInventory`, `AddCustomerPortalGrants`, `AddSubscriptionPayments`). All were fixed; the Designer/snapshot fix only reordered model descriptions, no migration SQL changed.
-Open items: warning CS9113 (unused `tenant` parameter in `CustomerPortalController`); `@types/node` 22.10.7 is below Vite 8's optional peer range (warning only); the generate-migration workflow default name `AddLastTotpStep` already exists.
+Open items: `@types/node` 22.10.7 is below Vite 8's optional peer range (warning only; needs a lockfile regeneration with registry access). Resolved in the current archive by static inspection (not compiled): `CustomerPortalController` no longer declares the unused `tenant` parameter (CS9113), and the generate-migration workflow default name was changed from the already-existing `AddLastTotpStep` to `AddNextChange`.
 
 ## Latest supplied verification
 
