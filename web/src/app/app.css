@@ -75,3 +75,17 @@
 .ap-perms{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.75rem}
 .ap-chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.4rem}
 .ap-chips li{border:1px solid var(--ap-border);border-radius:999px;padding:.1rem .65rem;font-size:.85rem}
+
+/* ---- customers ---- */
+.ap-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:1rem}
+.ap-plain{list-style:none;margin:0;padding:0}
+.ap-pre{white-space:pre-wrap;overflow-wrap:anywhere}
+.ap-h3{margin:1rem 0 .25rem;font-size:.95rem}
+.ap-log{display:grid;gap:1rem}
+.ap-log li{border-left:3px solid var(--ap-border);padding-left:.75rem}
+.ap-input{font:inherit;color:inherit;background:var(--ap-bg);border:1px solid var(--ap-border);border-radius:8px;padding:.6rem .75rem}
+.ap-filter{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.ap-filter input.ap-input{flex:1 1 14rem}
+.ap-pager{margin-top:1rem}
+.ap-field textarea{font:inherit;color:inherit;background:var(--ap-bg);border:1px solid var(--ap-border);border-radius:8px;padding:.65rem .75rem;width:100%;resize:vertical}
+.ap-field textarea[aria-invalid]{border-color:var(--ap-danger)}
