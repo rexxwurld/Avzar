@@ -76,10 +76,11 @@ Mail is queued in the `EmailOutbox` table and delivered by a background worker i
 | `Email__FromAddress`, `Email__FromName` | Sender. Required for smtp/resend. Use a domain you have verified with the provider (SPF/DKIM) |
 | `Email__Smtp__Host`, `__Port` (587), `__UseStartTls` (true), `__Username`, `__Password` | SMTP relay. Implicit TLS (465) is not supported by this transport |
 | `Email__Resend__ApiKey`, `Email__Resend__BaseUrl` | Resend API |
+| `Email__Resend__WebhookSecret` | Resend webhook signing secret (`whsec_...`). Empty = the webhook endpoint is off (404). The app fails at startup if it is set but malformed |
 | `Email__DispatcherEnabled` | Set `false` on hosts that must not deliver |
 | `Email__MaxAttempts`, `__BatchSize`, `__PollSeconds`, `__LeaseMinutes` | Tuning |
 
-Notes: "Sent" means the provider accepted the message, not that it reached an inbox (bounce/delivery webhooks are not built). Bodies are erased from the table once a message is Sent or Failed because they can contain one-time links. A timeout can leave delivery ambiguous; Resend is protected by an idempotency key, SMTP is not, so a rare duplicate is possible. Several API replicas can run the worker safely (rows are claimed with `FOR UPDATE SKIP LOCKED`).
+Notes: "Sent" means the provider accepted the message, not that it reached an inbox. Delivery reports (delivered, delayed, bounced, complained) are recorded in `EmailOutbox.DeliveryStatus` when the Resend webhook is configured (see section below); nothing acts on a bounce yet (no suppression list). Bodies are erased from the table once a message is Sent or Failed because they can contain one-time links. A timeout can leave delivery ambiguous; Resend is protected by an idempotency key, SMTP is not, so a rare duplicate is possible. Several API replicas can run the worker safely (rows are claimed with `FOR UPDATE SKIP LOCKED`).
 
 
 ## 7. Account security and mobile sign-in (Step A, unverified)
@@ -126,3 +127,11 @@ Free for for-profit companies under USD 1M annual revenue: apply at https://lice
 - This review workspace had Node.js 22 but no .NET SDK, Docker, or PostgreSQL client. `npm install` did not complete within the available execution window. No web build or test pass is claimed here.
 - The source archive does not contain `.git`; the attempt to fetch `https://github.com/rexxwurld/Avzar.git` could not resolve `github.com`. Confirm the live `main` branch and commit ancestry in a network-enabled Git environment before applying changes.
 - `SIXLABORS_LICENSE_KEY` is consumed by the build and checked by CI. Do not print its value. Its GitHub Actions secret state cannot be established from a source archive; inspect the repository's Actions secrets settings or rely on a specific CI run's explicit license-check step.
+
+## Email delivery webhook (Resend) - code written 2026-10-16, UNVERIFIED until CI runs, never tested with real Resend
+1. In Resend, add a webhook pointing at `https://<your-api-host>/api/webhooks/email/resend` and subscribe to `email.delivered`, `email.delivery_delayed`, `email.bounced`, `email.complained`.
+2. Copy the signing secret (`whsec_...`) into `Email__Resend__WebhookSecret` (secret store, never source) and restart the API.
+3. Requests are accepted only with a valid Svix signature (HMAC-SHA256 over `id.timestamp.body`) and a timestamp within 5 minutes. Bad or missing signature: 401. No secret configured: 404. Any signed event, including unknown messages and untracked event types, gets 200 so Resend stops retrying.
+4. Reports only move a message's status up (Delayed < Delivered < Bounced/Complained); duplicates and out-of-order events are harmless. The recipient address is never stored in the report; the bounce reason is capped at 300 characters.
+5. Check: send a test email, then `select "ToAddress","Status","DeliveryStatus","DeliveryDetail" from "EmailOutbox" order by "CreatedAtUtc" desc limit 5;`
+6. Not done: acting on bounces (suppression list), Resend IP allow-listing, other providers' webhooks (SMTP has none).
