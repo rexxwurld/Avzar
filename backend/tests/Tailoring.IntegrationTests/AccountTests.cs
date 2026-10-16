@@ -11,6 +11,7 @@ using Tailoring.Application.Common;
 using Tailoring.Application.Staff;
 using Tailoring.Domain.Access;
 using Tailoring.Domain.Tenancy;
+using Tailoring.Infrastructure.Email;
 using Tailoring.Infrastructure.Persistence;
 using Tailoring.Infrastructure.Services;
 using Xunit;
@@ -639,7 +640,7 @@ public sealed class AccountTests(PostgresFixture fx) : IClassFixture<PostgresFix
     {
         var tenant = new FakeUserTenant(businessId, userId);
         var db = fx.CreateFor(tenant);
-        return new OwnershipService(db, tenant, new AuditLogger(db), h.Users);
+        return new OwnershipService(db, tenant, new AuditLogger(db), h.Users, new OutboxEmailSender(db));
     }
 
     [Fact]
@@ -663,6 +664,82 @@ public sealed class AccountTests(PostgresFixture fx) : IClassFixture<PostgresFix
         Assert.Equal(MembershipStatus.Active, oldOwner.Status);
         Assert.Equal(new[] { DefaultRoles.Manager }, oldOwner.Roles.Select(r => roleNames[r.RoleId]).ToArray());
         Assert.True(await h.Db.AuditLogs.IgnoreQueryFilters().AnyAsync(a => a.BusinessId == b.BusinessId && a.Action == "business.ownership_transferred"));
+    }
+
+    [Fact]
+    public async Task A_transfer_queues_one_notice_to_the_new_owner_and_one_to_the_former_owner()
+    {
+        await using var h = Build();
+        var b = await SeedOwnedBusinessAsync(h);
+        var heir = b.Staff[0];
+        var businessName = await h.Db.Businesses.IgnoreQueryFilters().Where(x => x.Id == b.BusinessId).Select(x => x.Name).SingleAsync();
+
+        await OwnershipFor(h, b.BusinessId, b.Owner.Id).TransferAsync(new TransferOwnershipRequest { NewOwnerMembershipId = heir.Membership, Password = Pw });
+
+        var toHeir = await h.Db.EmailOutbox.AsNoTracking().SingleAsync(m => m.ToAddress == heir.User.Email && m.TemplateKey == "ownership_received");
+        Assert.Equal((Guid?)b.BusinessId, toHeir.BusinessId);
+        Assert.Contains(businessName, toHeir.Subject);
+        Assert.Contains("Hello Staff 0,", toHeir.TextBody);
+        Assert.Contains("Owner has made you the owner", toHeir.TextBody);   // the former owner's display name is "Owner"
+        Assert.NotNull(toHeir.HtmlBody);
+
+        var toFormer = await h.Db.EmailOutbox.AsNoTracking().SingleAsync(m => m.ToAddress == b.Owner.Email && m.TemplateKey == "ownership_handed_over");
+        Assert.Equal((Guid?)b.BusinessId, toFormer.BusinessId);
+        Assert.Contains(businessName, toFormer.Subject);
+        Assert.Contains("transferred to Staff 0", toFormer.TextBody);
+        Assert.Contains("Manager role", toFormer.TextBody);
+        Assert.Contains("change your password immediately", toFormer.TextBody);
+    }
+
+    [Fact]
+    public async Task Notices_keep_a_hostile_business_name_on_one_line_and_encode_it_in_the_html()
+    {
+        await using var h = Build();
+        var b = await SeedOwnedBusinessAsync(h);
+        await h.Db.Businesses.IgnoreQueryFilters().Where(x => x.Id == b.BusinessId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Name, "Acme <b>&</b>\r\nBcc: evil@example.com"));
+
+        await OwnershipFor(h, b.BusinessId, b.Owner.Id).TransferAsync(new TransferOwnershipRequest { NewOwnerMembershipId = b.Staff[0].Membership, Password = Pw });
+
+        var rows = await h.Db.EmailOutbox.AsNoTracking().Where(m => m.BusinessId == b.BusinessId).ToListAsync();
+        Assert.Equal(2, rows.Count);
+        foreach (var row in rows)
+        {
+            Assert.DoesNotContain("\r", row.Subject);
+            Assert.DoesNotContain("\n", row.Subject);
+            Assert.Contains("Acme <b>&</b> Bcc: evil@example.com", row.TextBody);
+            Assert.Contains("Acme &lt;b&gt;&amp;&lt;/b&gt; Bcc: evil@example.com", row.HtmlBody!);
+            Assert.DoesNotContain("<b>", row.HtmlBody!);
+        }
+    }
+
+    [Fact]
+    public async Task A_refused_transfer_queues_no_notices()
+    {
+        await using var h = Build();
+        var b = await SeedOwnedBusinessAsync(h);
+        await Assert.ThrowsAsync<AppException>(() => OwnershipFor(h, b.BusinessId, b.Owner.Id)
+            .TransferAsync(new TransferOwnershipRequest { NewOwnerMembershipId = b.Staff[0].Membership, Password = "not-the-password" }));
+
+        Assert.False(await h.Db.EmailOutbox.AnyAsync(m => m.BusinessId == b.BusinessId));
+    }
+
+    [Fact]
+    public async Task An_unusable_address_does_not_block_the_transfer_or_the_other_notice()
+    {
+        await using var h = Build();
+        var b = await SeedOwnedBusinessAsync(h);
+        var heir = b.Staff[0];
+        await h.Db.Users.Where(u => u.Id == heir.User.Id).ExecuteUpdateAsync(s => s.SetProperty(u => u.Email, "not an address"));
+
+        await OwnershipFor(h, b.BusinessId, b.Owner.Id).TransferAsync(new TransferOwnershipRequest { NewOwnerMembershipId = heir.Membership, Password = Pw });
+
+        h.Db.ChangeTracker.Clear();
+        Assert.True((await h.Db.Memberships.IgnoreQueryFilters().SingleAsync(m => m.Id == heir.Membership)).IsOwner);
+        var rows = await h.Db.EmailOutbox.AsNoTracking().Where(m => m.BusinessId == b.BusinessId).ToListAsync();
+        var only = Assert.Single(rows);
+        Assert.Equal("ownership_handed_over", only.TemplateKey);
+        Assert.Equal(b.Owner.Email, only.ToAddress);
     }
 
     [Fact]
