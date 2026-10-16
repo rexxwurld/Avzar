@@ -72,6 +72,11 @@ public partial class AppDbContext : IdentityDbContext<AppUser, IdentityRole<Guid
             e.Property(x => x.Name).HasMaxLength(120).IsRequired();
             e.Property(x => x.TimeZoneId).HasMaxLength(64).IsRequired();
             e.Property(x => x.CurrencyCode).HasMaxLength(3).IsRequired();
+            e.Property(x => x.BrandColor).HasMaxLength(7);
+            e.Property(x => x.ContactPhone).HasMaxLength(40);
+            e.Property(x => x.ContactEmail).HasMaxLength(254);
+            e.Property(x => x.TaxNumber).HasMaxLength(60);
+            e.Property(x => x.PdfFooterNote).HasMaxLength(300);
             e.Property(x => x.Version).IsRowVersion(); // xmin
             e.HasQueryFilter(x => x.Id == CurrentBusinessId);
         });
