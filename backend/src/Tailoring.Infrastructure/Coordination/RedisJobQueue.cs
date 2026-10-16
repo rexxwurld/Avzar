@@ -67,7 +67,7 @@ public sealed class RedisJobWorker(
                 var pending = await db.StreamPendingMessagesAsync(RedisJobQueue.Stream, Group, 20, RedisValue.Null, minId: "-", maxId: "+");
                 foreach (var p in pending.Where(p => p.IdleTimeInMilliseconds >= ClaimAfter.TotalMilliseconds))
                 {
-                    var claimed = await db.StreamClaimAsync(RedisJobQueue.Stream, Group, _consumer, ClaimAfter, [p.MessageId]);
+                    var claimed = await db.StreamClaimAsync(RedisJobQueue.Stream, Group, _consumer, (long)ClaimAfter.TotalMilliseconds, [p.MessageId]);
                     await ProcessAsync(db, claimed, stoppingToken);
                 }
 
