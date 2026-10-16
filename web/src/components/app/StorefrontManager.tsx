@@ -142,7 +142,7 @@ export function StorefrontManager({ initialSites, catalog, canEdit, canPublish, 
     const page: PageDoc = { id, kind: 'custom', slug: `page-${id.slice(0, 8)}`, title: 'New page', visible: true, seo: { title: '', description: '' }, sections: [{ id: crypto.randomUUID(), type: preset.sectionType, variant: preset.variant, visible: true, props: (structuredClone(preset.props ?? {}) as Record<string, unknown>), style: (structuredClone(preset.style ?? { align: 'left', spacing: 'comfortable' }) as Record<string, unknown>) }] };
     updateDocument((doc) => ({ ...doc, pages: [...doc.pages, page], navigation: [...doc.navigation, { label: page.title, pageId: id, visible: true }] }));
     const index = document.pages.length;
-    setPageIndex(index); setSectionIndex(0); setPropsText(JSON.stringify(page.sections[0].props, null, 2)); setStyleText(JSON.stringify(page.sections[0].style ?? {}, null, 2));
+    setPageIndex(index); setSectionIndex(0); setPropsText(JSON.stringify(page.sections[0]?.props ?? {}, null, 2)); setStyleText(JSON.stringify(page.sections[0]?.style ?? {}, null, 2));
     setMessage('Custom page added locally. Save draft to persist it.'); setError('');
   }
   function removeCustomPage() {
