@@ -1,6 +1,6 @@
 # Avzar: first run, test and credentials
 
-Status (2026-10-15): the supplied backend TRX artifact reports 478/478 tests passed, and a generated EF migration artifact is available. These artifacts were not rerun in this workspace; see `PROGRESS.md` for exact evidence and limitations. Do not treat this as a current live-branch or deployment verification.
+Status (2026-10-16): the supplied backend TRX (CI run #115) reports 560/560 tests passed, and the CI `migrations` job applied the three committed migrations to a clean PostgreSQL 17 (65 tables, 33 check constraints, 112 foreign keys, 6 partial indexes). Not rerun in this workspace; see `PROGRESS.md` for evidence and limits. Not a deployment verification (compose and full-stack smoke test are still unrun).
 
 ## 1. Prerequisites
 - .NET 10 SDK (`backend/global.json` pins 10.0.100) and `dotnet tool install -g dotnet-ef`
