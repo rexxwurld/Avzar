@@ -2,6 +2,11 @@
 
 Repository: `https://github.com/rexxwurld/Avzar.git` (primary branch historically `main`). The supplied archive does not contain `.git`, so its exact branch/HEAD/worktree cannot be verified from this handoff. Always inspect the actual checkout before pushing or merging. Preserve user work, never weaken tests, never expose secrets, use forward-only migrations, and do not deploy or run real email/payment flows without authorization.
 
+## CI run #238 (commit `40306ac`) — all three jobs succeeded
+
+backend, web and migrations all reported "succeeded" on the run page (backend 2m13s, web 50s, migrations 1m32s). The pasted logs had collapsed steps, so exact test counts, the Vitest/build summaries and the migration schema counts were NOT seen; do not quote numbers for #238. Runs #231–#237 failed on, in order: missing `using` directives, `decimal.IsFinite`, a strict-index TS error, a syntax error from a manual edit, a missing `Microsoft.AspNetCore.Authorization` using in `CustomerPortalController`, and relationship blocks placed before their principal entity in `AppDbContextModelSnapshot.cs` and three Designer files (`AddInventory`, `AddCustomerPortalGrants`, `AddSubscriptionPayments`). All were fixed; the Designer/snapshot fix only reordered model descriptions, no migration SQL changed.
+Open items: warning CS9113 (unused `tenant` parameter in `CustomerPortalController`); `@types/node` 22.10.7 is below Vite 8's optional peer range (warning only); the generate-migration workflow default name `AddLastTotpStep` already exists.
+
 ## Latest supplied verification
 
 CI run #230, commit `c349faf9023a9a0c1c6d5e7ddb5950c76016953c`:
