@@ -24,12 +24,15 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     private int _ip;
 
     public const string DefaultPassword = "Str0ng-Passw0rd!";
+    /// <summary>Test-only Svix signing secret: "whsec_" + base64("avzar-webhook-test-key-0123456789").</summary>
+    public const string WebhookSecret = "whsec_YXZ6YXItd2ViaG9vay10ZXN0LWtleS0wMTIzNDU2Nzg5";
 
     async Task IAsyncLifetime.InitializeAsync()
     {
         await _pg.StartAsync();
         Set("ConnectionStrings__Default", _pg.GetConnectionString());
         Set("Auth__JwtSigningKey", "avzar-test-signing-key-0123456789-abcdef"); // 32+ chars turns the bearer scheme on
+        Set("Email__Resend__WebhookSecret", WebhookSecret);                    // turns the email webhook endpoint on
         Set("Proxy__TrustForwardedHeaders", "true");                           // lets each test client present its own address to the rate limiter
         try { _ = Services; }                                                    // build and start the host now, while the variables are set
         finally { foreach (var (k, v) in _saved) Environment.SetEnvironmentVariable(k, v); }
