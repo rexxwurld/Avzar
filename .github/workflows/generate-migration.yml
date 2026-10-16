@@ -5,7 +5,7 @@ on:
     inputs:
       migration_name:
         description: "Name of the forward migration to add when migrations already exist (letters and digits only)"
-        default: "AddLastTotpStep"
+        default: "AddNextChange"
 
 permissions:
   contents: write
