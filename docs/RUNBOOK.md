@@ -80,7 +80,7 @@ Mail is queued in the `EmailOutbox` table and delivered by a background worker i
 | `Email__DispatcherEnabled` | Set `false` on hosts that must not deliver |
 | `Email__MaxAttempts`, `__BatchSize`, `__PollSeconds`, `__LeaseMinutes` | Tuning |
 
-Notes: "Sent" means the provider accepted the message, not that it reached an inbox. Delivery reports (delivered, delayed, bounced, complained) are recorded in `EmailOutbox.DeliveryStatus` when the Resend webhook is configured (see section below); nothing acts on a bounce yet (no suppression list). Bodies are erased from the table once a message is Sent or Failed because they can contain one-time links. A timeout can leave delivery ambiguous; Resend is protected by an idempotency key, SMTP is not, so a rare duplicate is possible. Several API replicas can run the worker safely (rows are claimed with `FOR UPDATE SKIP LOCKED`).
+Notes: "Sent" means the provider accepted the message, not that it reached an inbox. Delivery reports (delivered, delayed, bounced, complained) are recorded in `EmailOutbox.DeliveryStatus` when the Resend webhook is configured (see section below); a permanent bounce or a spam complaint adds the recipient to `EmailSuppressions` and the dispatcher then refuses to send to that address (message goes to Failed, body purged); transient and undetermined bounces never suppress. Bodies are erased from the table once a message is Sent or Failed because they can contain one-time links. A timeout can leave delivery ambiguous; Resend is protected by an idempotency key, SMTP is not, so a rare duplicate is possible. Several API replicas can run the worker safely (rows are claimed with `FOR UPDATE SKIP LOCKED`).
 
 
 ## 7. Account security and mobile sign-in (Step A, unverified)
@@ -134,4 +134,4 @@ Free for for-profit companies under USD 1M annual revenue: apply at https://lice
 3. Requests are accepted only with a valid Svix signature (HMAC-SHA256 over `id.timestamp.body`) and a timestamp within 5 minutes. Bad or missing signature: 401. No secret configured: 404. Any signed event, including unknown messages and untracked event types, gets 200 so Resend stops retrying.
 4. Reports only move a message's status up (Delayed < Delivered < Bounced/Complained); duplicates and out-of-order events are harmless. The recipient address is never stored in the report; the bounce reason is capped at 300 characters.
 5. Check: send a test email, then `select "ToAddress","Status","DeliveryStatus","DeliveryDetail" from "EmailOutbox" order by "CreatedAtUtc" desc limit 5;`
-6. Not done: acting on bounces (suppression list), Resend IP allow-listing, other providers' webhooks (SMTP has none).
+6. Suppression: the address is copied inside the database from the outbox row, never from the payload. To lift a suppression, delete the row from `EmailSuppressions` (no admin UI yet). Not done: Resend IP allow-listing, other providers' webhooks (SMTP has none).
