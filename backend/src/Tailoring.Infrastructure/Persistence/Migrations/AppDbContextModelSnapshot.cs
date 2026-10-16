@@ -1263,6 +1263,36 @@ namespace Tailoring.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Tailoring.Domain.Email.EmailSuppression", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Address")
+                        .IsUnique();
+
+                    b.ToTable("EmailSuppressions");
+                });
+
             modelBuilder.Entity("Tailoring.Domain.Finance.CreditNote", b =>
                 {
                     b.Property<Guid>("Id")
