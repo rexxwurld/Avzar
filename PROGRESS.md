@@ -294,3 +294,13 @@ Environment: no .NET SDK, Docker, `.git` or npm network access, so **no build, t
 - No new entitlement: branding is available on every plan (a deliberate choice; adding a gate needs a catalogue entry, all four plans, enforcement and tests).
 - Not covered by tests: `PdfService` end to end with a real stored logo (needs the media pipeline and storage); the renderer is tested with a PNG logo, and the service validation, isolation and clearing are tested. Check a real invoice PDF by eye after deploy.
 - Still to do in Step A: email provider webhooks, remaining CSV import/export, Redis queues and SignalR backplane, background-job recovery, `WebApplicationFactory` authorization tests.
+
+## CI run #111 (2026-10-16): green after the `ContrastOnWhite` visibility fix
+- Run #111 (commit 9ee7823) succeeded: backend, migrations and web jobs. The earlier failure (#110) was `BrandingService.ContrastOnWhite` being `internal` while `PdfBrandingTests` called it; it is now `public static`.
+- Per-test results were not inspected here, so the task-location-scope and PDF-branding tests are "passed in a green run", not individually reviewed.
+
+## Step A: `WebApplicationFactory` authorization tests (code written 2026-10-16; UNVERIFIED until CI runs)
+- New: `ApiFactory.cs` (real API on a Testcontainers PostgreSQL; Development environment so the cookie works over HTTP and real migrations run; env vars set only while the host starts) and `ApiAuthorizationTests.cs`. Added `Microsoft.AspNetCore.Mvc.Testing` 10.0.0 and a project reference to `Tailoring.Api`.
+- Tests: `ILocationScope` is registered; every controller endpoint has `[Authorize]`/`[HasPermission]`/`[AllowAnonymous]` or is on an explicit allow-list of 10 open auth endpoints (a new unprotected endpoint fails the test); every protected endpoint returns 401 anonymously; cookie writes need the CSRF token (missing and wrong token -> 400 `invalid_csrf`); bearer writes are exempt; a bad bearer never falls back to the cookie; another business gets 404 for a customer; a member without the permission gets 403; a deactivated member is refused on the next request.
+- Not covered: behavioural location scoping through HTTP (a restricted member seeing only their location's orders/invoices/tasks); that is covered at service level only.
+- Still to do in Step A: email provider webhooks, remaining CSV import/export, Redis queues and SignalR backplane, background-job recovery.
