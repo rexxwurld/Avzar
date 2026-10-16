@@ -166,7 +166,7 @@ public sealed record UpsertExpenseCategoryRequest
 }
 
 public sealed record ExpenseDto(Guid Id, Guid CategoryId, string CategoryName, DateOnly ExpenseDate, decimal Amount, string CurrencyCode,
-    string Description, string? Vendor, string? Reference, bool IsVoid, string? VoidReason, uint Version, DateTime CreatedAtUtc);
+    string Description, string? Vendor, string? Reference, bool IsVoid, string? VoidReason, uint Version, DateTime CreatedAtUtc, Guid? LocationId = null);
 
 public sealed record UpsertExpenseRequest
 {
@@ -176,6 +176,8 @@ public sealed record UpsertExpenseRequest
     [Required, StringLength(300, MinimumLength = 2)] public string Description { get; init; } = "";
     [StringLength(120)] public string? Vendor { get; init; }
     [StringLength(100)] public string? Reference { get; init; }
+    /// <summary>Where the money was spent. Staff limited to some locations must set one of theirs. On update, omitting it keeps the current location.</summary>
+    public Guid? LocationId { get; init; }
     /// <summary>Required on update.</summary>
     public uint? Version { get; init; }
 }
@@ -185,6 +187,7 @@ public sealed record VoidExpenseRequest { [Required, StringLength(500, MinimumLe
 public sealed record ExpenseListQuery : PagedQuery
 {
     public Guid? CategoryId { get; init; }
+    public Guid? LocationId { get; init; }
     public DateOnly? From { get; init; }
     public DateOnly? To { get; init; }
     public string? Search { get; init; }
@@ -205,5 +208,5 @@ public interface IExpenseService
     Task<ExpenseDto> UpdateAsync(Guid id, UpsertExpenseRequest request, CancellationToken ct = default);
     Task<ExpenseDto> VoidAsync(Guid id, VoidExpenseRequest request, CancellationToken ct = default);
     /// <summary>Money out only. Not profit: revenue, receivables and profit are separate reports (Phase 5).</summary>
-    Task<ExpenseSummaryDto> SummaryAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default);
+    Task<ExpenseSummaryDto> SummaryAsync(DateOnly? from, DateOnly? to, CancellationToken ct = default, Guid? locationId = null);
 }
