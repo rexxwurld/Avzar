@@ -271,10 +271,26 @@ Environment: no .NET SDK, Docker, `.git` or npm network access, so **no build, t
 - Next (Step A remaining): scope invoices, payments, receipts, credit notes and tasks by location (via the order's location); email provider webhooks; PDF branding; `WebApplicationFactory` authorization tests.
 
 
-## Step A: location scoping extended to finance (code written 2026-10-15; UNVERIFIED: not compiled or run, no .NET SDK in the authoring environment; CI is the first check)
+## Step A: location scoping extended to finance (VERIFIED by CI 2026-10-15: 536 of 536 tests passed, including the 9 in `FinanceLocationScopeTests`; the code was first written without an SDK and three test-setup mistakes were fixed along the way)
 - [x] Invoices follow the location of the order they were billed from; payments, receipts and credit notes follow their invoice. A caller restricted to some locations (not the owner, no `locations.all`) sees only those. A hidden record returns the same 404 as a missing one (`invoice_not_found`, `payment_not_found`, `receipt_not_found`, `order_not_found`), including on idempotent replays and races.
 - [x] Applied in `InvoiceService` (list, get, update/delete draft, issue, void, credit note, create-from-order, replay), `PaymentService` (record, verify, reject, reverse, list, get, receipts) and the global search invoice hits. PDFs go through these services, so they are covered. Shared helper: `FinanceScope` in `FinanceSupport.cs`.
 - Rule for invoices with no order (standalone): visible only to unrestricted callers, and scoped staff get 403 `location_forbidden` if they try to create one (fail closed). Decide with the owner whether standalone invoices should get their own location later.
 - Same optional-constructor pattern as orders (`ILocationScope? locations = null`): if the scope service were ever unregistered, scoping would silently switch off. The planned `WebApplicationFactory` tests should assert the registration.
-- Tests: `FinanceLocationScopeTests.cs` (written, never run): own-location visibility, 404 for hidden, standalone rule, void/bill hidden, replay, payments, receipts, search, owner and `locations.all`, member with no locations.
+- Tests: `FinanceLocationScopeTests.cs` (all passing in CI): own-location visibility, 404 for hidden, standalone rule, void/bill hidden, replay, payments, receipts, search, owner and `locations.all`, member with no locations.
 - Still NOT scoped: production tasks (`TaskService`, `MyTaskService`), expenses (no location column), reports. Tasks are next.
+
+## Step A: location scoping extended to production tasks (code written 2026-10-15; UNVERIFIED until CI runs)
+- A task follows the location of its order. `TaskService` (list, get, create, update, assign, unblock, cancel, override, generate-for-order, request-alterations) now hides tasks and orders at locations the caller may not see; a hidden task is a 404 `task_not_found` (a hidden order is `order_not_found`, a garment at a hidden location is `garment_not_found`). Filtering the list by a hidden order id returns an empty page, not an error.
+- Deliberately NOT scoped: `MyTaskService` (a worker's own assigned tasks: being assigned the work is what authorises it) and the worker workload counts in `WorkerService`. Revisit if the owner wants workers restricted to their location's tasks.
+- Same optional-constructor pattern (`ILocationScope? locations = null`); the planned `WebApplicationFactory` tests must assert the scope service is registered.
+- Tests: `TaskLocationScopeTests.cs` (written, never run).
+- Location scoping remaining: expenses (no location column) and reports.
+
+## Step A: PDF branding (code written 2026-10-16; UNVERIFIED until CI runs)
+- Each business can set an accent colour, a logo, a contact line (phone, email, tax number) and a footer note. All PDFs (invoice, receipt, credit note, quotation, measurement sheet, job sheet) draw them. An unbranded business keeps the previous neutral look (navy `#1F3A5F`).
+- API: `GET`/`PUT /api/business/branding` (permission `business.settings`). PUT replaces everything; blank or null clears a field. The logo is a `MediaAsset` already uploaded via `/api/media` (purpose `SiteImage`); another business's image is a 404 `media_not_found`.
+- Safeguards: colour must be `#RRGGBB` and have at least 3:1 contrast on white (`invalid_brand_color`, `brand_color_too_light`); text fields are single-line, control characters stripped, length-capped; nothing is saved if any field is invalid; the audit entry records field names only. The logo is resized to fit 240x80 and re-encoded to PNG for the PDF. If the logo is deleted or unreadable the document still renders, without a logo. No user-supplied HTML or fonts.
+- Schema: six nullable columns on `Businesses` (`BrandColor`, `LogoMediaId`, `ContactPhone`, `ContactEmail`, `TaxNumber`, `PdfFooterNote`). Migration `20261016120000_AddPdfBranding` and the snapshot are HAND-WRITTEN (no SDK here). The `migrations` job and the drift gate in `ci.yml` are the check. If they complain, read the `pending-migration` artifact; do not run "Generate initial migration" with the same name.
+- No new entitlement: branding is available on every plan (a deliberate choice; adding a gate needs a catalogue entry, all four plans, enforcement and tests).
+- Not covered by tests: `PdfService` end to end with a real stored logo (needs the media pipeline and storage); the renderer is tested with a PNG logo, and the service validation, isolation and clearing are tested. Check a real invoice PDF by eye after deploy.
+- Still to do in Step A: email provider webhooks, remaining CSV import/export, Redis queues and SignalR backplane, background-job recovery, `WebApplicationFactory` authorization tests.
