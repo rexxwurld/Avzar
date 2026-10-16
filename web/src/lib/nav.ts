@@ -16,7 +16,7 @@ export const NAV: NavItem[] = [
   { href: '/tasks', label: 'Production', anyOf: ['tasks.view', 'tasks.work'], ready: false },
   { href: '/finance', label: 'Finance', anyOf: ['invoices.view', 'payments.view', 'expenses.view'], ready: false },
   { href: '/storefront', label: 'Storefront', anyOf: ['storefront.view'], ready: false },
-  { href: '/staff', label: 'Staff & roles', anyOf: ['staff.view', 'roles.manage'], ready: false },
+  { href: '/staff', label: 'Staff & roles', anyOf: ['staff.view'], ready: true },
   { href: '/settings', label: 'Settings', anyOf: ['business.settings'], ready: false },
 ];
 
