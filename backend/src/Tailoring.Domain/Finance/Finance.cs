@@ -133,6 +133,8 @@ public class Expense : Entity, ITenantScoped
 {
     public Guid BusinessId { get; set; }
     public Guid CategoryId { get; set; }
+    /// <summary>The location the money was spent for. null = business-wide: visible only to callers who see every location.</summary>
+    public Guid? LocationId { get; set; }
     public DateOnly ExpenseDate { get; set; }
     public decimal Amount { get; set; }
     public string CurrencyCode { get; set; } = "";
