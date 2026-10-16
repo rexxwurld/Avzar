@@ -57,15 +57,18 @@ public sealed class OwnershipService(AppDbContext db, ITenantContext tenant, IAu
             ?? throw new InvalidOperationException("The Owner role is missing for this business.");
         var managerRole = systemRoles.SingleOrDefault(r => r.Name == DefaultRoles.Manager);
 
-        target.IsOwner = true;
-        if (target.Roles.All(r => r.RoleId != ownerRole.Id))
-            db.MembershipRoles.Add(new MembershipRole { BusinessId = businessId, MembershipId = target.Id, RoleId = ownerRole.Id });
-
+        // The database allows one owner per business (UX_Memberships_OneOwner) and checks it statement by statement, so the outgoing
+        // owner is saved first. Both saves are inside the same transaction: nobody else ever sees a business without an owner.
         // The previous owner keeps working as a Manager (everything except business settings and role editing).
         current.IsOwner = false;
         db.MembershipRoles.RemoveRange(current.Roles.Where(r => r.RoleId == ownerRole.Id).ToList());
         if (managerRole is not null && current.Roles.All(r => r.RoleId != managerRole.Id))
             db.MembershipRoles.Add(new MembershipRole { BusinessId = businessId, MembershipId = current.Id, RoleId = managerRole.Id });
+        await db.SaveChangesAsync(ct);
+
+        target.IsOwner = true;
+        if (target.Roles.All(r => r.RoleId != ownerRole.Id))
+            db.MembershipRoles.Add(new MembershipRole { BusinessId = businessId, MembershipId = target.Id, RoleId = ownerRole.Id });
 
         audit.Record(businessId, actorId, "business.ownership_transferred", nameof(BusinessMembership), target.Id,
             new { fromMembershipId = current.Id, toMembershipId = target.Id });
