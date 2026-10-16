@@ -730,7 +730,11 @@ public sealed class AccountTests(PostgresFixture fx) : IClassFixture<PostgresFix
         await using var h = Build();
         var b = await SeedOwnedBusinessAsync(h);
         var heir = b.Staff[0];
+
+
+
         await h.Db.Users.Where(u => u.Id == heir.User.Id).ExecuteUpdateAsync(s => s.SetProperty(u => u.Email, "not an address"));
+        h.Db.ChangeTracker.Clear();   // add this line
 
         await OwnershipFor(h, b.BusinessId, b.Owner.Id).TransferAsync(new TransferOwnershipRequest { NewOwnerMembershipId = heir.Membership, Password = Pw });
 
