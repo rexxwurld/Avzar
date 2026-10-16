@@ -6,6 +6,7 @@ namespace Tailoring.Infrastructure.Persistence;
 public partial class AppDbContext
 {
     public DbSet<EmailOutboxMessage> EmailOutbox => Set<EmailOutboxMessage>();
+    public DbSet<EmailSuppression> EmailSuppressions => Set<EmailSuppression>();
 
     private static void ConfigureEmail(ModelBuilder b)
     {
@@ -25,6 +26,14 @@ public partial class AppDbContext
             // The dispatcher only ever scans Pending rows that are due.
             e.HasIndex(x => x.NextAttemptUtc).HasFilter("\"Status\" = 'Pending'");
             e.HasIndex(x => x.BusinessId);
+        });
+
+        b.Entity<EmailSuppression>(e =>
+        {
+            e.ToTable("EmailSuppressions");
+            e.Property(x => x.Address).HasMaxLength(254).IsRequired();
+            e.Property(x => x.Reason).HasMaxLength(20).IsRequired();
+            e.HasIndex(x => x.Address).IsUnique();
         });
     }
 }
