@@ -3,58 +3,48 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: tailoring
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: avzar_node_dev
+      POSTGRES_USER: ${POSTGRES_USER:-avzar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_locally}
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d tailoring"]
-      interval: 5s
-      retries: 10
-
-  redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
-    ports: ["6379:6379"]
-    volumes: [redisdata:/data]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-avzar} -d avzar_node_dev"]
       interval: 5s
       retries: 10
 
   api:
-    build: ./backend
+    build: ./backend-node
+    command: npm run dev
     depends_on:
       postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
     environment:
-      Database__MigrateOnStartup: "true"
-      ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=tailoring;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
-      Redis__ConnectionString: redis:6379,abortConnect=false
-      App__WebBaseUrl: ${WEB_BASE_URL}
-      Billing__SeedPlansOnStartup: "true"   # inserts missing plans only; requires migrations to have been applied
-      Storage__LocalRoot: /data/media
-      Storefront__BaseDomain: ${BASE_DOMAIN:-localhost}
-      Proxy__TrustForwardedHeaders: "true"   # ONLY safe because the api is reached through the web container; do not publish port 8080 publicly
-    volumes: [mediadata:/data/media]
-    ports: ["8080:8080"]
+      NODE_ENV: development
+      PORT: 8081
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-avzar}:${POSTGRES_PASSWORD:-change_me_locally}@postgres:5432/avzar_node_dev
+      DATABASE_POOL_MAX: 10
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:-}
+      JWT_ISSUER: ${JWT_ISSUER:-avzar-api}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-avzar-mobile}
+      ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-10}
+      REFRESH_IDLE_DAYS: ${REFRESH_IDLE_DAYS:-30}
+      REFRESH_ABSOLUTE_DAYS: ${REFRESH_ABSOLUTE_DAYS:-90}
+      REQUIRE_VERIFIED_EMAIL: ${REQUIRE_VERIFIED_EMAIL:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports: ["8081:8081"]
 
   web:
     build:
       context: ./web
       args:
-        NEXT_PUBLIC_API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8080}
+        NEXT_PUBLIC_API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8081}
         NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
     depends_on: [api]
     environment:
-      API_URL: http://api:8080
+      API_URL: http://api:8081
       BASE_DOMAIN: ${BASE_DOMAIN:-localhost}
-      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}   # true only behind a reverse proxy you control that sets X-Forwarded-For
     ports: ["3000:3000"]
 
 volumes:
   pgdata:
-  mediadata:
-  redisdata:

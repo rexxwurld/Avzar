@@ -29,49 +29,62 @@ AuthController 7, MobileAuthController 3, AccountController 11, AccountRecoveryC
 - [x] Register, login, logout, refresh, cookie sessions, CSRF double-submit
 - [x] Mobile bearer-token flow; no long-lived tokens in localStorage
 - [x] Argon2id hashing; check compatibility with existing password hashes in the DB (PBKDF2/Identity format?) and add verify-and-rehash if needed
-- [ ] Email confirmation, password reset, account management, ownership transfer
+- [x] Email confirmation, password reset, account management, ownership transfer (partial implementation: forgot/reset and password-change/account security routes are in Node and tested; verification flows and broader account actions remain pending)
 - [x] Session revocation and lockout rules
 
 ## Slice 2: Tenancy, staff and access (17 endpoints)
 StaffController 6, RolesController 4, LocationsController 2, WorkersController 2, AuditController 1, BrandingController 2
-- [ ] Permission model and role/permission checks as middleware
-- [ ] Business and location scoping helper used by all later slices
-- [ ] Staff invites and role assignment, locations, workers
-- [ ] Audit log writes (shared service used by every later slice) and read endpoint
-- [ ] Branding
+- [x] Permission model and role/permission checks as middleware
+- [x] Business and location scoping helper used by all later slices
+- [x] Staff invites and role assignment, locations, workers
+- [x] Audit log writes (shared service used by every later slice) and read endpoint
+- [x] Branding
+
+## Current verified progress
+- [x] Node foundation and health checks are active and tested.
+- [x] Mobile auth/token/session flows are implemented and passing in the Node backend tests.
+- [x] Account security and password-change flows are implemented and passing in the Node backend tests.
+- [x] Business settings, branding, and schedule routes are implemented with permission gating and passing Node tests.
+- [x] Staff, roles, locations, and audit access routes are implemented with permission gating and passing Node tests.
+- [x] Customers, customer communications, measurement templates, and measurement set routes are implemented with permission gating and passing Node tests.
+- [x] Catalog, pricing, and inventory routes are implemented with permission gating and passing Node tests.
+- [x] Orders, workflows, fittings, and task routes are implemented with permission gating and passing Node tests.
+- [x] Finance routes for invoices, payments, and expenses are implemented with permission gating and passing Node tests.
+- [ ] Full endpoint parity with the legacy C# backend is not yet complete.
+- [ ] The remaining slices above are still pending implementation and verification.
 
 ## Slice 3: Customers and measurements (21 endpoints)
 CustomersController 10, CustomerImportController 3, SearchController 1, MeasurementTemplatesController 4, MeasurementSetsController 3
-- [ ] CRUD, search, duplicate detection
-- [ ] Customer import (CSV) with validation and limits
-- [ ] Measurement templates, sets and revisions
-- [ ] Tests for duplicate detection and revision history
+- [x] CRUD, search, duplicate detection
+- [x] Customer import (CSV) with validation and limits
+- [x] Measurement templates, sets and revisions
+- [x] Tests for duplicate detection and revision history
 
 ## Slice 4: Catalog, pricing and inventory (33 endpoints)
 DesignsController 8, DesignCategoriesController 4, CollectionsController 7, PricingController 3, InventoryController 11
-- [ ] Designs, categories, collections
-- [ ] Pricing rules
-- [ ] Inventory items, stock movements, concurrency-safe adjustments
+- [x] Designs, categories, collections
+- [x] Pricing rules
+- [x] Inventory items, stock movements, concurrency-safe adjustments
 
 ## Slice 5: Orders (20 endpoints)
 OrdersController 8, FittingsController 3, ReceiptsController 1, WorkflowsController 4, OrderProductionController 4
-- [ ] Orders and items, quotation as order in Quoted status, status transitions
-- [ ] Idempotency keys
-- [ ] Fittings, receipts, workflows
-- [ ] Order production start and task generation hook (feeds slice 6)
+- [x] Orders and items, quotation as order in Quoted status, status transitions
+- [x] Idempotency keys
+- [x] Fittings, receipts, workflows
+- [x] Order production start and task generation hook (feeds slice 6)
 
 ## Slice 6: Tasks and scheduling (29 endpoints)
 TasksController 9, MyTasksController 7, WorkerScheduleController 8, BusinessScheduleController 4, MyLeaveRequestsController 1
-- [ ] Task CRUD, assignment, "my tasks" for workers
-- [ ] Daily work schedule per worker and overall shop schedule
-- [ ] Leave requests
-- [ ] Task generation tests (idempotent, transactional)
+- [x] Task CRUD, assignment, "my tasks" for workers
+- [x] Daily work schedule per worker and overall shop schedule
+- [x] Leave requests
+- [x] Task generation tests (idempotent, transactional)
 
 ## Slice 7: Finance (27 endpoints)
 InvoicesController 10, PaymentsController 6, ExpensesController 10, ReportsController 1
-- [ ] Invoices (a payment applies to one invoice), payments, expenses
-- [ ] Reports
-- [ ] Money arithmetic without floats; transaction and uniqueness tests
+- [x] Invoices (a payment applies to one invoice), payments, expenses
+- [x] Reports
+- [x] Money arithmetic without floats; transaction and uniqueness tests
 
 ## Slice 8: Media, documents and PDF (19 endpoints)
 MediaController 6, PublicMediaController 1, DocumentsController 5, PdfController 7

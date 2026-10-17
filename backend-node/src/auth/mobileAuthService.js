@@ -11,7 +11,8 @@ const OWNER_PERMISSIONS = [
   'invoices.manage', 'payments.view', 'payments.record', 'payments.verify', 'expenses.view', 'expenses.manage',
   'inventory.view', 'inventory.manage', 'reports.view', 'storefront.view', 'storefront.edit', 'storefront.publish',
   'inquiries.view', 'inquiries.manage', 'pricing.view', 'pricing.manage', 'media.view', 'media.manage',
-  'documents.view', 'documents.manage',
+  'documents.view', 'documents.manage', 'pdf.view', 'pdf.generate',
+  'plans.view', 'plans.manage', 'billing.view', 'billing.manage', 'ai.view', 'ai.use',
 ];
 
 const invalidCredentials = () => AppError.unauthorized('invalid_credentials', 'Email or password is incorrect.');
