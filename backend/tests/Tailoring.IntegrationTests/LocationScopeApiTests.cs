@@ -107,13 +107,7 @@ public sealed class LocationScopeApiTests(ApiFactory factory)
         var w = await SeedWorldAsync();
         var manager = await MemberAsync(w, [w.LocA]);
         Guid targetId;
-        await using (var db = factory.Create(w.Owner.BusinessId))
-        {
-            var target = new Tailoring.Domain.Customers.Customer { BusinessId = w.Owner.BusinessId, FullName = "Merge target" };
-            db.Customers.Add(target);
-            await db.SaveChangesAsync();
-            targetId = target.Id;
-        }
+        targetId = await factory.SeedCustomerAsync(w.Owner.BusinessId, "Merge target");
 
         var response = await SendAsync(manager.Http, HttpMethod.Post, $"/api/customers/{w.CustomerId}/merge-into/{targetId}", csrf: manager.Csrf);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
