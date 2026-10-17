@@ -38,7 +38,7 @@ describe('account routes', () => {
     const { token } = issueAccessToken({ jwtSigningKey: env.JWT_SIGNING_KEY, jwtIssuer: env.JWT_ISSUER, jwtAudience: env.JWT_AUDIENCE, accessTokenMinutes: env.ACCESS_TOKEN_MINUTES }, identity);
     const pool = {
       query: async (sql, values) => {
-        if (sql.includes('FROM "AspNetUsers" u\n      WHERE u."Id" = $1')) return { rows: [{ EmailConfirmed: true, TwoFactorEnabled: false, ActiveSessions: 1 }] };
+        if (sql.includes('FROM "AspNetUsers" WHERE "Id" = $1')) return { rows: [{ Id: identity.userId, Email: 'owner@example.test', FullName: 'Owner', EmailConfirmed: true, TwoFactorEnabled: false, Deleted: false }] };
         if (sql.includes('FROM "UserSessions"')) return { rows: [{ '?column?': 1 }] };
         if (sql.includes('JOIN "AspNetUsers" u ON u."Id" = m."UserId"')) return { rows: [{ UserId: identity.userId, Email: 'owner@example.test', FullName: 'Owner', BusinessId: identity.businessId, BusinessName: 'Shop', TimeZoneId: 'UTC', CurrencyCode: 'USD', IsOwner: false, Permissions: ['customers.view'] }] };
         return { rows: [] };
@@ -61,7 +61,7 @@ describe('account routes', () => {
       query: async (sql, values) => {
         if (sql.includes('FROM "UserSessions"')) return { rows: [{ '?column?': 1 }] };
         if (sql.includes('JOIN "AspNetUsers" u ON u."Id" = m."UserId"')) return { rows: [{ UserId: identity.userId, Email: 'owner@example.test', FullName: 'Owner', BusinessId: identity.businessId, BusinessName: 'Shop', TimeZoneId: 'UTC', CurrencyCode: 'USD', IsOwner: false, Permissions: ['customers.view'] }] };
-        if (sql.includes('SELECT "PasswordHash" FROM "AspNetUsers"')) return { rows: [{ Id: identity.userId, PasswordHash: '$argon2id$v=19$m=65536,t=3,p=1$abc$def' }] };
+        if (sql.includes('FROM "AspNetUsers" WHERE "Id" = $1')) return { rows: [{ Id: identity.userId, PasswordHash: '$argon2id$v=19$m=65536,t=3,p=1$abc$def' }] };
         return { rows: [] };
       },
     };
@@ -70,7 +70,8 @@ describe('account routes', () => {
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify({ currentPassword: 'wrong', newPassword: 'newValidPassword123' }),
     });
-    assert.equal(response.status, 401);
-    assert.equal(response.body.code, 'invalid_current_password');
+    // Same contract as the C# AccountService: BadRequest("wrong_password").
+    assert.equal(response.status, 400);
+    assert.equal(response.body.code, 'wrong_password');
   });
 });
