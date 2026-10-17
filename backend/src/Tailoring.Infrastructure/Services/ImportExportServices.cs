@@ -159,7 +159,7 @@ public sealed class CustomerImportService(AppDbContext db, ICustomerService cust
 }
 
 public sealed class SearchService(AppDbContext db, ITenantContext tenant, IPermissionService permissions,
-    Tailoring.Application.Locations.ILocationScope? locations = null) : ISearchService
+    Tailoring.Application.Locations.ILocationScope locations) : ISearchService
 {
     private static readonly IReadOnlyList<SearchHitDto> None = [];
 
@@ -188,7 +188,7 @@ public sealed class SearchService(AppDbContext db, ITenantContext tenant, IPermi
             .OrderBy(c => c.FullName).Take(limit).Select(c => new { c.Id, c.FullName, c.Email, c.Phone }).ToListAsync(ct))
             .Select(c => new SearchHitDto("customer", c.Id, c.FullName, c.Email ?? c.Phone)).ToList();
 
-        var allowedOrNull = locations is null ? null : await locations.AllowedLocationIdsAsync(ct);
+        var allowedOrNull = await locations.AllowedLocationIdsAsync(ct);
         var restricted = allowedOrNull is not null;
         var allowedIds = allowedOrNull ?? Array.Empty<Guid>(); // never a null collection inside an EF expression
         var orders = !Can(Permissions.OrdersView) ? None : (await db.Orders.AsNoTracking()

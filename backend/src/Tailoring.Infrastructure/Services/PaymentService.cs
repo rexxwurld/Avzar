@@ -18,7 +18,7 @@ namespace Tailoring.Infrastructure.Services;
 /// </summary>
 public sealed class PaymentService(AppDbContext db, ITenantContext tenant, IAuditLogger audit,
     IEntitlementService entitlements, IPermissionService permissions,
-    ILocationScope? locations = null) : IPaymentService
+    ILocationScope locations) : IPaymentService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
 

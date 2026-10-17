@@ -32,3 +32,7 @@ Open `http://localhost:8081`. The PWA can serve its shell without the upstream A
 The existing ASP.NET API remains authoritative. This Node service does not connect to PostgreSQL or write business data. Do not switch production traffic until database mapping, authentication compatibility, tenant isolation, domain parity, automated tests, staging verification, and rollback are complete.
 
 The initial PWA is a foundation, not a completed product. Customer list/detail/create/edit and measurement profile/revision/history screens are wired to the existing ASP.NET API but still require staging verification. Multi-business selection and two-factor login in the PWA, orders, scheduling, offline write queues, and the remaining business modules are still to be implemented and tested.
+
+## Proxy request limits
+
+The temporary ASP.NET proxy rejects request bodies larger than `MAX_PROXY_BODY_BYTES` (default `26214400`, 25 MiB), including streamed requests without a `Content-Length` header. `UPSTREAM_TIMEOUT_MS` (default `30000`) bounds the time spent waiting on the upstream API. Tune these values to match approved upload limits before deployment; do not remove the streaming limit merely to accommodate large uploads.

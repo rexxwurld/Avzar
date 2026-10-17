@@ -132,6 +132,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkerScheduleService, WorkerScheduleService>();
         services.AddScoped<IMyTaskService, MyTaskService>();
         services.AddScoped<IWorkerService, WorkerService>();
+        services.AddHostedService<Services.OverdueTaskReminderWorker>();
 
         // PDFs are drawn on demand from live records (never stored, so they cannot go stale). Needs Pdf:QuestPdfLicense.
         services.Configure<Pdf.PdfOptions>(config.GetSection("Pdf"));

@@ -112,7 +112,7 @@ public sealed class EntitlementEnforcementTests(PostgresFixture fx) : IClassFixt
         await db.SaveChangesAsync();
     }
 
-    private CustomerService Customers(Guid bid) { var db = fx.Create(bid); return new CustomerService(db, new FakeTenant(bid), new AuditLogger(db), new EntitlementService(db)); }
+    private CustomerService Customers(Guid bid) { var db = fx.Create(bid); return new CustomerService(db, new FakeTenant(bid), new AuditLogger(db), new EntitlementService(db), new UnrestrictedLocationScope()); }
 
     private static UpsertCustomerRequest Named(string n) => new() { FullName = n, AllowDuplicate = true };
 

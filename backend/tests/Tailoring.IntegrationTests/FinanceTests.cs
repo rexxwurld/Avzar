@@ -102,16 +102,16 @@ public sealed class FinanceTests(PostgresFixture fx) : IClassFixture<PostgresFix
         return new Seed(b.Id, loc.Id, customer.Id, order.Id, order.OrderNumber);
     }
 
-    private InvoiceService Invoices(Guid bid) { var db = fx.Create(bid); return new InvoiceService(db, new FakeUserTenant(bid, Staff), new AuditLogger(db), new EntitlementService(db)); }
+    private InvoiceService Invoices(Guid bid) { var db = fx.Create(bid); return new InvoiceService(db, new FakeUserTenant(bid, Staff), new AuditLogger(db), new EntitlementService(db), new UnrestrictedLocationScope()); }
 
     private PaymentService Payments(Guid bid, IPermissionService? perms = null)
-    { var db = fx.Create(bid); return new PaymentService(db, new FakeUserTenant(bid, Staff), new AuditLogger(db), new EntitlementService(db), perms ?? new AllowAllPermissions()); }
+    { var db = fx.Create(bid); return new PaymentService(db, new FakeUserTenant(bid, Staff), new AuditLogger(db), new EntitlementService(db), perms ?? new AllowAllPermissions(), new UnrestrictedLocationScope()); }
 
     private OrderService Orders(Guid bid)
     {
         var db = fx.Create(bid); var t = new FakeUserTenant(bid, Staff);
         return new OrderService(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new EntitlementService(db),
-            new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions());
+            new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions(), new UnrestrictedLocationScope());
     }
 
     private static CreateInvoiceRequest Free(Seed s, decimal price = 1000m, decimal? tax = null) => new()
@@ -644,7 +644,7 @@ public sealed class ExpenseTests(PostgresFixture fx) : IClassFixture<PostgresFix
         return b.Id;
     }
 
-    private ExpenseService Svc(Guid bid) { var db = fx.Create(bid); return new ExpenseService(db, new FakeUserTenant(bid, Staff), new AuditLogger(db), new EntitlementService(db)); }
+    private ExpenseService Svc(Guid bid) { var db = fx.Create(bid); return new ExpenseService(db, new FakeUserTenant(bid, Staff), new AuditLogger(db), new EntitlementService(db), new UnrestrictedLocationScope()); }
     private static DateOnly Today(int offset = 0) => DateOnly.FromDateTime(DateTime.UtcNow.AddDays(offset));
     private static async Task<string> CodeOf(Func<Task> action) => (await Assert.ThrowsAsync<AppException>(action)).Code;
 

@@ -12,17 +12,17 @@ namespace Tailoring.Infrastructure.Services;
 
 public sealed class TaskService(
     AppDbContext db, ITenantContext tenant, IAuditLogger audit,
-    IProductionPlanner planner, IPermissionService permissions, ILocationScope? locations = null) : ITaskService
+    IProductionPlanner planner, IPermissionService permissions, ILocationScope locations) : ITaskService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
     private Guid? ActorId => tenant.UserId;
 
     // ------------------------------------------------------------------ location scope
     // A task follows the location of its order. Callers restricted to some locations (not the owner, no locations.all) see only those;
-    // a hidden task or order looks exactly like a missing one. Unscoped when no scope service is supplied (tests, system flows).
+    // a hidden task or order looks exactly like a missing one. System/test scopes explicitly return null for unrestricted access.
 
     private async Task<Guid[]?> AllowedLocationsAsync(CancellationToken ct)
-        => locations is null ? null : await locations.AllowedLocationIdsAsync(ct);
+        => await locations.AllowedLocationIdsAsync(ct);
 
     private async Task<bool> OrderVisibleAsync(Guid orderId, CancellationToken ct)
     {
@@ -186,6 +186,10 @@ public sealed class TaskService(
         }
 
         var memberId = req.MembershipId.Value;
+        var allowedLocations = await locations.AllowedLocationIdsAsync(ct);
+        if (allowedLocations is not null && !await db.MembershipLocations.AnyAsync(l =>
+                l.MembershipId == memberId && allowedLocations.Contains(l.LocationId), ct))
+            throw AppException.BadRequest("unknown_worker", "That person is not an active member of your permitted workshop locations.");
         if (t.AssignedMembershipId == memberId) return await GetAsync(id, ct);
 
         var member = await db.Memberships.AsNoTracking()
@@ -367,18 +371,25 @@ public sealed class TaskService(
     }
 }
 
-public sealed class WorkerService(AppDbContext db, ITenantContext tenant, IAuditLogger audit) : IWorkerService
+public sealed class WorkerService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, ILocationScope locations) : IWorkerService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
 
     public async Task<IReadOnlyList<WorkerDto>> ListAsync(CancellationToken ct = default)
     {
-        var members = await db.Memberships.AsNoTracking().Where(m => m.Status == MembershipStatus.Active)
-            .OrderBy(m => m.DisplayName).Select(m => new { m.Id, m.DisplayName }).ToListAsync(ct);
-        var skills = await db.WorkerSkills.AsNoTracking().ToListAsync(ct);
-        var open = await db.ProductionTasks.AsNoTracking()
-            .Where(t => t.AssignedMembershipId != null && t.Status != ProductionTaskStatus.Completed && t.Status != ProductionTaskStatus.Cancelled)
-            .GroupBy(t => t.AssignedMembershipId).Select(g => new { Id = g.Key, Count = g.Count() }).ToListAsync(ct);
+        var allowed = await locations.AllowedLocationIdsAsync(ct);
+        var memberQuery = db.Memberships.AsNoTracking().Where(m => m.Status == MembershipStatus.Active);
+        if (allowed is not null)
+            memberQuery = memberQuery.Where(m => db.MembershipLocations.Any(l => l.MembershipId == m.Id && allowed.Contains(l.LocationId)));
+        var members = await memberQuery.OrderBy(m => m.DisplayName).Select(m => new { m.Id, m.DisplayName }).ToListAsync(ct);
+        var memberIds = members.Select(m => m.Id).ToArray();
+        var skills = await db.WorkerSkills.AsNoTracking().Where(s => memberIds.Contains(s.MembershipId)).ToListAsync(ct);
+        var taskQuery = db.ProductionTasks.AsNoTracking()
+            .Where(t => t.AssignedMembershipId != null && memberIds.Contains(t.AssignedMembershipId.Value)
+                && t.Status != ProductionTaskStatus.Completed && t.Status != ProductionTaskStatus.Cancelled);
+        if (allowed is not null)
+            taskQuery = taskQuery.Where(t => db.Orders.Any(o => o.Id == t.OrderId && allowed.Contains(o.LocationId)));
+        var open = await taskQuery.GroupBy(t => t.AssignedMembershipId).Select(g => new { Id = g.Key, Count = g.Count() }).ToListAsync(ct);
 
         return members.Select(m => new WorkerDto(m.Id, m.DisplayName, true,
             skills.Where(s => s.MembershipId == m.Id).Select(s => s.Skill).OrderBy(s => s).ToList(),
@@ -387,8 +398,7 @@ public sealed class WorkerService(AppDbContext db, ITenantContext tenant, IAudit
 
     public async Task<WorkerDto> SetSkillsAsync(Guid membershipId, SetSkillsRequest req, CancellationToken ct = default)
     {
-        if (!await db.Memberships.AnyAsync(m => m.Id == membershipId, ct))
-            throw AppException.NotFound("staff_not_found", "Staff member not found.");
+        await EnsureMembershipVisibleAsync(membershipId, ct);
 
         var wanted = req.Skills.Select(s => SkillName.Normalize(s)).Where(s => s is not null).Select(s => s!).Distinct().ToList();
         if (wanted.Any(s => s.Length > 60)) throw AppException.BadRequest("invalid_skill", "Skill names are limited to 60 characters.");
@@ -401,5 +411,14 @@ public sealed class WorkerService(AppDbContext db, ITenantContext tenant, IAudit
         audit.Record(BusinessId, tenant.UserId, "worker.skills_changed", nameof(WorkerSkill), membershipId, new { skills = wanted });
         await db.SaveChangesAsync(ct);
         return (await ListAsync(ct)).First(w => w.MembershipId == membershipId);
+    }
+
+    private async Task EnsureMembershipVisibleAsync(Guid membershipId, CancellationToken ct)
+    {
+        var query = db.Memberships.Where(m => m.Id == membershipId && m.Status == MembershipStatus.Active);
+        var allowed = await locations.AllowedLocationIdsAsync(ct);
+        if (allowed is not null)
+            query = query.Where(m => db.MembershipLocations.Any(l => l.MembershipId == m.Id && allowed.Contains(l.LocationId)));
+        if (!await query.AnyAsync(ct)) throw AppException.NotFound("staff_not_found", "Active staff member was not found in your permitted locations.");
     }
 }

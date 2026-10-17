@@ -3,11 +3,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from '../config/env.js';
 import { proxyApiRequest } from './proxy.js';
+import { checkUpstreamReadiness } from './readiness.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PWA_ROOT = path.resolve(HERE, '../../../pwa');
 
-export function createApp(env = loadEnv()) {
+export function createApp(env = loadEnv(), fetchImpl = fetch) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', false);
@@ -21,7 +22,13 @@ export function createApp(env = loadEnv()) {
   });
 
   app.get('/health/live', (_req, res) => res.status(200).json({ status: 'live', service: 'avzar-pwa-node' }));
-  app.get('/health/ready', (_req, res) => res.status(503).json({ status: 'not_ready', reason: 'node_database_migration_and_cutover_checks_not_implemented' }));
+  app.get('/health/ready', async (_req, res) => {
+    // Node is still a PWA/proxy layer. Until Node owns the business database,
+    // readiness depends on the existing API's database-aware health endpoint.
+    const result = await checkUpstreamReadiness(env.API_URL, fetchImpl);
+    if (!result.ready) return res.status(503).json({ status: 'not_ready', reason: result.reason });
+    return res.status(200).json({ status: 'ready', service: 'avzar-pwa-node', upstream: 'healthy' });
+  });
   app.get('/api/v1', (_req, res) => res.status(200).json({ service: 'avzar-pwa-node', migrationStage: 'pwa-foundation', productionCutoverEnabled: false }));
 
   // Serve only the explicit static PWA shell. API requests are never served from cache.
@@ -39,7 +46,7 @@ export function createApp(env = loadEnv()) {
 
   // Keep the existing ASP.NET API authoritative during the migration. Forward only /api routes,
   // allowlisted headers, same-origin browser writes, and no provider webhooks.
-  app.use('/backend', (req, res) => proxyApiRequest(req, res, env.API_URL, env.TRUST_PROXY_HEADERS));
+  app.use('/backend', (req, res) => proxyApiRequest(req, res, env.API_URL, env.TRUST_PROXY_HEADERS, env.MAX_PROXY_BODY_BYTES, env.UPSTREAM_TIMEOUT_MS, fetchImpl));
 
   app.get(/.*/, (req, res, next) => {
     if (req.path.startsWith('/api/') || req.path.startsWith('/health/') || req.path.startsWith('/backend/')) return next();

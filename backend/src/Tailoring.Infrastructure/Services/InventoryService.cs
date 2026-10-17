@@ -26,11 +26,13 @@ public sealed record InventoryImportCommitRequest(string ExpectedHash, bool Skip
 public interface IInventoryService
 {
     Task<IReadOnlyList<MaterialDto>> ListAsync(CancellationToken ct);
+    Task<IReadOnlyList<LocationDto>> ListLocationsAsync(CancellationToken ct);
     Task<InventoryImportPreviewDto> PreviewImportAsync(string csv, CancellationToken ct);
     Task<InventoryImportResultDto> CommitImportAsync(string csv, InventoryImportCommitRequest request, CancellationToken ct);
     Task<MaterialDto> CreateAsync(MaterialCreateRequest request, CancellationToken ct);
     Task<MaterialDto> ChangeAsync(Guid id, string action, StockChangeRequest request, CancellationToken ct);
     Task<IReadOnlyList<MaterialDto>> ReserveTaskAsync(Guid taskId, TaskMaterialBatchRequest request, CancellationToken ct);
+    Task<IReadOnlyList<MaterialDto>> ReleaseTaskAsync(Guid taskId, TaskMaterialBatchRequest request, CancellationToken ct);
     Task<IReadOnlyList<MaterialDto>> ConsumeTaskAsync(Guid taskId, TaskMaterialBatchRequest request, CancellationToken ct);
     Task<IReadOnlyList<StockMovementDto>> HistoryAsync(Guid id, int take, CancellationToken ct);
 }
@@ -38,6 +40,16 @@ public interface IInventoryService
 public sealed class InventoryService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, Tailoring.Application.Billing.IEntitlementService entitlements, ILocationScope locations) : IInventoryService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("business_required", "Select a business first.");
+
+    public async Task<IReadOnlyList<LocationDto>> ListLocationsAsync(CancellationToken ct)
+    {
+        await entitlements.RequireTierAsync(BusinessId, Tailoring.Domain.Billing.EntitlementKeys.InventoryLevel, "basic", ct);
+        var query = db.Locations.AsNoTracking().Where(x => x.IsActive);
+        var allowed = await locations.AllowedLocationIdsAsync(ct);
+        if (allowed is not null) query = query.Where(x => allowed.Contains(x.Id));
+        return await query.OrderBy(x => x.Name).Select(x => new LocationDto(x.Id, x.Name, x.Address, x.IsActive)).ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<MaterialDto>> ListAsync(CancellationToken ct)
     {
         await entitlements.RequireTierAsync(BusinessId, Tailoring.Domain.Billing.EntitlementKeys.InventoryLevel, "basic", ct);
@@ -195,6 +207,9 @@ public sealed class InventoryService(AppDbContext db, ITenantContext tenant, IAu
     public Task<IReadOnlyList<MaterialDto>> ReserveTaskAsync(Guid taskId, TaskMaterialBatchRequest request, CancellationToken ct)
         => ChangeTaskReservationsAsync(taskId, request, StockMovementKind.Reserve, ct);
 
+    public Task<IReadOnlyList<MaterialDto>> ReleaseTaskAsync(Guid taskId, TaskMaterialBatchRequest request, CancellationToken ct)
+        => ChangeTaskReservationsAsync(taskId, request, StockMovementKind.Release, ct);
+
     public Task<IReadOnlyList<MaterialDto>> ConsumeTaskAsync(Guid taskId, TaskMaterialBatchRequest request, CancellationToken ct)
         => ChangeTaskReservationsAsync(taskId, request, StockMovementKind.Consume, ct);
 
@@ -224,15 +239,29 @@ public sealed class InventoryService(AppDbContext db, ITenantContext tenant, IAu
                 if (line.Quantity > material.OnHand - material.Reserved) throw AppException.Conflict("insufficient_stock", $"Insufficient available stock for {material.Name}.");
                 material.Reserved += line.Quantity;
             }
-            else
+            else if (action == StockMovementKind.Release)
             {
                 if (line.Quantity > reserved || line.Quantity > material.Reserved) throw AppException.Conflict("reservation_exceeded", $"Task reservation is insufficient for {material.Name}.");
-                material.Reserved -= line.Quantity; material.OnHand -= line.Quantity;
+                material.Reserved -= line.Quantity; // released stock returns to availability; it is not consumed
             }
+            else if (action == StockMovementKind.Consume)
+            {
+                if (line.Quantity > reserved || line.Quantity > material.Reserved) throw AppException.Conflict("reservation_exceeded", $"Task reservation is insufficient for {material.Name}.");
+                material.Reserved -= line.Quantity;
+                material.OnHand -= line.Quantity;
+            }
+            else throw new InvalidOperationException($"Unsupported task stock action: {action}.");
             material.UpdatedAtUtc = DateTime.UtcNow; updated.Add(material);
             db.StockMovements.Add(new StockMovement { BusinessId = BusinessId, MaterialId = material.Id, Kind = action, Quantity = line.Quantity, OnHandAfter = material.OnHand, ReservedAfter = material.Reserved, OrderId = order.Id, TaskId = taskId, ActorUserId = tenant.UserId, Note = request.Note?.Trim() });
         }
-        audit.Record(BusinessId, tenant.UserId, action == StockMovementKind.Reserve ? "inventory.task_materials_reserved" : "inventory.task_materials_consumed", "ProductionTask", taskId, new { count = request.Materials.Count });
+        var auditEvent = action switch
+        {
+            StockMovementKind.Reserve => "inventory.task_materials_reserved",
+            StockMovementKind.Release => "inventory.task_materials_released",
+            StockMovementKind.Consume => "inventory.task_materials_consumed",
+            _ => throw new InvalidOperationException($"Unsupported task stock action: {action}.")
+        };
+        audit.Record(BusinessId, tenant.UserId, auditEvent, "ProductionTask", taskId, new { count = request.Materials.Count });
         try { await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); }
         catch (DbUpdateConcurrencyException) { throw AppException.Conflict("stock_concurrency_conflict", "Concurrent stock activity changed the result. Refresh and retry."); }
         catch (PostgresException ex) when (ex.SqlState is "40001" or "40P01") { throw AppException.Conflict("stock_concurrency_conflict", "Concurrent stock activity changed the result. Refresh and retry."); }

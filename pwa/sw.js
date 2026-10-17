@@ -1,4 +1,4 @@
-const CACHE_NAME = 'avzar-shell-v2';
+const CACHE_NAME = 'avzar-shell-v17';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -10,7 +10,6 @@ const SHELL_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  // A new version waits here until the user accepts the update notice (see showUpdateNotice in app.js).
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS)));
 });
 
@@ -21,10 +20,6 @@ self.addEventListener('activate', (event) => {
     ))
   );
   self.clients.claim();
-});
-
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -43,4 +38,8 @@ self.addEventListener('fetch', (event) => {
   if (SHELL_ASSETS.includes(url.pathname)) {
     event.respondWith(caches.match(request).then((cached) => cached || fetch(request)));
   }
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });

@@ -27,7 +27,7 @@ cd "$ROOT"
 if command -v node >/dev/null 2>&1; then
   printf 'Node: '; node --version
   run 'Node API and PWA JavaScript syntax' bash -c '
-    set -e
+    set -euo pipefail
     node --check backend-node/src/config/env.js
     node --check backend-node/src/http/proxy.js
     node --check backend-node/src/http/readiness.js
@@ -35,11 +35,13 @@ if command -v node >/dev/null 2>&1; then
     node --check backend-node/src/server.js
     node --check pwa/app.js
     node --check pwa/sw.js
+    find . -type f -name "*.js" -not -path "*/node_modules/*" -print0 | xargs -0 -n1 node --check
   '
+  run 'Dependency-free Node proxy, PWA policy, readiness and regression tests' node --test backend-node/test/proxy.test.js backend-node/test/pwa-policy.test.js backend-node/test/readiness.test.js
   if [[ -f backend-node/node_modules/express/index.js ]]; then
-    run 'Node API tests' npm --prefix backend-node test
+    run 'Full Node API integration suite' npm --prefix backend-node test
   else
-    blocked 'Node API tests need installed backend-node dependencies; run npm ci --prefix backend-node.'
+    blocked 'Full Node API integration suite needs installed backend-node dependencies; run npm ci --prefix backend-node.'
   fi
 
   if [[ -d web/node_modules ]]; then

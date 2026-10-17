@@ -19,8 +19,8 @@ public sealed class LocationScopeTests(PostgresFixture fx) : IClassFixture<Postg
 {
     private sealed record World(Guid BusinessId, Guid LocA, Guid LocB, Guid CustomerId, Guid OrderA, Guid OrderB);
 
-    private ILocationScope? ScopeFor(AppDbContext db, FakeUserTenant t, Guid? userId)
-        => userId is null ? null : new LocationScope(db, t, new PermissionService(db));
+    private ILocationScope ScopeFor(AppDbContext db, FakeUserTenant t, Guid? userId)
+        => userId is null ? new UnrestrictedLocationScope() : new LocationScope(db, t, new PermissionService(db));
 
     private OrderService Orders(Guid bid, Guid? userId)
     {

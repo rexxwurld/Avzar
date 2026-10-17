@@ -123,14 +123,15 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Install Node API dependencies
-        run: npm install --no-audit --no-fund
+      - name: Install Node API dependencies from lockfile
+        run: npm ci --no-audit --no-fund
       - name: Audit Node API dependencies
         run: npm audit --audit-level=high
       - name: Check JavaScript syntax
         run: |
           node --check src/config/env.js
           node --check src/http/proxy.js
+          node --check src/http/readiness.js
           node --check src/http/app.js
           node --check src/server.js
           node --check ../pwa/app.js

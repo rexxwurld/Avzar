@@ -18,7 +18,7 @@ using Tailoring.Infrastructure.Persistence;
 namespace Tailoring.Infrastructure.Services;
 
 public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IProductionPlanner planner, IEntitlementService entitlements,
-    IPricingService pricing, IPermissionService permissions, ILocationScope? locations = null) : IOrderService
+    IPricingService pricing, IPermissionService permissions, ILocationScope locations) : IOrderService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
 
@@ -27,13 +27,12 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
     /// <summary>Limits a query to the locations the caller may see. A hidden order looks exactly like a missing one.</summary>
     private async Task<IQueryable<Order>> VisibleAsync(IQueryable<Order> q, CancellationToken ct)
     {
-        if (locations is null) return q;
         var allowed = await locations.AllowedLocationIdsAsync(ct);
         return allowed is null ? q : q.Where(o => allowed.Contains(o.LocationId));
     }
 
     private Task RequireLocationAsync(Guid locationId, CancellationToken ct)
-        => locations is null ? Task.CompletedTask : locations.EnsureAllowedAsync(locationId, ct);
+        => locations.EnsureAllowedAsync(locationId, ct);
 
     // ------------------------------------------------------------------ queries
 
@@ -110,8 +109,8 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
             ?? throw AppException.BadRequest("unknown_customer", "Customer not found.");
         if (customer.Status != CustomerStatus.Active)
             throw AppException.Conflict("customer_not_active", "Orders can only be created for active customers.");
-        await EnsureLocationAsync(req.LocationId, ct);
         await RequireLocationAsync(req.LocationId, ct);
+        await EnsureLocationAsync(req.LocationId, ct);
 
         try
         {
@@ -167,8 +166,8 @@ public sealed class OrderService(AppDbContext db, ITenantContext tenant, IAuditL
         ValidateHeader(req.PromisedDate, today, delivery, req.DeliveryAddress, checkDate: req.PromisedDate != order.PromisedDate);
         if (req.LocationId != order.LocationId)
         {
-            await EnsureLocationAsync(req.LocationId, ct);
             await RequireLocationAsync(req.LocationId, ct);
+            await EnsureLocationAsync(req.LocationId, ct);
         }
 
         db.Entry(order).Property(o => o.Version).OriginalValue = req.Version;

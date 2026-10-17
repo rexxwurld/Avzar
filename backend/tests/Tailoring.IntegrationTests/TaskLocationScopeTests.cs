@@ -28,7 +28,7 @@ public sealed class TaskLocationScopeTests(PostgresFixture fx) : IClassFixture<P
         var db = fx.Create(bid);
         var t = new FakeUserTenant(bid, null);
         return new OrderService(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new EntitlementService(db),
-            new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions());
+            new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions(), new UnrestrictedLocationScope());
     }
 
     /// <summary>With no signed-in user there is deliberately no location scope (setup and verification only).</summary>

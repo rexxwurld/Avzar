@@ -11,7 +11,7 @@ using Tailoring.Infrastructure.Persistence;
 
 namespace Tailoring.Infrastructure.Services;
 
-public sealed class CustomerService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements) : ICustomerService
+public sealed class CustomerService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements, ILocationScope locations) : ICustomerService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
     private Guid? ActorId => tenant.UserId;
@@ -135,6 +135,10 @@ public sealed class CustomerService(AppDbContext db, ITenantContext tenant, IAud
     {
         if (sourceId == targetId)
             throw AppException.BadRequest("same_customer", "Choose two different customers to merge.");
+        // A merge rewrites customer links on orders, fittings and documents across the business. Restricted-location staff
+        // must not use a customer-level permission to mutate records belonging to other workshop locations.
+        if (await locations.AllowedLocationIdsAsync(ct) is not null)
+            throw AppException.Forbidden("customer_merge_requires_all_locations", "Customer merges affect records across locations and require access to all workshop locations.");
 
         var source = await LoadAsync(sourceId, ct, track: true);
         var target = await LoadAsync(targetId, ct, track: true);
@@ -248,14 +252,14 @@ public sealed class CustomerService(AppDbContext db, ITenantContext tenant, IAud
 }
 
 public sealed class FittingService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements,
-    ILocationScope? locations = null) : IFittingService
+    ILocationScope locations) : IFittingService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
 
     public async Task<PagedResult<FittingDto>> ListAsync(FittingListQuery query, CancellationToken ct = default)
     {
         var q = db.Fittings.AsNoTracking().AsQueryable();
-        if (locations is not null && await locations.AllowedLocationIdsAsync(ct) is { } allowed)
+        if (await locations.AllowedLocationIdsAsync(ct) is { } allowed)
             q = q.Where(f => allowed.Contains(f.LocationId));
         if (query.CustomerId is { } cid) q = q.Where(f => f.CustomerId == cid);
         if (query.OrderId is { } oid) q = q.Where(f => f.OrderId == oid);
@@ -279,11 +283,12 @@ public sealed class FittingService(AppDbContext db, ITenantContext tenant, IAudi
         if (customer.Status != CustomerStatus.Active)
             throw AppException.Conflict("customer_not_active", "Fittings can only be booked for active customers.");
 
+        // Check authorization before existence to avoid disclosing whether a foreign location ID is real.
+        await locations.EnsureAllowedAsync(req.LocationId, ct);
         if (!await db.Locations.AnyAsync(l => l.Id == req.LocationId && l.IsActive, ct))
             throw AppException.BadRequest("unknown_location", "Location not found or inactive.");
-        if (locations is not null) await locations.EnsureAllowedAsync(req.LocationId, ct);
 
-        var allowedOrNull = locations is null ? null : await locations.AllowedLocationIdsAsync(ct);
+        var allowedOrNull = await locations.AllowedLocationIdsAsync(ct);
         var restricted = allowedOrNull is not null;
         var allowedIds = allowedOrNull ?? Array.Empty<Guid>(); // never a null collection inside an EF expression
         if (req.OrderId is { } orderId &&
@@ -310,7 +315,7 @@ public sealed class FittingService(AppDbContext db, ITenantContext tenant, IAudi
     {
         var status = Parse.Value<FittingStatus>(req.Status, "status");
         var fittings = db.Fittings.AsQueryable();
-        if (locations is not null && await locations.AllowedLocationIdsAsync(ct) is { } allowed)
+        if (await locations.AllowedLocationIdsAsync(ct) is { } allowed)
             fittings = fittings.Where(f => allowed.Contains(f.LocationId));
         var fitting = await fittings.FirstOrDefaultAsync(f => f.Id == id, ct)
             ?? throw AppException.NotFound("fitting_not_found", "Fitting not found.");

@@ -18,7 +18,7 @@ public sealed class LocationScopeApiTests(ApiFactory factory)
 
     private sealed record World(Session Owner, Guid LocA, Guid LocB, Guid CustomerId, Guid OrderA, Guid OrderB);
 
-    private static readonly string[] OrderAccess = [Permissions.OrdersView, Permissions.OrdersManage, Permissions.CustomersView];
+    private static readonly string[] OrderAccess = [Permissions.OrdersView, Permissions.OrdersManage, Permissions.CustomersView, Permissions.TasksView, Permissions.WorkersManage, Permissions.CustomersMerge];
 
     // ---- tests ---------------------------------------------------------------------------------------------------------------
 
@@ -78,6 +78,46 @@ public sealed class LocationScopeApiTests(ApiFactory factory)
         Assert.DoesNotContain(w.OrderA.ToString(), body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(w.OrderB.ToString(), body, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(member.Http, HttpMethod.Get, $"/api/orders/{w.OrderA}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_location_restricted_manager_cannot_list_or_edit_workers_only_assigned_to_another_location()
+    {
+        var w = await SeedWorldAsync();
+        var manager = await MemberAsync(w, [w.LocA]);
+        var (_, workerB) = await factory.SeedMemberAsync(w.Owner.BusinessId, Permissions.TasksView);
+        await factory.AssignLocationsAsync(w.Owner.BusinessId, workerB, w.LocB);
+
+        using var list = await SendAsync(manager.Http, HttpMethod.Get, "/api/workers");
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        using var doc = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
+        var visibleIds = doc.RootElement.EnumerateArray().Select(x => x.GetProperty("membershipId").GetGuid()).ToArray();
+        Assert.NotEmpty(visibleIds);
+        Assert.DoesNotContain(workerB, visibleIds);
+
+        var hiddenSkills = await SendAsync(manager.Http, HttpMethod.Put, $"/api/workers/{workerB}/skills", new { skills = new[] { "sewing" } }, csrf: manager.Csrf);
+        Assert.Equal(HttpStatusCode.NotFound, hiddenSkills.StatusCode);
+        var hiddenCalendar = await SendAsync(manager.Http, HttpMethod.Get, $"/api/workers/{workerB}/schedule/availability");
+        Assert.Equal(HttpStatusCode.NotFound, hiddenCalendar.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_location_restricted_manager_cannot_merge_customer_profiles_that_rewrite_cross_location_records()
+    {
+        var w = await SeedWorldAsync();
+        var manager = await MemberAsync(w, [w.LocA]);
+        Guid targetId;
+        await using (var db = factory.Create(w.Owner.BusinessId))
+        {
+            var target = new Tailoring.Domain.Customers.Customer { BusinessId = w.Owner.BusinessId, FullName = "Merge target" };
+            db.Customers.Add(target);
+            await db.SaveChangesAsync();
+            targetId = target.Id;
+        }
+
+        var response = await SendAsync(manager.Http, HttpMethod.Post, $"/api/customers/{w.CustomerId}/merge-into/{targetId}", csrf: manager.Csrf);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("customer_merge_requires_all_locations", await response.Content.ReadAsStringAsync());
     }
 
     [Fact]

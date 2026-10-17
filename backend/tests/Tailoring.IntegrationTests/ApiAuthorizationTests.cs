@@ -65,10 +65,33 @@ public sealed class ApiAuthorizationTests(ApiFactory factory)
     [Fact]
     public void The_location_scope_service_is_registered()
     {
-        // Order, invoice, payment and task services take ILocationScope as an OPTIONAL constructor parameter. If the registration
-        // were ever dropped they would compile, run, and silently stop restricting staff to their locations.
+        // Order, invoice, payment, expense, fitting, search and task services require ILocationScope in their constructors. If the registration
+        // is ever dropped, DI activation fails rather than silently disabling location filtering.
         using var scope = factory.Services.CreateScope();
         Assert.NotNull(scope.ServiceProvider.GetService<ILocationScope>());
+    }
+
+    [Fact]
+    public void Location_scoping_is_a_required_dependency_for_sensitive_services()
+    {
+        var services = new[]
+        {
+            typeof(Tailoring.Infrastructure.Services.OrderService),
+            typeof(Tailoring.Infrastructure.Services.TaskService),
+            typeof(Tailoring.Infrastructure.Services.InvoiceService),
+            typeof(Tailoring.Infrastructure.Services.PaymentService),
+            typeof(Tailoring.Infrastructure.Services.ExpenseService),
+            typeof(Tailoring.Infrastructure.Services.FittingService),
+            typeof(Tailoring.Infrastructure.Services.SearchService),
+            typeof(Tailoring.Infrastructure.Services.WorkerService),
+            typeof(Tailoring.Infrastructure.Services.CustomerService),
+        };
+
+        foreach (var service in services)
+        {
+            var parameter = Assert.Single(service.GetConstructors().Single().GetParameters(), p => p.ParameterType == typeof(ILocationScope));
+            Assert.False(parameter.IsOptional, $"{service.Name} must not be able to start without ILocationScope.");
+        }
     }
 
     [Fact]

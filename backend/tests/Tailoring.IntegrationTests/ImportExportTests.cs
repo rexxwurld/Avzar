@@ -101,7 +101,7 @@ public sealed class CustomerImportTests(PostgresFixture fx) : IClassFixture<Post
         var db = fx.Create(bid);
         var t = new FakeUserTenant(bid, Guid.NewGuid());
         var audit = new AuditLogger(db);
-        return new CustomerImportService(db, new CustomerService(db, t, audit, new EntitlementService(db)), t, audit);
+        return new CustomerImportService(db, new CustomerService(db, t, audit, new EntitlementService(db), new UnrestrictedLocationScope()), t, audit);
     }
 
     private static CsvImportCommitOptions Opts(string hash, string onDup = "skip", int? confirm = null, bool skipInvalid = false) => new(hash, onDup, confirm, skipInvalid);

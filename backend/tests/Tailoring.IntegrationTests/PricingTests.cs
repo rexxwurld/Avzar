@@ -191,7 +191,7 @@ public sealed class PricingTests(PostgresFixture fx) : IClassFixture<PostgresFix
     {
         var db = fx.Create(bid); var t = new FakeUserTenant(bid, Staff);
         return new OrderService(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new EntitlementService(db),
-            new PricingService(db, t, new AuditLogger(db)), perms ?? new AllowAllPermissions());
+            new PricingService(db, t, new AuditLogger(db)), perms ?? new AllowAllPermissions(), new UnrestrictedLocationScope());
     }
 
     private static PricingInputDto Input(decimal fabric = 10000m) => new()

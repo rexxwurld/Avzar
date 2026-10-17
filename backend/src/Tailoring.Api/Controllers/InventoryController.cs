@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Text;
 using Tailoring.Application.ImportExport;
+using Tailoring.Application.Locations;
 using Tailoring.Application.Common;
 using Tailoring.Api.Security;
 using Tailoring.Domain.Access;
@@ -14,6 +15,8 @@ public sealed class InventoryController(IInventoryService inventory) : Controlle
 {
     [HttpGet, HasPermission(Permissions.InventoryView)]
     public Task<IReadOnlyList<MaterialDto>> List(CancellationToken ct) => inventory.ListAsync(ct);
+    [HttpGet("locations"), HasPermission(Permissions.InventoryView)]
+    public Task<IReadOnlyList<LocationDto>> Locations(CancellationToken ct) => inventory.ListLocationsAsync(ct);
     [HttpGet("export"), HasPermission(Permissions.InventoryView)]
     public async Task<IActionResult> Export(CancellationToken ct)
     {
@@ -48,6 +51,8 @@ public sealed class InventoryController(IInventoryService inventory) : Controlle
     public Task<MaterialDto> Change(Guid id, string actionName, StockChangeRequest request, CancellationToken ct) => inventory.ChangeAsync(id, actionName, request, ct);
     [HttpPost("tasks/{taskId:guid}/reserve"), HasPermission(Permissions.InventoryManage)]
     public Task<IReadOnlyList<MaterialDto>> ReserveTask(Guid taskId, TaskMaterialBatchRequest request, CancellationToken ct) => inventory.ReserveTaskAsync(taskId, request, ct);
+    [HttpPost("tasks/{taskId:guid}/release"), HasPermission(Permissions.InventoryManage)]
+    public Task<IReadOnlyList<MaterialDto>> ReleaseTask(Guid taskId, TaskMaterialBatchRequest request, CancellationToken ct) => inventory.ReleaseTaskAsync(taskId, request, ct);
     [HttpPost("tasks/{taskId:guid}/consume"), HasPermission(Permissions.InventoryManage)]
     public Task<IReadOnlyList<MaterialDto>> ConsumeTask(Guid taskId, TaskMaterialBatchRequest request, CancellationToken ct) => inventory.ConsumeTaskAsync(taskId, request, ct);
     [HttpGet("{id:guid}/movements"), HasPermission(Permissions.InventoryView)]

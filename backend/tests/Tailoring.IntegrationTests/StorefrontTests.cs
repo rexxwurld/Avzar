@@ -69,8 +69,8 @@ public sealed class StorefrontTests(PostgresFixture fx) : IClassFixture<Postgres
     {
         var db = fx.Create(bid);
         ITenantContext t = bid is { } b ? new FakeUserTenant(b, Staff) : new FakeTenant(null);
-        var customers = new CustomerService(db, t, new AuditLogger(db), new EntitlementService(db));
-        var orders = new OrderService(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new EntitlementService(db), new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions());
+        var customers = new CustomerService(db, t, new AuditLogger(db), new EntitlementService(db), new UnrestrictedLocationScope());
+        var orders = new OrderService(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new EntitlementService(db), new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions(), new UnrestrictedLocationScope());
         return new InquiryService(db, t, new AuditLogger(db), captcha ?? new FakeCaptcha(false, true), customers, orders);
     }
 

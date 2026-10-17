@@ -98,15 +98,23 @@ public sealed class WorkerScheduleService(AppDbContext db, ITenantContext tenant
 
     public async Task<IReadOnlyList<WorkerLeaveDto>> ListPendingLeaveRequestsAsync(CancellationToken ct = default)
     {
-        var rows = await db.WorkerLeaves.AsNoTracking().Where(x => x.BusinessId == BusinessId && x.Status == WorkerLeaveStatus.Pending)
-            .OrderBy(x => x.StartsAtUtc).Select(x => new { x.Id, x.MembershipId, x.StartsAtUtc, x.EndsAtUtc, x.Reason, x.Status, x.ReviewNote }).ToListAsync(ct);
+        var query = db.WorkerLeaves.AsNoTracking().Where(x => x.BusinessId == BusinessId && x.Status == WorkerLeaveStatus.Pending);
+        var allowed = await locations.AllowedLocationIdsAsync(ct);
+        if (allowed is not null)
+            query = query.Where(x => db.MembershipLocations.Any(l => l.MembershipId == x.MembershipId && allowed.Contains(l.LocationId)));
+        var rows = await query.OrderBy(x => x.StartsAtUtc)
+            .Select(x => new { x.Id, x.MembershipId, x.StartsAtUtc, x.EndsAtUtc, x.Reason, x.Status, x.ReviewNote }).ToListAsync(ct);
         return rows.Select(x => new WorkerLeaveDto(x.Id, x.MembershipId, x.StartsAtUtc, x.EndsAtUtc, x.Reason, x.Status.ToString(), x.ReviewNote)).ToList();
     }
 
     public async Task<WorkerLeaveDto> ReviewLeaveRequestAsync(Guid leaveId, WorkerLeaveReviewRequest request, CancellationToken ct = default)
     {
         var userId = tenant.UserId ?? throw AppException.Unauthorized("not_authenticated", "Sign in to review leave.");
-        var row = await db.WorkerLeaves.FirstOrDefaultAsync(x => x.Id == leaveId && x.BusinessId == BusinessId, ct)
+        var query = db.WorkerLeaves.Where(x => x.Id == leaveId && x.BusinessId == BusinessId);
+        var allowed = await locations.AllowedLocationIdsAsync(ct);
+        if (allowed is not null)
+            query = query.Where(x => db.MembershipLocations.Any(l => l.MembershipId == x.MembershipId && allowed.Contains(l.LocationId)));
+        var row = await query.FirstOrDefaultAsync(ct)
             ?? throw AppException.NotFound("worker_leave_not_found", "That leave request was not found.");
         if (row.Status != WorkerLeaveStatus.Pending) throw AppException.Conflict("leave_request_already_reviewed", "Only pending leave requests can be reviewed.");
         var note = request.Note?.Trim();
@@ -160,8 +168,12 @@ public sealed class WorkerScheduleService(AppDbContext db, ITenantContext tenant
 
     private async Task EnsureMembershipAsync(Guid membershipId, CancellationToken ct)
     {
-        if (!await db.Memberships.AnyAsync(x => x.Id == membershipId && x.BusinessId == BusinessId && x.Status == MembershipStatus.Active, ct))
-            throw AppException.NotFound("worker_not_found", "That active worker was not found in this business.");
+        var query = db.Memberships.Where(x => x.Id == membershipId && x.BusinessId == BusinessId && x.Status == MembershipStatus.Active);
+        var allowed = await locations.AllowedLocationIdsAsync(ct);
+        if (allowed is not null)
+            query = query.Where(m => db.MembershipLocations.Any(l => l.MembershipId == m.Id && allowed.Contains(l.LocationId)));
+        if (!await query.AnyAsync(ct))
+            throw AppException.NotFound("worker_not_found", "That active worker was not found in this business or your permitted locations.");
     }
 
     private static void ValidateRange(DateTimeOffset fromUtc, DateTimeOffset toUtc)

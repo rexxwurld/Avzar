@@ -24,9 +24,9 @@ public sealed class Phase2Tests(PostgresFixture fx) : IClassFixture<PostgresFixt
     };
 
     private OrderService Orders(Guid bid) { var db = fx.Create(bid); var t = new FakeTenant(bid); return new OrderService(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new EntitlementService(db),
-        new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions()); }
+        new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions(), new UnrestrictedLocationScope()); }
     private MeasurementService Measures(Guid bid) { var db = fx.Create(bid); return new MeasurementService(db, new FakeTenant(bid), new AuditLogger(db)); }
-    private CustomerService Customers(Guid bid) { var db = fx.Create(bid); return new CustomerService(db, new FakeTenant(bid), new AuditLogger(db), new EntitlementService(db)); }
+    private CustomerService Customers(Guid bid) { var db = fx.Create(bid); return new CustomerService(db, new FakeTenant(bid), new AuditLogger(db), new EntitlementService(db), new UnrestrictedLocationScope()); }
 
     private async Task<Seed> SeedAsync(string? phone = null)
     {

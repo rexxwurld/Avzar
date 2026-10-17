@@ -61,9 +61,8 @@ internal sealed record FinanceScope(bool Restricted, Guid[] Allowed)
 {
     public static readonly FinanceScope Unrestricted = new(false, Array.Empty<Guid>());
 
-    public static async Task<FinanceScope> ForAsync(ILocationScope? locations, CancellationToken ct)
+    public static async Task<FinanceScope> ForAsync(ILocationScope locations, CancellationToken ct)
     {
-        if (locations is null) return Unrestricted; // no scope service registered (tests, system flows)
         var allowed = await locations.AllowedLocationIdsAsync(ct);
         return allowed is null ? Unrestricted : new FinanceScope(true, allowed);
     }

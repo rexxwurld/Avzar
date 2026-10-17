@@ -14,7 +14,7 @@ using Tailoring.Infrastructure.Persistence;
 namespace Tailoring.Infrastructure.Services;
 
 public sealed class InvoiceService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements,
-    ILocationScope? locations = null) : IInvoiceService
+    ILocationScope locations) : IInvoiceService
 {
     /// <summary>Applied at issue when no due date was chosen.</summary>
     public const int DefaultDueDays = 14;

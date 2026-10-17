@@ -21,15 +21,15 @@ public sealed class FinanceLocationScopeTests(PostgresFixture fx) : IClassFixtur
     private sealed record World(Guid BusinessId, Guid LocA, Guid LocB, Guid CustomerId, Guid OrderA, Guid OrderB,
         Guid InvoiceA, Guid InvoiceB, Guid StandaloneInvoice, Guid PaymentA, Guid PaymentB, Guid ReceiptB);
 
-    private ILocationScope? ScopeFor(AppDbContext db, FakeUserTenant t, Guid? userId)
-        => userId is null ? null : new LocationScope(db, t, new PermissionService(db));
+    private ILocationScope ScopeFor(AppDbContext db, FakeUserTenant t, Guid? userId)
+        => userId is null ? new UnrestrictedLocationScope() : new LocationScope(db, t, new PermissionService(db));
 
     private OrderService Orders(Guid bid)
     {
         var db = fx.Create(bid);
         var t = new FakeUserTenant(bid, null);
         return new OrderService(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new EntitlementService(db),
-            new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions());
+            new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions(), new UnrestrictedLocationScope());
     }
 
     private InvoiceService Invoices(Guid bid, Guid? userId)
@@ -50,7 +50,7 @@ public sealed class FinanceLocationScopeTests(PostgresFixture fx) : IClassFixtur
     private PaymentService SetupPayments(Guid bid)
     {
         var db = fx.Create(bid);
-        return new PaymentService(db, new FakeUserTenant(bid, Guid.NewGuid()), new AuditLogger(db), new EntitlementService(db), new AllowAllPermissions());
+        return new PaymentService(db, new FakeUserTenant(bid, Guid.NewGuid()), new AuditLogger(db), new EntitlementService(db), new AllowAllPermissions(), new UnrestrictedLocationScope());
     }
 
     private SearchService Search(Guid bid, Guid userId)

@@ -22,18 +22,18 @@ Small fashion businesses typically run on WhatsApp threads, paper measurement bo
 | Subscription plans and entitlements (Free / Starter / Professional / Business) | Implemented; no payment provider | Backend suite green in CI |
 | Customers, measurements, designs, collections, media | Implemented | Backend suite green in CI |
 | Orders, quotations (`Quoted` status), pricing calculator | Implemented | Backend suite green in CI |
-| Invoices, payments (staff-verified), receipts, credit notes, expenses | Implemented | Backend suite green in CI |
-| Workflows, task generation, assignment, worker actions, alterations | Implemented | Backend suite green in CI |
+| Invoices, payments (staff-verified), receipts, credit notes, expenses | Implemented in backend; latest follow-ups unverified | Previous CI run passed; rerun backend tests after current changes |
+| Workflows, task generation, assignment, worker actions, alterations | Implemented in source; latest scope/notification changes unverified | Run backend integration tests after current changes |
 | Storefront builder API (8 templates, drafts, publish, rollback, presets, DNS-verified domains) and public Next.js renderer | Implemented; **not smoke-tested end to end** | Backend tests and web build in CI |
 | Account security: email verification, password reset, TOTP 2FA, JWT + rotating refresh tokens, sessions, export/delete | Implemented | Tests exist; no real email provider exercised |
 | Email outbox (SMTP / Resend), S3 storage, ClamAV, Redis rate limits, QuestPDF documents, customer CSV, global search | Implemented | Fakes only; no real service exercised |
 | Staff dashboard | **Partially implemented** | Auth, staff/roles/locations, customer workflows, order create/edit/lifecycle and production task list/detail/actions; latest UI changes await CI verification |
-| Finance UI | **Partial** | Invoice list/create/detail and lifecycle/payment actions, order-to-invoice flow, pending-payment view, and expense summary; expense CRUD and invoice draft editing remain open |
+| Finance UI | **Partial** | Invoice list, free-form/order-linked creation, draft edit/delete, issue/void, payment actions, credit notes/receipt details, expense records and category management; provider/share flows remain open |
 | Business schedule settings | **Initial UI** | Weekly opening hours and closure dates at `/settings`; this is not the production task scheduler or notification system |
-| Storefront editor | **Partial** | `/storefront` supports draft content/theme, custom pages, slug/SEO/navigation, section content/style, existing-media picker, template-switch preview, custom-domain DNS verification, preview, publish and rollback; still lacks a polished drag-and-drop canvas and browser E2E |
-| Customer portal | Not built | |
+| Storefront editor | **Partial** | `/storefront` supports draft content/theme, custom pages, slug/SEO/navigation, section content/style, drag/drop reorder, media picker, template-switch preview, custom-domain DNS verification, preview, publish and rollback; browser E2E remains unverified |
+| Customer portal | Partial | Expiring/revocable email-link access to order progress, invoices and verified payments; staging verification remains open |
 | Shop and individual-worker scheduling, availability, leave, daily capacity and email reminders | Implemented in source; backend compilation, PostgreSQL integration, migration drift and live provider delivery still require verification | |
-| Inventory and stock reservations | Not built | |
+| Inventory and stock reservations | Partial | PWA stock management, CSV preview/commit and task-linked reserve/release/consume controls; full verification remains open | |
 | Reports | Not built | |
 | AI design tools and assistant builder | Not built | |
 | Paystack/Flutterwave billing, platform admin | Not built | |
@@ -111,7 +111,7 @@ npm test
 npm run dev
 ```
 
-Open `http://localhost:8081`. The PWA shell can load without the API, but sign-in requires a reachable API. The service readiness endpoint intentionally remains `503` until the Node backend is ready for cutover.
+Open `http://localhost:8081`. The PWA shell can load without the API, but sign-in requires a reachable API. The readiness endpoint returns `200` only when the configured upstream ASP.NET `/health` endpoint is healthy; this does not mean Node has replaced the business API.
 
 ### Existing project tests
 
@@ -141,23 +141,21 @@ Persistent ASP.NET Core Data Protection keys are required in production (preview
 
 ## Verification and known limitations
 
-- **CI run #238** (commit `40306ac`): backend, web and migrations jobs succeeded per the run page; logs were collapsed, so counts were not seen. See `PROGRESS.md`.
-- **CI run #230** (2026-10-16, commit `c349faf9023a9a0c1c6d5e7ddb5950c76016953c`): the supplied backend log shows a Release build with 0 warnings/0 errors, **693/693 tests passed** (0 failed, 0 skipped), and the EF model-drift gate reports that committed migrations match the model. The web job succeeded and `npm audit` reported 0 vulnerabilities; the supplied web excerpt does not show the test count or typecheck/build summaries. The #230 migration job output was not supplied. Historical run #207 applied eight migrations to clean PostgreSQL 17.11 (67 tables, 33 check constraints, 113 foreign keys, 8 partial indexes, no cascading foreign keys on financial/audit tables). Ownership-transfer notification emails and location-scoping behavior are covered by the passing backend suite.
-- **Dependency security:** `web/package.json` pins Next.js 15.5.28, React ^19.2.8 and Vitest 4.1.11 with a `postcss` override; `web/package-lock.json` is committed, CI and the Docker build use `npm ci`, and CI fails on any high or critical `npm audit` finding in the whole tree. Check the Next.js release notes (Next.js ships monthly security releases) before any public deployment.
-- **PWA/Node first slice (2026-10-17):** `pwa/` contains the vanilla-JavaScript shell, install manifest, static-only service worker, sign-in/session/sign-out views and safe browser-facing API client. `backend-node/` now uses JavaScript + Express and serves the PWA, with a restricted same-origin proxy to the existing ASP.NET API. The proxy path/origin helper tests passed with Node built-in tests (2/2), and JavaScript syntax checks passed. Customer list/create/edit/detail and measurement-profile reads are now wired to existing API endpoints, but dependency installation timed out, so Express integration tests and live API/cookie behavior remain unverified. The Node service has no PostgreSQL connection or migrated business routes; `/health/ready` intentionally returns 503. Keep production traffic on the current ASP.NET API.
-- **Not verified:** `docker compose` startup; full-stack smoke test; storefront publish-to-render; email, S3, ClamAV, Redis, DNS and every other external integration; mobile builds/device workflows. The staff dashboard is partial: the order create/edit/action UI is present and a partial production task list/detail/actions UI is now added for manager and worker views in the working copy. These latest order/production UI changes have not yet been verified by a fresh web build or CI. The `/storefront` editor now exists as a first slice but is not yet the polished drag-and-drop builder.
-- CI actions are on `checkout@v6`, `setup-node@v6`, `setup-dotnet@v5`, `upload-artifact@v6`; run #207 used them without error.
-- Known design issues: the public site's `frame-ancestors 'none'` will block the editor's preview iframe; nonce CSP makes public pages dynamic (not CDN-cacheable).
+- **Historical CI evidence:** CI run #238 (commit `40306ac`) reported successful backend, web and migration jobs; run #230 recorded a Release backend build with 0 warnings/0 errors and **693/693 tests passed**. These runs predate the newest source changes and are not verification of this exact archive. Historical run #207 applied eight migrations to clean PostgreSQL 17.11 (67 tables, 33 check constraints, 113 foreign keys, 8 partial indexes, no cascading foreign keys on financial/audit tables).
+- **Checks on this archive (2026-10-17):** 42/42 dependency-free Node proxy/PWA/readiness tests passed; repository JavaScript syntax checks passed; 160 TypeScript/TSX files passed syntax/transpilation parsing; 13 JSON files parsed successfully. See [`docs/VERIFICATION_REPORT_2026-10-17.md`](docs/VERIFICATION_REPORT_2026-10-17.md) for exact boundaries.
+- **Blocked checks:** the full Express integration suite could not run because its dependency installation is incomplete; the web typecheck, Vitest suite and production build could not run because `web/node_modules` is absent and the npm registry is unreachable; .NET build/integration tests and migration drift checks could not run because this workspace has no .NET SDK or PostgreSQL/Docker runtime. Syntax-only TypeScript parsing is not a semantic typecheck.
+- **Dependency security:** the committed web lockfile resolves Next.js 15.5.28, React/React DOM 19.3.1, `sharp` 0.35.5 and PostCSS 8.5.30. CI includes blocking high-severity dependency audits; a fresh audit is still required for this exact source archive.
+- **Architecture boundary:** the PWA is served by Express with a restricted same-origin proxy to the existing ASP.NET API. PostgreSQL/EF Core and the ASP.NET API remain authoritative. Node has no migrated business-domain repository and must not receive production business traffic as a replacement API.
+- **Workflow limitations:** finance provider checkout/share flows, complete offline PWA mutation/synchronization, Web Push/mobile notification delivery, a polished drag-and-drop storefront builder, broad mobile feature parity, and external integration/device testing remain incomplete or unverified. Storefront editing and many finance/inventory/scheduling screens exist in source, but browser/staging workflows still require verification.
+- **Security/staging limitations:** no full browser E2E, Docker Compose smoke test, real email delivery, payment provider webhook, S3/ClamAV, Redis/SignalR multi-instance, custom-domain DNS, or physical-device test was run in this workspace.
 
 ## Roadmap
 
-Planned, in rough priority order (none implemented unless marked above):
-
-1. Verified baseline: migrations applied to a clean PostgreSQL (done in CI), authorization tests via `WebApplicationFactory` (done), web dependencies audited clean (done); a compose smoke test is not planned (owner decision), so compose startup and external integrations stay unverified.
-2. Remaining Step A gaps: Redis caching/queues/SignalR backplane, more CSV import/export, background-job recovery, and email extras. HTTP-level location-scope tests for invoices/payments/tasks have been added and are included in the 693-test backend suite. Customers stay unscoped by design. (Audit-read, TOTP replay protection, join-with-existing-account, ownership transfer with a one-owner database constraint, PDF branding, location scoping of orders, finance, tasks and expenses, ownership-transfer notification emails, the Resend delivery webhook and the email suppression list are implemented and covered by the passing suite.)
-3. Staff dashboard: verify order and read-only production UI, then verify task detail/actions and implement schedule planning plus finance workflows; build the visual storefront editor (with Playwright tests).
-4. Scheduling, inventory, notifications, reports.
-5. Customer portal, billing, platform admin, AI tools, mobile.
+1. **First, verify this exact source:** restore locked dependencies, run the full Node suite, web typecheck/tests/build/audit, .NET Release build and integration tests, EF migration drift check, and clean-PostgreSQL migration job; fix all failures found.
+2. **Close security/data-isolation gaps:** keep the location-scope dependency required, preserve tenant and location-negative API tests, verify all recent worker/leave/inventory/finance scope changes in PostgreSQL-backed integration tests, and review TOTP/session/authentication edge cases.
+3. **Finish workflow gaps:** complete payment-provider checkout/share flows, inventory import/reservation edge cases, schedule conflict and DST behavior, overdue notification delivery/recovery, and storefront editor/media/domain polish.
+4. **Complete client migration only deliberately:** Node is still a proxy/static host, not the business API; mobile parity and offline synchronization are not complete. Migrate domain-by-domain only after API-contract, tenant-negative, staging and rollback tests.
+5. **Stage before production:** verify publish/rollback and tenant isolation in browser E2E; verify email/payment/storage/DNS/Redis/SignalR integrations and Android/iOS behavior with real configuration and devices. No production cutover is authorized by this archive.
 
 ## Documentation
 
@@ -169,8 +167,8 @@ The signed-in `/storefront` page supports storefront creation from allowed templ
 ### Business schedule settings
 Authorized staff can manage weekly opening hours and closure dates at `/settings`. These settings feed `/tasks/schedule`. The `/workers/schedule` page manages individual worker availability, daily capacity, approved leave and task calendars. The backend queues deduplicated assignment emails and eligible 24-hour reminders through the durable email outbox. Live delivery, full builds and PostgreSQL migration/integration verification remain outstanding; mobile calendar parity is not implemented.
 
-### Finance UI (initial slice)
-`/finance` shows invoices, pending payment claims, and expense summaries for the current user's permissions. Free-form draft invoices can be created at `/finance/invoices/new`; invoice detail supports issue, void, credit notes, recording payments, and permission-gated verification/reversal. Eligible order details can create Full/Deposit/Balance draft invoices. Expense CRUD and invoice draft editing are still outstanding, and this UI needs a dependency-backed CI run.
+### Finance UI (partial, latest changes await CI)
+`/finance` shows invoices, pending payment claims, and expense summaries for the current user's permissions. The PWA now supports free-form and order-linked Full/Deposit/Balance draft creation, draft edit/delete, issue/void, credit notes, payment recording and permission-gated verification/rejection, receipt details, expense records, and expense-category management. Provider-backed invoice checkout and share links remain open; this UI needs a dependency-backed CI run.
 
 ### Production scheduling status
 

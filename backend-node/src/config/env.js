@@ -7,6 +7,8 @@ const EnvSchema = z.object({
   API_URL: z.string().url().optional(),
   DATABASE_URL: z.string().url().optional(),
   TRUST_PROXY_HEADERS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  MAX_PROXY_BODY_BYTES: z.coerce.number().int().min(1024).max(100 * 1024 * 1024).default(25 * 1024 * 1024),
+  UPSTREAM_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 

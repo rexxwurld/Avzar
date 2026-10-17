@@ -24,7 +24,7 @@ public sealed class ExpenseLocationScopeTests(PostgresFixture fx) : IClassFixtur
     {
         var db = fx.Create(bid);
         var t = new FakeUserTenant(bid, userId);
-        ILocationScope? scope = userId is null ? null : new LocationScope(db, t, new PermissionService(db));
+        ILocationScope scope = userId is null ? new UnrestrictedLocationScope() : new LocationScope(db, t, new PermissionService(db));
         return new ExpenseService(db, t, new AuditLogger(db), new EntitlementService(db), scope);
     }
 

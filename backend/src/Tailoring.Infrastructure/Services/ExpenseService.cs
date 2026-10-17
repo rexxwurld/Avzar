@@ -11,7 +11,7 @@ using Tailoring.Infrastructure.Persistence;
 namespace Tailoring.Infrastructure.Services;
 
 public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements,
-    ILocationScope? locations = null) : IExpenseService
+    ILocationScope locations) : IExpenseService
 {
     private Guid BusinessId => tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
 
@@ -153,7 +153,6 @@ public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAudi
     /// callers who see every location. A hidden expense looks exactly like a missing one.</summary>
     private async Task<IQueryable<Expense>> ScopedAsync(IQueryable<Expense> q, CancellationToken ct)
     {
-        if (locations is null) return q; // no scope service registered (tests, system flows)
         var allowed = await locations.AllowedLocationIdsAsync(ct);
         return allowed is null ? q : q.Where(e => e.LocationId != null && allowed.Contains(e.LocationId.Value));
     }
@@ -162,7 +161,7 @@ public sealed class ExpenseService(AppDbContext db, ITenantContext tenant, IAudi
     /// before the existence check so a foreign location id is answered the same way as a real one.</summary>
     private async Task<Guid?> ResolveLocationAsync(Guid? locationId, CancellationToken ct)
     {
-        if (locations is not null && await locations.AllowedLocationIdsAsync(ct) is not null)
+        if (await locations.AllowedLocationIdsAsync(ct) is not null)
         {
             if (locationId is null) throw AppException.Forbidden("location_forbidden", "Choose one of your locations for this expense.");
             await locations.EnsureAllowedAsync(locationId.Value, ct);

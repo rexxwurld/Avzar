@@ -127,6 +127,7 @@ test('inventory API enforces view/manage permissions and exposes movement histor
   assert.match(controller, /\[HttpPost, HasPermission\(Permissions\.InventoryManage\)\]/);
   assert.match(controller, /\[HttpGet\("\{id:guid\}\/movements"\), HasPermission\(Permissions\.InventoryView\)\]/);
   assert.match(controller, /ReserveTask/);
+  assert.match(controller, /ReleaseTask/);
   assert.match(controller, /ConsumeTask/);
 });
 
@@ -185,4 +186,142 @@ test('production notification queue uses the durable email outbox for assignment
   assert.match(manager, /task\.next-step-ready/);
   assert.match(assignments, /task\.assignment/);
   assert.match(assignments, /task\.unblocked/);
+});
+
+test('inventory CSV import uses multipart preview, hash-bound commit, and explicit invalid-row choice', () => {
+  assert.match(app, /const isFormData = typeof FormData !== 'undefined' && options\.body instanceof FormData/);
+  assert.match(app, /api\('\/api\/inventory\/import\/preview', \{ method: 'POST', body: data \}\)/);
+  assert.match(app, /expectedHash', preview\.fileHash/);
+  assert.match(app, /skipInvalidRows', String\(previewArea\.querySelector\('#inventory-skip-invalid'\)\.checked\)/);
+  assert.match(app, /file\.size > 5 \* 1024 \* 1024/);
+});
+
+test('expense categories can be created and updated through permission-gated APIs', () => {
+  assert.match(app, /id="expense-categories-manage"/);
+  assert.match(app, /api\('\/api\/expense-categories', \{ method: 'POST'/);
+  assert.match(app, /\/api\/expense-categories\/\$\{encodeURIComponent\(category\.id\)\}/);
+  assert.match(app, /isActive: normalized === 'yes'/);
+});
+
+test('location scoping is required for order, task, finance, fitting, expense and search services', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const files = [
+    ['OrderService.cs', /IPermissionService permissions, ILocationScope locations\) : IOrderService/],
+    ['TaskService.cs', /IPermissionService permissions, ILocationScope locations\) : ITaskService/],
+    ['InvoiceService.cs', /ILocationScope locations\) : IInvoiceService/],
+    ['PaymentService.cs', /ILocationScope locations\) : IPaymentService/],
+    ['ExpenseService.cs', /ILocationScope locations\) : IExpenseService/],
+    ['CustomerService.cs', /ILocationScope locations\) : IFittingService/],
+    ['ImportExportServices.cs', /ILocationScope locations\) : ISearchService/],
+  ];
+  for (const [file, signature] of files) {
+    const source = await readFile(new URL(`../../backend/src/Tailoring.Infrastructure/Services/${file}`, import.meta.url), 'utf8');
+    assert.match(source, signature, `${file} must require ILocationScope`);
+    assert.doesNotMatch(source, /ILocationScope\? locations\s*=\s*null/);
+  }
+});
+
+test('overdue task reminders are queued daily through the durable outbox with tenant and active-membership checks', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const worker = await readFile(new URL('../../backend/src/Tailoring.Infrastructure/Services/OverdueTaskReminderWorker.cs', import.meta.url), 'utf8');
+  const registration = await readFile(new URL('../../backend/src/Tailoring.Infrastructure/DependencyInjection.cs', import.meta.url), 'utf8');
+  assert.match(worker, /Notifications:OverdueTaskRemindersEnabled/);
+  assert.match(worker, /IgnoreQueryFilters\(\)/);
+  assert.match(worker, /membership\.BusinessId == task\.BusinessId/);
+  assert.match(worker, /membership\.Status == MembershipStatus\.Active/);
+  assert.match(worker, /DeduplicationKey = key/);
+  assert.match(worker, /TemplateKey = "task\.overdue"/);
+  assert.match(worker, /UniqueViolation/);
+  assert.match(registration, /services\.AddHostedService<Services\.OverdueTaskReminderWorker>\(\)/);
+});
+
+test('location authorization runs before location existence checks on order and fitting writes', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const orderService = await readFile(new URL('../../backend/src/Tailoring.Infrastructure/Services/OrderService.cs', import.meta.url), 'utf8');
+  const customerService = await readFile(new URL('../../backend/src/Tailoring.Infrastructure/Services/CustomerService.cs', import.meta.url), 'utf8');
+  const createOrder = orderService.slice(orderService.indexOf('CreateAsync(CreateOrderRequest'), orderService.indexOf('// ------------------------------------------------------------------ update'));
+  assert.ok(createOrder.indexOf('RequireLocationAsync(req.LocationId') < createOrder.indexOf('EnsureLocationAsync(req.LocationId'), 'order create must authorize before checking location existence');
+  const fittingStart = customerService.indexOf('public async Task<FittingDto> CreateAsync');
+  const fittingEnd = customerService.indexOf('public async Task<FittingDto> SetStatusAsync', fittingStart);
+  const createFitting = customerService.slice(fittingStart, fittingEnd);
+  assert.ok(createFitting.indexOf('locations.EnsureAllowedAsync(req.LocationId') < createFitting.indexOf('db.Locations.AnyAsync'), 'fitting create must authorize before checking location existence');
+});
+
+test('worker and leave-management services scope staff records to permitted locations', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const workers = await readFile(new URL('../../backend/src/Tailoring.Infrastructure/Services/TaskService.cs', import.meta.url), 'utf8');
+  const schedules = await readFile(new URL('../../backend/src/Tailoring.Infrastructure/Services/WorkerScheduleService.cs', import.meta.url), 'utf8');
+  const customerService = await readFile(new URL('../../backend/src/Tailoring.Infrastructure/Services/CustomerService.cs', import.meta.url), 'utf8');
+  const workerService = workers.slice(workers.indexOf('public sealed class WorkerService'), workers.length);
+  assert.match(workerService, /ILocationScope locations/);
+  assert.match(workerService, /MembershipLocations\.Any/);
+  assert.match(workerService, /taskQuery = taskQuery\.Where\(t => db\.Orders\.Any/);
+  assert.match(workerService, /EnsureMembershipVisibleAsync/);
+  assert.match(workerService, /WorkerService\(AppDbContext db, ITenantContext tenant, IAuditLogger audit, ILocationScope locations\)/);
+  const taskService = workers.slice(0, workers.indexOf('public sealed class WorkerService'));
+  assert.match(taskService, /allowedLocations is not null && !await db\.MembershipLocations\.AnyAsync/);
+  assert.ok(taskService.indexOf('allowedLocations is not null && !await db.MembershipLocations.AnyAsync') < taskService.indexOf('if (t.AssignedMembershipId == memberId)'), 'assignment idempotence must not bypass worker location visibility');
+  assert.match(customerService, /CustomerService\(AppDbContext db, ITenantContext tenant, IAuditLogger audit, IEntitlementService entitlements, ILocationScope locations\)/);
+  assert.match(customerService, /customer_merge_requires_all_locations/);
+  assert.match(schedules, /private async Task EnsureMembershipAsync/);
+  assert.match(schedules, /query = query\.Where\(m => db\.MembershipLocations\.Any/);
+  assert.match(schedules, /ListPendingLeaveRequestsAsync[\s\S]*?query = query\.Where\(x => db\.MembershipLocations\.Any/);
+  assert.match(schedules, /ReviewLeaveRequestAsync[\s\S]*?query = query\.Where\(x => db\.MembershipLocations\.Any/);
+});
+
+test('task detail supports permission-gated task-linked stock reservation and consumption', () => {
+  assert.match(app, /id="task-materials-manage"/);
+  assert.match(app, /hasPermission\('inventory\.manage'\) && hasPermission\('inventory\.view'\)/);
+  assert.match(app, /\/api\/inventory\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/\$\{kind\}/);
+  assert.match(app, /materials: selected, note:/);
+  assert.match(app, /Reserve selected/);
+  assert.match(app, /Release selected/);
+  assert.match(app, /Consume selected/);
+  assert.match(app, /kind === 'release' \? '#task-material-release'/);
+});
+
+test('draft invoices can be edited with optimistic version checks and server-side total recalculation', () => {
+  assert.match(app, /id="invoice-edit-draft"/);
+  assert.match(app, /body = \{ version: Number\(invoice\.version\)/);
+  assert.match(app, /api\(`\/api\/invoices\/\$\{encodeURIComponent\(invoice\.id\)\}`, \{ method: 'PUT', body \}\)/);
+  assert.match(app, /Order-billed invoice lines are locked/);
+  assert.match(app, /body\.lines = rows\.map/);
+});
+
+test('finance PWA exposes draft deletion and audited invoice void actions through the authoritative API', () => {
+  assert.match(app, /id="invoice-delete-draft"/);
+  assert.match(app, /method: 'DELETE'/);
+  assert.match(app, /id="invoice-void"/);
+  assert.match(app, /\/api\/invoices\/\$\{encodeURIComponent\(invoice\.id\)\}\/void/);
+  assert.match(app, /Invoice voided; the audit trail was retained/);
+});
+
+test('finance PWA can create free-form and order-linked draft invoices with idempotency keys', () => {
+  assert.match(app, /id="invoice-create"/);
+  assert.match(app, /api\('\/api\/invoices', \{ method: 'POST', headers: \{ 'idempotency-key': crypto\.randomUUID\(\) \}, body \}\)/);
+  assert.match(app, /id="invoice-from-order"/);
+  assert.match(app, /\/api\/invoices\/from-order\/\$\{encodeURIComponent\(orderId\)\}/);
+  assert.match(app, /mode === 'Deposit' && \(\(amountRaw === ''\) === \(percentRaw === ''\)\)/);
+});
+
+test('task stock release restores reserved availability without reducing on-hand stock', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const inventory = await readFile(new URL('../../backend/src/Tailoring.Infrastructure/Services/InventoryService.cs', import.meta.url), 'utf8');
+  const releaseStart = inventory.indexOf('else if (action == StockMovementKind.Release)');
+  const consumeStart = inventory.indexOf('else if (action == StockMovementKind.Consume)', releaseStart);
+  const releaseBlock = inventory.slice(releaseStart, consumeStart);
+  assert.match(releaseBlock, /material\.Reserved -= line\.Quantity/);
+  assert.doesNotMatch(releaseBlock, /material\.OnHand\s*-/);
+  assert.match(inventory, /StockMovementKind\.Release => "inventory\.task_materials_released"/);
+});
+
+test('inventory location choices are filtered by the same location scope used for stock records', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const inventory = await readFile(new URL('../../backend/src/Tailoring.Infrastructure/Services/InventoryService.cs', import.meta.url), 'utf8');
+  const inventoryController = await readFile(new URL('../../backend/src/Tailoring.Api/Controllers/InventoryController.cs', import.meta.url), 'utf8');
+  assert.match(inventoryController, /HttpGet\("locations"\), HasPermission\(Permissions\.InventoryView\)/);
+  assert.match(inventory, /ListLocationsAsync/);
+  assert.match(inventory, /if \(allowed is not null\) query = query\.Where\(x => allowed\.Contains\(x\.Id\)\)/);
+  assert.match(app, /api\('\/api\/inventory\/locations'\)/);
+  assert.match(app, /locationId: form\.querySelector\('#material-location'\)\.value \|\| null/);
 });
