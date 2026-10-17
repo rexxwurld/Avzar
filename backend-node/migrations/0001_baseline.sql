@@ -1271,6 +1271,28 @@ CREATE INDEX "IX_WorkerSkills_MembershipId_BusinessId" ON "WorkerSkills" ("Membe
 CREATE UNIQUE INDEX "UX_Workflows_OneDefault" ON "Workflows" ("BusinessId") WHERE "IsDefault";
 CREATE UNIQUE INDEX "IX_Workflows_BusinessId_Name" ON "Workflows" ("BusinessId", "Name");
 
+-- Alternate keys (Id, BusinessId) that composite tenant foreign keys point at. The EF snapshot generator missed these.
+ALTER TABLE "BusinessRoles" ADD CONSTRAINT "AK_BusinessRoles_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "Customers" ADD CONSTRAINT "AK_Customers_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "DesignCategories" ADD CONSTRAINT "AK_DesignCategories_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "DesignCollections" ADD CONSTRAINT "AK_DesignCollections_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "Designs" ADD CONSTRAINT "AK_Designs_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "ExpenseCategories" ADD CONSTRAINT "AK_ExpenseCategories_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "Invoices" ADD CONSTRAINT "AK_Invoices_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "Locations" ADD CONSTRAINT "AK_Locations_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "MeasurementSets" ADD CONSTRAINT "AK_MeasurementSets_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "MeasurementTemplates" ADD CONSTRAINT "AK_MeasurementTemplates_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "MediaAssets" ADD CONSTRAINT "AK_MediaAssets_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "Memberships" ADD CONSTRAINT "AK_Memberships_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "OrderGarments" ADD CONSTRAINT "AK_OrderGarments_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "Orders" ADD CONSTRAINT "AK_Orders_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "Payments" ADD CONSTRAINT "AK_Payments_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "ProductionTasks" ADD CONSTRAINT "AK_ProductionTasks_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "Stages" ADD CONSTRAINT "AK_Stages_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "StorefrontVersions" ADD CONSTRAINT "AK_StorefrontVersions_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "Storefronts" ADD CONSTRAINT "AK_Storefronts_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+ALTER TABLE "Workflows" ADD CONSTRAINT "AK_Workflows_Id_BusinessId" UNIQUE ("Id", "BusinessId");
+
 ALTER TABLE "AspNetRoleClaims" ADD CONSTRAINT "FK_AspNetRoleClaims_AspNetRoles_RoleId" FOREIGN KEY ("RoleId") REFERENCES "AspNetRoles" ("Id") ON DELETE CASCADE;
 ALTER TABLE "AspNetUserClaims" ADD CONSTRAINT "FK_AspNetUserClaims_AspNetUsers_UserId" FOREIGN KEY ("UserId") REFERENCES "AspNetUsers" ("Id") ON DELETE CASCADE;
 ALTER TABLE "AspNetUserLogins" ADD CONSTRAINT "FK_AspNetUserLogins_AspNetUsers_UserId" FOREIGN KEY ("UserId") REFERENCES "AspNetUsers" ("Id") ON DELETE CASCADE;
