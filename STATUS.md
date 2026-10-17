@@ -1,41 +1,46 @@
 # Avzar: Status
 
-Single current-status file. Older dated logs were removed; git history keeps them.
+Single current-status file. Detailed unfinished work is in `TODO.md`; `PROGRESS.md` and `docs/MASTER_ENGINEERING_HANDOFF.md` are history. Source code and the latest CI results take precedence over every document.
 
-## Current state (CI run #319, 2026-10-17)
+## Direction (owner, 2026-10-17)
 
-- Backend: build 0 errors, **735/735 tests pass**, committed migrations match the EF model.
-- web, pwa-node, migrations: green (run #318). Mobile CI (Expo): green.
-- Warning left: MessagePack advisories. Pinned `MessagePack` 2.5.303 in `backend/Directory.Packages.props`; confirm NU1902/NU1903 are gone on the next run.
+- Primary client: the installable vanilla HTML/CSS/JavaScript PWA (`pwa/`), served by Node/Express (`backend-node/`).
+- The ASP.NET Core API (`backend/`) and PostgreSQL stay authoritative. Node only serves the PWA and proxies `/backend/api/**`; no business domain has moved to Node. Any later move is domain by domain (`docs/NODE_API_COMPATIBILITY_MATRIX.md`).
+- New staff/owner screens are built in the PWA. `web/` (Next.js) stays for the public storefront renderer and preview; its management screens are not being extended.
+- `mobile/avzar-expo` is reference only. The MAUI project (`mobile/Avzar.Mobile`) is not in the 2026-10-17 archive.
+
+## Current state (CI #329, 2026-10-17)
+
+- Backend job (commit `7e9f6aa`, "Create MediaIsolationApiTests.cs"): Release build 0 warnings / 0 errors, **741/741 tests pass** (TRX: 741 passed, 0 failed, 0 skipped), committed migrations match the EF model.
+- New in #329: `MediaIsolationApiTests` (6 HTTP tests: read/list/open by id, delete by id, client `BusinessId` ignored on upload and as a header, no-permission member, anonymous) all pass.
+- web, pwa-node, migrations and Expo jobs were last seen green in #318; only the backend log was reviewed for #329.
+- Deployed on Render: API at https://avzar-api.onrender.com, web at https://avzar-web.onrender.com. The PWA host (`backend-node`) has not been deployed or verified.
+- PWA coverage (read from `pwa/app.js` routes, not run): sign-in with business selection and 2FA/recovery, home overview, customers and measurements (create, revise, history, compare), orders (list, detail, create/edit, quote/confirm/cancel/deliver, task generation), fittings, task board and detail, shop schedule, worker schedules and leave, finance (invoices, payments, credit notes, receipts), expenses, inventory, staff list/invite, customer-portal links, business settings and account security. Not in the PWA yet: storefront editor, AI studio, billing/plans, platform admin, ownership transfer and a reports page. Offline: static-shell cache only (`avzar-shell-v17`); no offline write queue.
 - Not production-ready. Playwright e2e, real email/Paystack/S3/Redis/DNS checks and device tests have not run.
-
-## Where things live
-
-- `README.md`: overview, setup, layout
-- `docs/RUNBOOK.md`, `docs/DEPLOYMENT.md`, `docs/ENVIRONMENT_CONFIGURATION.md`: ops and config
-- `docs/architecture.md`: design
-- `docs/MASTER_ENGINEERING_HANDOFF.md`, `PROGRESS.md`: long history (kept for now; this file is the current list)
-- `docs/FEATURE_INVENTORY.md`, `docs/NODE_API_COMPATIBILITY_MATRIX.md`, `docs/MOBILE_NODE_MIGRATION_INVENTORY.md`: Node/PWA migration ledgers
-- `docs/PLAYWRIGHT.md`, `docs/OFFLINE_SYNC.md`, `docs/production-scheduling.md`: feature notes
 
 Rules that still apply: forward-only migrations (never touch `InitialSchema`), never trust client `BusinessId`, never weaken tests, no production-ready claims, no Docker smoke test (owner decision), run CI after every increment.
 
----
+## Open defect: customer create returns 403 on the deployed web (2026-10-17)
+
+- `POST /api/customers` needs `customers.manage` (owners always pass). The web app shows "You do not have permission to do that." only when the error body has no `code`, which rules out `plan_limit_reached`, `not_a_member` and CSRF failures (CSRF is a 400).
+- Two causes remain: (a) the Next proxy refusing a write whose `Origin` host differs from `Host` (`web/src/lib/proxy.ts`, body `{"status":403,"title":"Cross-origin request refused."}`), or (b) the API permission handler returning an empty 403 for a non-owner whose role lacks `customers.manage`.
+- Not yet confirmed. Read the response body of the failed `POST /backend/api/customers` (network tab or Render log). Check the same write through `backend-node`, whose proxy also refuses cross-origin writes.
 
 ## 1. Do next (small, concrete)
 
-- [ ] Delete `.github/workflows/fix-lockfile.yml` and `cleanup-docs.yml` after use (one-off, both have `contents: write`).
-- [ ] Review `.github/workflows/generate-lockfile.yml`: it deletes the lockfile and uses `npm@latest`, which can reintroduce drift. Keep only if used deliberately.
-- [ ] Confirm the MessagePack pin (2.5.303 in `backend/Directory.Packages.props`) clears NU1902/NU1903 in the next CI restore/build log. If a new advisory appears, bump the pin within the 2.x line.
-- [ ] Resolve the **multiple-lockfiles** warning (root `package-lock.json`, `web/`, `backend-node/`). Remove the root one if unused, or set the Next.js workspace root.
-- [ ] Expo: 28 npm vulnerabilities (10 moderate, 18 high) in `mobile/avzar-expo`, no committed lockfile, and the job runs no `npm audit`. Commit a lockfile and add an audit step.
-- [ ] Add Playwright secrets/vars (`PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_EMAIL`, `PLAYWRIGHT_PASSWORD`, `PLAYWRIGHT_ALLOW_MUTATIONS=true`) so the storefront edit/publish/rollback e2e actually runs. Staging or localhost only.
-- [ ] Update `PROGRESS.md` / `docs/MASTER_ENGINEERING_HANDOFF.md` "newest CI evidence" to run #318 (735 backend tests; web, pwa-node, migrations green).
-- [ ] Confirm a MAUI build run passes after the NU1015 fix (no run seen since run #5).
+- [ ] Capture the 403 response body (see Open defect) and fix the cause: proxy Origin/Host handling, or the role's permissions (add a backfill so existing Manager roles get the newer permissions).
+- [ ] Deploy `backend-node` on Render with `API_URL=https://avzar-api.onrender.com`. Check sign-in, customer create and an order action through the cookie + CSRF proxy, then install the PWA on a phone.
+- [ ] Verify the existing PWA screens against staging, in this order: customers/measurements, orders (quote/confirm/cancel), tasks, finance. Record what works and what does not.
+- [ ] Add the offline write queue (IndexedDB, idempotency keys, conflict handling) per `docs/OFFLINE_SYNC.md`.
+- [ ] Review the web, pwa-node, migrations and Expo job results of the latest run; confirm the Next.js multiple-lockfile warning is gone (root `package-lock.json` is no longer in the repo).
+- [ ] Expo (`mobile/avzar-expo`): 28 npm vulnerabilities and no committed lockfile. Commit a lockfile and add an audit step, or retire the folder.
+- [ ] Add Playwright secrets/vars (`PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_EMAIL`, `PLAYWRIGHT_PASSWORD`, `PLAYWRIGHT_ALLOW_MUTATIONS=true`) so the storefront e2e runs against staging or localhost only.
+
+Done since the last update (checked in the archive or CI): media isolation HTTP tests (#329); MessagePack pin cleared the advisories (#320); `fix-lockfile.yml`, `cleanup-docs.yml` and `generate-lockfile.yml` are gone from `.github/workflows` (only `ci.yml`, `generate-migration.yml` and `mobile-ci.yml` remain); root `package-lock.json` removed; MAUI project removed from the repo.
 
 ## 2. Verification gaps (code exists, not proven)
 
-- [ ] HTTP cross-business probe for **media upload/read/delete** (the only isolation area still listed as untested over HTTP). Confirm the newer storefront/design/collection/portal-revocation probes ran in CI.
+- [x] HTTP cross-business probes for media upload/read/delete: done (`MediaIsolationApiTests`, 6 tests, #329). Confirm the newer storefront/design/collection/portal-revocation probes ran in CI.
 - [ ] Redis job queue: worker retry / dead-letter / recovery tests, and real producers and handlers. Today only primitives and enqueue tests exist.
 - [ ] SignalR: Redis backplane is wired; confirm a web/mobile client actually consumes it, and test multi-instance.
 - [ ] Component-level web tests for AI studio and the customer portal (helpers are tested, components are not). Check coverage for storefront, finance, inventory, worker schedule, billing.
@@ -44,12 +49,12 @@ Rules that still apply: forward-only migrations (never touch `InitialSchema`), n
 - [ ] Paystack in test mode: checkout, signature verification, replay/idempotency.
 - [ ] Email provider webhooks (delivered/bounced) against the real provider.
 - [ ] Real S3, ClamAV, Redis, DNS (custom domains), OpenAI (AI studio).
-- [ ] PostgreSQL integration of inventory reservation under concurrency; customer portal; MAUI sync and conflict behavior.
+- [ ] PostgreSQL integration of inventory reservation under concurrency; customer portal; offline sync and conflict behavior (the MAUI client is gone; the PWA has no offline queue yet).
 - [ ] Leave request/approval flow against PostgreSQL (overlap rules, permissions).
 
 ## 3. Production/ops blockers
 
-- [ ] **Data Protection keys persisted** across Render restarts (preview links break otherwise). See `docs/RUNBOOK.md`.
+- [ ] Data Protection keys are stored in PostgreSQL (`PersistKeysToDbContext`, migration `AddDataProtectionKeys`). Confirm preview links and sessions survive a Render restart. See `docs/RUNBOOK.md`.
 - [ ] `SIXLABORS_LICENSE_KEY` secret is required by CI (backend job fails without it). Confirm the license fits your revenue tier.
 - [ ] Production S3 storage config, CDN in front of `/public/media`, orphan-file cleanup scheduling.
 - [ ] Self-host fonts (currently Google Fonts, allowed by CSP; privacy hardening).
@@ -72,6 +77,7 @@ Rules that still apply: forward-only migrations (never touch `InitialSchema`), n
 - [ ] Existing businesses' Manager roles lack the newer permissions until edited (Owner unaffected). Migration/backfill or release note.
 - [ ] Pricing page UI and onboarding wizard (out of PWA follow-up scope).
 - [ ] Node owning any domain (all business logic stays in ASP.NET; Node only serves the PWA and proxies).
+- [ ] PWA screens still missing: storefront editor, AI studio, billing/plans, platform admin, ownership transfer and a reports page.
 
 ## 5. Exists in code per a search, but confirm before closing
 
