@@ -14,6 +14,12 @@ const EnvSchema = z.object({
   REFRESH_ABSOLUTE_DAYS: z.coerce.number().int().min(1).max(365).default(90),
   MAX_SESSIONS_PER_USER: z.coerce.number().int().min(1).max(100).default(10),
   REQUIRE_VERIFIED_EMAIL: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  ACCOUNT_TOKEN_KEY: z.string().min(32).optional(),
+  WEB_BASE_URL: z.string().url().default('http://localhost:3000'),
+  PRODUCT_NAME: z.string().min(1).max(60).default('Avzar'),
+  EMAIL_VERIFICATION_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+  PASSWORD_RESET_MINUTES: z.coerce.number().int().min(5).max(1440).default(30),
+  EMAIL_THROTTLE_SECONDS: z.coerce.number().int().min(0).max(3600).default(120),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 
