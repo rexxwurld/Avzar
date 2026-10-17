@@ -24,9 +24,9 @@ Statuses were assigned from CI results, the repo docs and keyword searches of th
 
 ---
 
-## Open defects
+## Open items
 
-- [ ] `IN PROGRESS` Customer create returns 403 on the deployed web (2026-10-17). The generic message means the response body had no `code`, so the cause is either the Next proxy's Origin/Host check (`web/src/lib/proxy.ts`) or the API permission handler (non-owner role without `customers.manage`). Read the failed `POST /backend/api/customers` response body to decide. Then check the same write through `backend-node`, which has the same same-origin rule.
+- [ ] `BLOCKED` Recreate the deleted `avzar-api` Render service and its database connection (`docs/DEPLOYMENT.md`, section "Recreate the API on Render"). Nothing can be verified against a live API until this is done.
 
 ---
 

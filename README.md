@@ -148,7 +148,7 @@ ASP.NET Core Data Protection keys are stored in PostgreSQL (`DataProtectionKeys`
 
 ## Roadmap
 
-1. **Keep CI green and verify on staging:** fix the customer-create 403 on the deployed web, deploy `backend-node`, verify the PWA workflows against the live API, and record each CI run in `STATUS.md`.
+1. **Keep CI green and verify on staging:** recreate the API on Render (`docs/DEPLOYMENT.md`), deploy `backend-node`, verify the PWA workflows against the live API, and record each CI run in `STATUS.md`.
 2. **Close security/data-isolation gaps:** keep the location-scope dependency required, preserve tenant and location-negative API tests, verify all recent worker/leave/inventory/finance scope changes in PostgreSQL-backed integration tests, and review TOTP/session/authentication edge cases.
 3. **Finish workflow gaps:** complete payment-provider checkout/share flows, inventory import/reservation edge cases, schedule conflict and DST behavior, overdue notification delivery/recovery, and storefront editor/media/domain polish.
 4. **Complete client migration only deliberately:** Node is still a proxy/static host, not the business API; mobile parity and offline synchronization are not complete. Migrate domain-by-domain only after API-contract, tenant-negative, staging and rollback tests.

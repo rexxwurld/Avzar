@@ -14,22 +14,16 @@ Single current-status file. Detailed unfinished work is in `TODO.md`; `PROGRESS.
 - Backend job (commit `7e9f6aa`, "Create MediaIsolationApiTests.cs"): Release build 0 warnings / 0 errors, **741/741 tests pass** (TRX: 741 passed, 0 failed, 0 skipped), committed migrations match the EF model.
 - New in #329: `MediaIsolationApiTests` (6 HTTP tests: read/list/open by id, delete by id, client `BusinessId` ignored on upload and as a header, no-permission member, anonymous) all pass.
 - web, pwa-node, migrations and Expo jobs were last seen green in #318; only the backend log was reviewed for #329.
-- Deployed on Render: API at https://avzar-api.onrender.com, web at https://avzar-web.onrender.com. The PWA host (`backend-node`) has not been deployed or verified.
+- Render: the owner deleted the `avzar-api` service (2026-10-17); it must be recreated (steps in `docs/DEPLOYMENT.md`). Whether the `avzar-web` service and the PostgreSQL database still exist was not stated. The Node/PWA service has not been deployed.
 - PWA coverage (read from `pwa/app.js` routes, not run): sign-in with business selection and 2FA/recovery, home overview, customers and measurements (create, revise, history, compare), orders (list, detail, create/edit, quote/confirm/cancel/deliver, task generation), fittings, task board and detail, shop schedule, worker schedules and leave, finance (invoices, payments, credit notes, receipts), expenses, inventory, staff list/invite, customer-portal links, business settings and account security. Not in the PWA yet: storefront editor, AI studio, billing/plans, platform admin, ownership transfer and a reports page. Offline: static-shell cache only (`avzar-shell-v17`); no offline write queue.
 - Not production-ready. Playwright e2e, real email/Paystack/S3/Redis/DNS checks and device tests have not run.
 
 Rules that still apply: forward-only migrations (never touch `InitialSchema`), never trust client `BusinessId`, never weaken tests, no production-ready claims, no Docker smoke test (owner decision), run CI after every increment.
 
-## Open defect: customer create returns 403 on the deployed web (2026-10-17)
-
-- `POST /api/customers` needs `customers.manage` (owners always pass). The web app shows "You do not have permission to do that." only when the error body has no `code`, which rules out `plan_limit_reached`, `not_a_member` and CSRF failures (CSRF is a 400).
-- Two causes remain: (a) the Next proxy refusing a write whose `Origin` host differs from `Host` (`web/src/lib/proxy.ts`, body `{"status":403,"title":"Cross-origin request refused."}`), or (b) the API permission handler returning an empty 403 for a non-owner whose role lacks `customers.manage`.
-- Not yet confirmed. Read the response body of the failed `POST /backend/api/customers` (network tab or Render log). Check the same write through `backend-node`, whose proxy also refuses cross-origin writes.
-
 ## 1. Do next (small, concrete)
 
-- [ ] Capture the 403 response body (see Open defect) and fix the cause: proxy Origin/Host handling, or the role's permissions (add a backfill so existing Manager roles get the newer permissions).
-- [ ] Deploy `backend-node` on Render with `API_URL=https://avzar-api.onrender.com`. Check sign-in, customer create and an order action through the cookie + CSRF proxy, then install the PWA on a phone.
+- [ ] Recreate the API on Render (`docs/DEPLOYMENT.md`, section "Recreate the API on Render"): Docker service from `backend/`, `sixlabors_lic` secret file, database connection, then check `/health` and the migration log.
+- [ ] After the API is back, deploy `backend-node` on Render with `API_URL` set to the API's URL. Check sign-in, customer create and an order action through the cookie + CSRF proxy, then install the PWA on a phone.
 - [ ] Verify the existing PWA screens against staging, in this order: customers/measurements, orders (quote/confirm/cancel), tasks, finance. Record what works and what does not.
 - [ ] Add the offline write queue (IndexedDB, idempotency keys, conflict handling) per `docs/OFFLINE_SYNC.md`.
 - [ ] Review the web, pwa-node, migrations and Expo job results of the latest run; confirm the Next.js multiple-lockfile warning is gone (root `package-lock.json` is no longer in the repo).

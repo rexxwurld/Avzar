@@ -2,7 +2,7 @@
 - CI #329 (commit `7e9f6aa`, "Create MediaIsolationApiTests.cs", 2026-10-17): backend job green. Release build 0 warnings / 0 errors, **741/741 tests**, committed migrations match the model. TRX artifact `backend-test-results.zip` checked: 741 passed, 0 failed, 0 skipped.
 - Added `MediaIsolationApiTests.cs` (6 HTTP tests: another business cannot read, list, open or delete media by id; client `BusinessId` is ignored on upload and as a header; a member without media permissions cannot upload or delete; anonymous clients get nothing). This closes the media gap in the isolation checklist.
 - Docs reconciled with the code: PWA-first direction recorded (ASP.NET + PostgreSQL kept); README module table corrected (reports, AI, billing and platform admin exist in source; MAUI removed); PWA coverage restated from `pwa/app.js`; Data Protection keys noted as stored in PostgreSQL; stale workflow, lockfile and "environment cannot build" notes removed.
-- Open defect: customer create returns 403 on the deployed web (cause not confirmed; see `STATUS.md`).
+- Render: the owner deleted the `avzar-api` service (2026-10-17) and will recreate it; the old customer-create 403 belonged to that deployment and is no longer tracked.
 - Not reviewed for #329: the `web`, `pwa-node`, `migrations` and Expo job results.
 
 ## CI #289 repair (2026-10-17)
