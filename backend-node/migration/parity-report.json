@@ -1,0 +1,1480 @@
+{
+ "summary": {
+  "total": 245,
+  "implemented": 11,
+  "placeholder": 111,
+  "missing": 123
+ },
+ "rows": [
+  {
+   "method": "POST",
+   "path": "/api/auth/confirm-email",
+   "source": "AccountControllers.cs",
+   "node": "implemented"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/forgot-password",
+   "source": "AccountControllers.cs",
+   "node": "implemented"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/reset-password",
+   "source": "AccountControllers.cs",
+   "node": "implemented"
+  },
+  {
+   "method": "GET",
+   "path": "/api/account/security",
+   "source": "AccountControllers.cs",
+   "node": "implemented"
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/resend-verification",
+   "source": "AccountControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/change-password",
+   "source": "AccountControllers.cs",
+   "node": "implemented"
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/two-factor/setup",
+   "source": "AccountControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/two-factor/enable",
+   "source": "AccountControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/two-factor/disable",
+   "source": "AccountControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/account/sessions",
+   "source": "AccountControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/account/sessions/{sessionId:guid}",
+   "source": "AccountControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/sessions/revoke-all",
+   "source": "AccountControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/account/export",
+   "source": "AccountControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/account/delete",
+   "source": "AccountControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/token",
+   "source": "AccountControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/token/refresh",
+   "source": "AccountControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/token/revoke",
+   "source": "AccountControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/business/schedule",
+   "source": "AccountControllers.cs",
+   "node": "implemented"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/business/schedule/hours",
+   "source": "AccountControllers.cs",
+   "node": "implemented"
+  },
+  {
+   "method": "POST",
+   "path": "/api/business/schedule/holidays",
+   "source": "AccountControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/business/schedule/holidays/{holidayId:guid}",
+   "source": "AccountControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/staff",
+   "source": "AdminControllers.cs",
+   "node": "implemented"
+  },
+  {
+   "method": "POST",
+   "path": "/api/staff/invitations",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/staff/{membershipId:guid}/deactivate",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/staff/{membershipId:guid}/reactivate",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/staff/{membershipId:guid}/roles",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/staff/{membershipId:guid}/locations",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/roles",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/roles/permissions",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/roles",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/roles/{roleId:guid}/permissions",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/locations",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/locations",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/plans",
+   "source": "AdminControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/billing/entitlements",
+   "source": "AdminControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/audit",
+   "source": "AdminControllers.cs",
+   "node": "implemented"
+  },
+  {
+   "method": "POST",
+   "path": "/api/business/ownership-transfer",
+   "source": "AdminControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/business/ownership-transfer/confirm",
+   "source": "AdminControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/platform-admin/plans",
+   "source": "AdminControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/platform-admin/plans/{code}",
+   "source": "AdminControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/ai/fashion-design",
+   "source": "AiController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/ai/fashion-design/save",
+   "source": "AiController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/ai/assistant-builder",
+   "source": "AiController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/auth/csrf",
+   "source": "AuthController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/register-business",
+   "source": "AuthController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/login",
+   "source": "AuthController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/accept-invitation",
+   "source": "AuthController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/accept-invitation/existing",
+   "source": "AuthController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/logout",
+   "source": "AuthController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/auth/me",
+   "source": "AuthController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/business/branding",
+   "source": "BrandingController.cs",
+   "node": "implemented"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/business/branding",
+   "source": "BrandingController.cs",
+   "node": "implemented"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer-portal/customers/{customerId:guid}/link",
+   "source": "CustomerPortalController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/customer-portal/customers/{customerId:guid}/links",
+   "source": "CustomerPortalController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer-portal/access",
+   "source": "CustomerPortalController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/documents",
+   "source": "DocumentsController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/documents",
+   "source": "DocumentsController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/documents/{id:guid}",
+   "source": "DocumentsController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/documents/{id:guid}/file",
+   "source": "DocumentsController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/documents/{id:guid}",
+   "source": "DocumentsController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/platform-admin/email-suppressions",
+   "source": "EmailSuppressionAdminController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/webhooks/email/resend",
+   "source": "EmailWebhooksController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/invoices",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/invoices/{id:guid}",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/invoices",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/invoices/from-order/{orderId:guid}",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/invoices/{id:guid}",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/invoices/{id:guid}",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/invoices/{id:guid}/issue",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/invoices/{id:guid}/void",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/invoices/{id:guid}/credit-notes",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/invoices/{id:guid}/payments",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/payments",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/payments/{id:guid}",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/payments/{id:guid}/verify",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/payments/{id:guid}/reject",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/payments/{id:guid}/reverse",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/payments/{id:guid}/receipt",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/receipts/{id:guid}",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/expense-categories",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/expense-categories",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/expense-categories/{id:guid}",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/expenses/export",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/expenses",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/expenses/summary",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/expenses/{id:guid}",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/expenses",
+   "source": "FinanceControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/expenses/{id:guid}",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/expenses/{id:guid}/void",
+   "source": "FinanceControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customers/export",
+   "source": "ImportExportControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customers/import/preview",
+   "source": "ImportExportControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customers/import/commit",
+   "source": "ImportExportControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/search",
+   "source": "ImportExportControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/inventory",
+   "source": "InventoryController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/inventory/locations",
+   "source": "InventoryController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/inventory/export",
+   "source": "InventoryController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/inventory/import/preview",
+   "source": "InventoryController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/inventory/import/commit",
+   "source": "InventoryController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/inventory",
+   "source": "InventoryController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/inventory/{id:guid}/{actionName}",
+   "source": "InventoryController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/inventory/tasks/{taskId:guid}/reserve",
+   "source": "InventoryController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/inventory/tasks/{taskId:guid}/release",
+   "source": "InventoryController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/inventory/tasks/{taskId:guid}/consume",
+   "source": "InventoryController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/inventory/{id:guid}/movements",
+   "source": "InventoryController.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/media",
+   "source": "MediaControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/media",
+   "source": "MediaControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/media/usage",
+   "source": "MediaControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/media/{id:guid}",
+   "source": "MediaControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/media/{id:guid}/file/{variant}",
+   "source": "MediaControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/media/{id:guid}",
+   "source": "MediaControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/public/media/{id:guid}/{variant}",
+   "source": "MediaControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/invoices/{id:guid}/pdf",
+   "source": "PdfControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/invoices/{id:guid}/credit-notes/{creditNoteId:guid}/pdf",
+   "source": "PdfControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/receipts/{id:guid}/pdf",
+   "source": "PdfControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/orders/{id:guid}/quotation-pdf",
+   "source": "PdfControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customers/{customerId:guid}/measurement-sets/{setId:guid}/pdf",
+   "source": "PdfControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/tasks/{id:guid}/job-sheet-pdf",
+   "source": "PdfControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/my/tasks/{id:guid}/job-sheet-pdf",
+   "source": "PdfControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customers",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customers/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customers",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/customers/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customers/{id:guid}/status",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customers/{sourceId:guid}/merge-into/{targetId:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customers/{id:guid}/communications",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customers/{id:guid}/communications",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customers/{id:guid}/measurements",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customers/{id:guid}/measurements",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/measurement-templates",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/measurement-templates/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/measurement-templates",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/measurement-templates/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/measurement-sets/{id:guid}/revisions",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/measurement-sets/{id:guid}/history",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/measurement-sets/{id:guid}/compare",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/orders",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/orders/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/orders/{id:guid}/pricing",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/orders",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/orders/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/orders/{id:guid}/quote",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/orders/{id:guid}/confirm",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/orders/{id:guid}/cancel",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fittings",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fittings",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fittings/{id:guid}/status",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/designs/export",
+   "source": "Phase2Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/designs",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/designs/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/designs",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/designs/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/designs/{id:guid}/status",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/designs/{id:guid}/images",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/designs/{id:guid}/visibility",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/design-categories",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/design-categories",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/design-categories/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/design-categories/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/collections/export",
+   "source": "Phase2Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/collections",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/collections/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/collections",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/collections/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/collections/{id:guid}/items",
+   "source": "Phase2Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/collections/{id:guid}",
+   "source": "Phase2Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/pricing/profile",
+   "source": "Phase2Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/pricing/profile",
+   "source": "Phase2Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/pricing/calculate",
+   "source": "Phase2Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/workflows",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/workflows/{id:guid}",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/workflows",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/workflows/{id:guid}",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/tasks",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/tasks/schedule/preview",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/tasks/schedule/apply",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/tasks/{id:guid}",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/tasks/{id:guid}",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/tasks/{id:guid}/assign",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/tasks/{id:guid}/unblock",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/tasks/{id:guid}/cancel",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/tasks/{id:guid}/override",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/orders/{orderId:guid}/tasks",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/orders/{orderId:guid}/generate-tasks",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/orders/{orderId:guid}/deliver",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/order-garments/{garmentId:guid}/request-alterations",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/my/tasks",
+   "source": "Phase3Controllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/my/tasks/{id:guid}",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/my/tasks/{id:guid}/start",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/my/tasks/{id:guid}/pause",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/my/tasks/{id:guid}/resume",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/my/tasks/{id:guid}/complete",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/my/tasks/{id:guid}/issues",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/workers",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/workers/{membershipId:guid}/skills",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/workers/{membershipId:guid}/schedule/availability",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/workers/{membershipId:guid}/schedule/availability",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/workers/{membershipId:guid}/schedule/leave",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/workers/{membershipId:guid}/schedule/leave",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/workers/{membershipId:guid}/schedule/leave/{leaveId:guid}",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/workers/{membershipId:guid}/schedule/leave-requests/pending",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/workers/{membershipId:guid}/schedule/leave-requests/{leaveId:guid}/review",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/workers/{membershipId:guid}/schedule/calendar",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/my/leave-requests",
+   "source": "Phase3Controllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/reports/summary",
+   "source": "ReportsController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/storefront-builder/catalog",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/storefronts",
+   "source": "StorefrontControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/storefronts/{id:guid}",
+   "source": "StorefrontControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/storefronts",
+   "source": "StorefrontControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/storefronts/{id:guid}/settings",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/storefronts/{id:guid}/draft",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/storefronts/{id:guid}/draft",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/storefronts/{id:guid}/appearance",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/storefronts/{id:guid}/preview-link",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/storefronts/{id:guid}/template-switch",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/storefronts/{id:guid}/template-switch",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/storefronts/{id:guid}/publish",
+   "source": "StorefrontControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/storefronts/{id:guid}/unpublish",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/storefronts/{id:guid}/versions",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/storefronts/{id:guid}/versions/{number:int}",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/storefronts/{id:guid}/versions/{number:int}/rollback",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/storefront-presets",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/storefront-presets",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/storefront-presets/{id:guid}",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/storefronts/{id:guid}/domains",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/storefronts/{id:guid}/domains",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/storefronts/{id:guid}/domains/{domainId:guid}/verify",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/storefronts/{id:guid}/domains/{domainId:guid}",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/public/sites/{slug}",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/public/preview/{token}",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/public/sites/{slug}/designs",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/public/sites/{slug}/designs/{designSlug}",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/public/sites/{slug}/categories",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/public/sites/{slug}/collections/{collectionSlug}",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/public/sites/{slug}/sitemap.xml",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/public/sites/{slug}/robots.txt",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/public/resolve",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/public/domains/allowed",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/public/sites/{slug}/inquiries",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/inquiries",
+   "source": "StorefrontControllers.cs",
+   "node": "placeholder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/inquiries/summary",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "GET",
+   "path": "/api/inquiries/{id:guid}",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/inquiries/{id:guid}",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/inquiries/{id:guid}/convert",
+   "source": "StorefrontControllers.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/billing/subscription/checkout",
+   "source": "SubscriptionBillingController.cs",
+   "node": "missing"
+  },
+  {
+   "method": "POST",
+   "path": "/api/billing/subscription/webhook",
+   "source": "SubscriptionBillingController.cs",
+   "node": "missing"
+  }
+ ]
+}
