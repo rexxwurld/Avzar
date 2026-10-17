@@ -1,3 +1,9 @@
+## CI #284 repair (2026-10-17)
+- CI run #284 (commit `b6feb54`): backend 729/730 (scheduling email test), pwa-node failed, web and migrations succeeded.
+- **Fixed, awaiting CI:** (1) `Phase3Tests` schedule-mail test now counts outbox mail by template because task assignment now also queues a `task.assignment` mail; (2) `pwa/sw.js` no longer calls `skipWaiting()` on install (updates wait for the user, `SKIP_WAITING` message handler added); (3) `pwa/index.html` gained the missing `#update-notice`/`#update-button` markup and `pwa/styles.css` its styles (without them `app.js` threw at load).
+- **Verified locally:** `node --check` on all PWA/Node files; `pwa-policy` + `proxy` tests 21/21. **Not verified:** `backend-node/test/app.test.js` (needs `supertest`; no registry access here), the .NET test fix (no SDK here), and any browser/device behaviour.
+- **Open:** transitive `MessagePack 2.5.187` advisories (NU1902/NU1903) in the .NET build; Next.js multiple-lockfile warning; `@types/node` peer warning.
+
 ## Verification, notification and finance follow-up (2026-10-17)
 - Fixed `.github/workflows/mobile-node-ci.yml`: it previously invoked `npm run typecheck` and `npm run build` in `backend-node`, but those scripts do not exist. The Node job now uses the committed lockfile, audits dependencies, checks the actual JavaScript entry points, and runs the Node test suite. The Expo job invokes `npx tsc --noEmit` directly instead of assuming a package script exists.
 - Added `scripts/verify-local.sh` to run available JavaScript syntax checks, Node tests, web typecheck/tests/build, and .NET build/tests while explicitly marking checks blocked when required dependencies or SDKs are missing. It returns status 2 when checks are blocked, rather than falsely reporting a full pass.
