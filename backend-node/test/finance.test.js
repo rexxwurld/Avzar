@@ -67,8 +67,36 @@ describe('finance', () => {
       query: async (sql, values) => {
         if (sql.includes('FROM "UserSessions"')) return { rows: [{ '?column?': 1 }] };
         if (sql.includes('FROM "Memberships"')) return { rows: [{ UserId: '00000000-0000-4000-8000-000000000001', BusinessId: '00000000-0000-4000-8000-000000000002', Email: 'owner@example.test', FullName: 'Owner', BusinessName: 'Shop', TimeZoneId: 'UTC', CurrencyCode: 'USD', IsOwner: true, Permissions: ['invoices.view', 'invoices.manage', 'payments.view', 'payments.record', 'payments.verify', 'expenses.view', 'expenses.manage'] }] };
+        if (sql.includes('FROM "Plans" p')) return { rows: [{ Value: 'true' }] };
+        if (sql.includes('SELECT 1 FROM "ExpenseCategories"')) return { rows: [{ '?column?': 1 }] };
+        if (sql.includes('FROM "ExpenseCategories"')) return { rows: [{ Id: '00000000-0000-4000-8000-000000000050', Name: 'Fabric & materials', IsActive: true, SortOrder: 0 }] };
+        if (sql.includes('count(*)') && sql.includes('FROM "Expenses"')) return { rows: [{ TotalCount: 0 }] };
+        if (sql.includes('FROM "Expenses"')) return { rows: [] };
+        if (sql.includes('FROM "Businesses"')) return { rows: [{ CurrencyCode: 'USD', TimeZoneId: 'UTC' }] };
         return { rows: [] };
       },
+      connect: async () => ({
+        query: async (sql, values) => {
+          if (sql.includes('INSERT INTO "Expenses"')) return { rows: [{
+            Id: values[0],
+            CategoryId: values[2],
+            ExpenseDate: values[4],
+            Amount: String(values[5]),
+            CurrencyCode: values[6],
+            Description: values[7],
+            Vendor: values[8],
+            Reference: values[9],
+            VoidedAtUtc: null,
+            VoidReason: null,
+            LocationId: values[3],
+            CreatedAtUtc: '2026-10-17T12:00:00.000Z',
+            Version: '1',
+          }] };
+          if (sql.includes('SELECT "Name" AS "CategoryName"')) return { rows: [{ CategoryName: 'Fabric & materials' }] };
+          return { rows: [] };
+        },
+        release() {},
+      }),
     };
 
     const invoices = await requestApp(createApp(env, pool), '/api/invoices', {
@@ -109,7 +137,8 @@ describe('finance', () => {
       headers: { authorization: `Bearer ${bearerToken()}` },
     });
     assert.equal(expenses.status, 200);
-    assert.equal(Array.isArray(expenses.body), true);
+    assert.equal(Array.isArray(expenses.body.items), true);
+    assert.equal(expenses.body.items.length, 0);
 
     const createExpense = await requestApp(createApp(env, pool), '/api/expenses', {
       method: 'POST',

@@ -4,6 +4,17 @@ import { z } from 'zod';
 import { AppError } from '../http/errors.js';
 import { requireBearerAuth } from '../security/bearerAuth.js';
 import { requirePermission } from '../security/permissions.js';
+import {
+  createExpense,
+  exportExpenses,
+  getExpense,
+  listExpenseCategories,
+  listExpenses,
+  saveExpenseCategory,
+  summarizeExpenses,
+  updateExpense,
+  voidExpense,
+} from './expenseService.js';
 
 const invoiceSchema = z.object({
   customerId: z.string().uuid(),
@@ -21,19 +32,90 @@ const paymentSchema = z.object({
 });
 
 const expenseCategorySchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  description: z.string().trim().max(250).optional(),
+  name: z.string().trim().min(2).max(80),
+  isActive: z.boolean().default(true),
+  sortOrder: z.number().int().min(0).max(10_000).default(0),
 });
 
 const expenseSchema = z.object({
   categoryId: z.string().uuid(),
-  amount: z.number().min(0).max(1_000_000_000),
-  currencyCode: z.string().trim().length(3).optional(),
-  description: z.string().trim().min(1).max(250),
-  expenseDate: z.string().trim().max(30).optional(),
+  amount: z.number().min(0.01).max(1_000_000_000),
+  description: z.string().trim().min(2).max(300),
+  expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   vendor: z.string().trim().max(120).optional(),
-  reference: z.string().trim().max(120).optional(),
+  reference: z.string().trim().max(100).optional(),
+  locationId: z.string().uuid().nullable().optional(),
+  version: z.number().int().min(0).max(4_294_967_295).optional(),
 });
+const voidExpenseSchema = z.object({ reason: z.string().trim().min(3).max(500) });
+
+function transaction(pool, callback) {
+  return pool.connect().then(async (client) => {
+    try {
+      await client.query('BEGIN');
+      const result = await callback(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
+}
+
+async function allowedLocations(pool, user) {
+  if (user.isOwner || user.permissions.includes('locations.all')) return null;
+  const { rows } = await pool.query(`
+    SELECT DISTINCT ml."LocationId"
+    FROM "Memberships" m
+    JOIN "MembershipLocations" ml ON ml."MembershipId" = m."Id" AND ml."BusinessId" = m."BusinessId"
+    WHERE m."UserId" = $1 AND m."BusinessId" = $2 AND m."Status" = 0`,
+  [user.userId, user.businessId]);
+  return rows.map((row) => row.LocationId);
+}
+
+const isUuid = (value) => typeof value === 'string'
+  && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
+function parseExpenseDateQuery(value, name) {
+  if (value === undefined) return undefined;
+  const result = String(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(result) || Number.isNaN(Date.parse(`${result}T00:00:00Z`))
+      || new Date(`${result}T00:00:00Z`).toISOString().slice(0, 10) !== result) {
+    throw AppError.badRequest(`invalid_${name}`, `${name} must be a valid date in YYYY-MM-DD format.`);
+  }
+  return result;
+}
+
+function expenseListQuery(req) {
+  const page = Number.parseInt(req.query.page ?? '1', 10);
+  const pageSize = Number.parseInt(req.query.pageSize ?? '25', 10);
+  if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100) {
+    throw AppError.badRequest('invalid_paging', 'Page must be positive and pageSize must be between 1 and 100.');
+  }
+  const query = { page, pageSize, includeVoid: false };
+  for (const field of ['categoryId', 'locationId']) {
+    if (req.query[field] !== undefined) {
+      if (!isUuid(String(req.query[field]))) throw AppError.badRequest(`invalid_${field}`, `The ${field} is invalid.`);
+      query[field] = String(req.query[field]);
+    }
+  }
+  query.from = parseExpenseDateQuery(req.query.from, 'from');
+  query.to = parseExpenseDateQuery(req.query.to, 'to');
+  if (query.from && query.to && query.from > query.to) {
+    throw AppError.badRequest('invalid_date_range', 'The from date must not be later than the to date.');
+  }
+  if (req.query.includeVoid !== undefined) {
+    if (!['true', 'false'].includes(String(req.query.includeVoid))) {
+      throw AppError.badRequest('invalid_include_void', 'includeVoid must be true or false.');
+    }
+    query.includeVoid = String(req.query.includeVoid) === 'true';
+  }
+  if (req.query.search !== undefined) query.search = String(req.query.search).trim().slice(0, 200);
+  return query;
+}
 
 function parse(schema, body) {
   const result = schema.safeParse(body);
@@ -96,31 +178,73 @@ export function createFinanceRouter({ env, pool }) {
     return res.status(200).json({ id: req.params.id, status: 'rejected', rejectedAtUtc: new Date().toISOString() });
   });
 
-  router.get('/expense-categories', ...requireExpensesView, async (_req, res) => res.status(200).json([
-    { id: randomUUID(), name: 'Fabric', description: 'Textile and material purchases' },
-    { id: randomUUID(), name: 'Utilities', description: 'Energy and shop utilities' },
-  ]));
+  router.get('/expense-categories', ...requireExpensesView, async (req, res) => {
+    return res.status(200).json(await listExpenseCategories(pool, req.currentUser));
+  });
 
   router.post('/expense-categories', ...requireExpensesManage, async (req, res) => {
     const payload = parse(expenseCategorySchema, req.body);
-    return res.status(201).json({ id: randomUUID(), name: payload.name, description: payload.description ?? '' });
+    return res.status(201).json(await saveExpenseCategory(pool, transaction, req.currentUser, null, payload));
   });
 
-  router.get('/expenses', ...requireExpensesView, async (_req, res) => res.status(200).json([
-    { id: randomUUID(), categoryId: randomUUID(), amount: 18000, currencyCode: 'NGN', description: 'Fabric restock', expenseDate: '2025-07-01', vendor: 'Material Hub', reference: 'EXP-001', isVoid: false },
-    { id: randomUUID(), categoryId: randomUUID(), amount: 4200, currencyCode: 'NGN', description: 'Utility bill', expenseDate: '2025-07-02', vendor: 'Power Co', reference: 'EXP-002', isVoid: false },
-  ]));
+  router.put('/expense-categories/:id', ...requireExpensesManage, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_category_id', 'The category ID is invalid.');
+    const payload = parse(expenseCategorySchema, req.body);
+    return res.status(200).json(await saveExpenseCategory(pool, transaction, req.currentUser, req.params.id, payload));
+  });
 
-  router.get('/expenses/summary', ...requireExpensesView, async (_req, res) => res.status(200).json({ total: 22200, currencyCode: 'NGN', count: 2 }));
+  router.get('/expenses/export', ...requireExpensesView, async (req, res) => {
+    const query = expenseListQuery(req);
+    const csv = await exportExpenses(pool, req.currentUser, query, await allowedLocations(pool, req.currentUser));
+    const date = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+    res.setHeader('content-disposition', `attachment; filename="expenses-${date}.csv"`);
+    return res.status(200).type('text/csv; charset=utf-8').send(csv);
+  });
+
+  router.get('/expenses', ...requireExpensesView, async (req, res) => {
+    return res.status(200).json(await listExpenses(pool, req.currentUser, expenseListQuery(req),
+      await allowedLocations(pool, req.currentUser)));
+  });
+
+  router.get('/expenses/summary', ...requireExpensesView, async (req, res) => {
+    const from = parseExpenseDateQuery(req.query.from, 'from');
+    const to = parseExpenseDateQuery(req.query.to, 'to');
+    if (from && to && from > to) throw AppError.badRequest('invalid_date_range', 'The from date must not be later than the to date.');
+    let locationId;
+    if (req.query.locationId !== undefined) {
+      if (!isUuid(String(req.query.locationId))) throw AppError.badRequest('invalid_location_id', 'The location ID is invalid.');
+      locationId = String(req.query.locationId);
+    }
+    return res.status(200).json(await summarizeExpenses(pool, req.currentUser, { from, to, locationId },
+      await allowedLocations(pool, req.currentUser)));
+  });
 
   router.get('/expenses/:id', ...requireExpensesView, async (req, res) => {
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) throw AppError.badRequest('invalid_expense_id', 'The expense ID is invalid.');
-    return res.status(200).json({ id: req.params.id, categoryId: randomUUID(), amount: 18000, currencyCode: 'NGN', description: 'Fabric restock', expenseDate: '2025-07-01', vendor: 'Material Hub', reference: 'EXP-001', isVoid: false });
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_expense_id', 'The expense ID is invalid.');
+    return res.status(200).json(await getExpense(pool, req.currentUser, req.params.id,
+      await allowedLocations(pool, req.currentUser)));
   });
 
   router.post('/expenses', ...requireExpensesManage, async (req, res) => {
     const payload = parse(expenseSchema, req.body);
-    return res.status(201).json({ id: randomUUID(), categoryId: payload.categoryId, amount: payload.amount, currencyCode: payload.currencyCode ?? 'NGN', description: payload.description, expenseDate: payload.expenseDate ?? '2025-07-01', vendor: payload.vendor ?? '', reference: payload.reference ?? '', isVoid: false });
+    return res.status(201).json(await createExpense(pool, transaction, req.currentUser, payload,
+      await allowedLocations(pool, req.currentUser)));
+  });
+
+  router.put('/expenses/:id', ...requireExpensesManage, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_expense_id', 'The expense ID is invalid.');
+    const payload = parse(expenseSchema, req.body);
+    return res.status(200).json(await updateExpense(pool, transaction, req.currentUser, req.params.id, payload,
+      await allowedLocations(pool, req.currentUser)));
+  });
+
+  router.post('/expenses/:id/void', ...requireExpensesManage, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_expense_id', 'The expense ID is invalid.');
+    const { reason } = parse(voidExpenseSchema, req.body);
+    await voidExpense(pool, transaction, req.currentUser, req.params.id, reason,
+      await allowedLocations(pool, req.currentUser));
+    return res.status(200).json(await getExpense(pool, req.currentUser, req.params.id,
+      await allowedLocations(pool, req.currentUser)));
   });
 
   return router;

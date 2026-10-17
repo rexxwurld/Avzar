@@ -138,7 +138,8 @@ describe('orders and tasks', () => {
       headers: { authorization: `Bearer ${bearerToken()}` },
     });
     assert.equal(fittings.status, 200);
-    assert.equal(Array.isArray(fittings.body), true);
+    assert.deepEqual(fittings.body.items, []);
+    assert.equal(fittings.body.totalCount, 0);
 
     const tasks = await requestApp(createApp(env, pool), '/api/tasks', {
       headers: { authorization: `Bearer ${bearerToken()}` },

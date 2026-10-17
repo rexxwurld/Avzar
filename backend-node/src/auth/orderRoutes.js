@@ -16,6 +16,7 @@ import {
   reviewWorkerLeave,
   setWorkerAvailability,
 } from './workerScheduleService.js';
+import { createFitting, listFittings, setFittingStatus } from './fittingService.js';
 
 const garmentSchema = z.object({
   id: z.string().uuid().optional(),
@@ -51,9 +52,15 @@ const updateOrderSchema = orderHeaderSchema.extend({
 
 const fittingSchema = z.object({
   customerId: z.string().uuid(),
+  locationId: z.string().uuid(),
   orderId: z.string().uuid().optional(),
-  dateUtc: z.string().datetime().optional(),
-  notes: z.string().trim().max(500).optional(),
+  scheduledAt: z.string().datetime({ offset: true }),
+  durationMinutes: z.number().int().min(5).max(480).default(30),
+  notes: z.string().trim().max(2000).nullable().optional(),
+});
+const fittingStatusSchema = z.object({
+  status: z.enum(['Scheduled', 'Completed', 'Cancelled', 'NoShow']),
+  notes: z.string().trim().max(2000).nullable().optional(),
 });
 
 const workflowSchema = z.object({
@@ -1685,19 +1692,44 @@ export function createOrderRouter({ env, pool }) {
     return res.status(200).json(order);
   });
 
-  router.get('/fittings', ...requireOrdersView, async (_req, res) => res.status(200).json([
-    { id: randomUUID(), customerId: randomUUID(), orderId: randomUUID(), dateUtc: new Date().toISOString(), status: 'scheduled' },
-  ]));
+  router.get('/fittings', ...requireOrdersView, async (req, res) => {
+    const page = Number.parseInt(req.query.page ?? '1', 10);
+    const pageSize = Number.parseInt(req.query.pageSize ?? '25', 10);
+    if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100) {
+      throw AppError.badRequest('invalid_paging', 'Page must be positive and pageSize must be between 1 and 100.');
+    }
+    const filters = { page, pageSize };
+    for (const name of ['customerId', 'orderId']) {
+      if (req.query[name] !== undefined) {
+        if (!isUuid(String(req.query[name]))) throw AppError.badRequest(`invalid_${name}`, `The ${name} is invalid.`);
+        filters[name] = String(req.query[name]);
+      }
+    }
+    for (const [queryName, filterName] of [['from', 'fromUtc'], ['to', 'toUtc']]) {
+      if (req.query[queryName] !== undefined) {
+        const date = new Date(String(req.query[queryName]));
+        if (!Number.isFinite(date.getTime())) throw AppError.badRequest(`invalid_${queryName}`, `${queryName} must be a valid date-time.`);
+        filters[filterName] = date;
+      }
+    }
+    if (filters.fromUtc && filters.toUtc && filters.toUtc <= filters.fromUtc) {
+      throw AppError.badRequest('invalid_date_range', 'The to date must be later than the from date.');
+    }
+    return res.status(200).json(await listFittings(pool, req.currentUser, filters,
+      await allowedLocations(pool, req.currentUser)));
+  });
 
   router.post('/fittings', ...requireFittingsManage, async (req, res) => {
     const payload = parse(fittingSchema, req.body);
-    return res.status(201).json({ id: randomUUID(), customerId: payload.customerId, orderId: payload.orderId ?? randomUUID(), dateUtc: payload.dateUtc ?? new Date().toISOString(), notes: payload.notes ?? '', status: 'scheduled' });
+    return res.status(201).json(await createFitting(pool, transaction, req.currentUser, payload,
+      await allowedLocations(pool, req.currentUser)));
   });
 
   router.post('/fittings/:id/status', ...requireFittingsManage, async (req, res) => {
     if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_fitting_id', 'The fitting ID is invalid.');
-    const payload = parse(z.object({ status: z.string().trim().min(1).max(40) }), req.body);
-    return res.status(200).json({ id: req.params.id, status: payload.status });
+    const payload = parse(fittingStatusSchema, req.body);
+    return res.status(200).json(await setFittingStatus(pool, transaction, req.currentUser, req.params.id, payload,
+      await allowedLocations(pool, req.currentUser)));
   });
 
   router.get('/workflows', ...requireTasksView, async (req, res) => {
