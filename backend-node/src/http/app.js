@@ -2,13 +2,14 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from '../config/env.js';
-import { proxyApiRequest } from './proxy.js';
-import { checkUpstreamReadiness } from './readiness.js';
+import { createMobileAuthRouter } from '../auth/mobileAuth.js';
+import { errorHandler } from './errors.js';
+import { checkDatabaseReadiness } from './readiness.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PWA_ROOT = path.resolve(HERE, '../../../pwa');
 
-export function createApp(env = loadEnv(), fetchImpl = fetch) {
+export function createApp(env = loadEnv(), dbPool = null) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', false);
@@ -20,16 +21,16 @@ export function createApp(env = loadEnv(), fetchImpl = fetch) {
     res.setHeader('content-security-policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
     next();
   });
+  app.use(express.json({ limit: '1mb', strict: true }));
 
   app.get('/health/live', (_req, res) => res.status(200).json({ status: 'live', service: 'avzar-pwa-node' }));
   app.get('/health/ready', async (_req, res) => {
-    // Node is still a PWA/proxy layer. Until Node owns the business database,
-    // readiness depends on the existing API's database-aware health endpoint.
-    const result = await checkUpstreamReadiness(env.API_URL, fetchImpl);
+    const result = await checkDatabaseReadiness(dbPool);
     if (!result.ready) return res.status(503).json({ status: 'not_ready', reason: result.reason });
-    return res.status(200).json({ status: 'ready', service: 'avzar-pwa-node', upstream: 'healthy' });
+    return res.status(200).json({ status: 'ready', service: 'avzar-node', database: 'healthy' });
   });
-  app.get('/api/v1', (_req, res) => res.status(200).json({ service: 'avzar-pwa-node', migrationStage: 'pwa-foundation', productionCutoverEnabled: false }));
+  app.get('/api/v1', (_req, res) => res.status(200).json({ service: 'avzar-node' }));
+  app.use('/api', createMobileAuthRouter({ env, pool: dbPool }));
 
   // Serve only the explicit static PWA shell. API requests are never served from cache.
   app.use(express.static(PWA_ROOT, {
@@ -44,19 +45,12 @@ export function createApp(env = loadEnv(), fetchImpl = fetch) {
     },
   }));
 
-  // Keep the existing ASP.NET API authoritative during the migration. Forward only /api routes,
-  // allowlisted headers, same-origin browser writes, and no provider webhooks.
-  app.use('/backend', (req, res) => proxyApiRequest(req, res, env.API_URL, env.TRUST_PROXY_HEADERS, env.MAX_PROXY_BODY_BYTES, env.UPSTREAM_TIMEOUT_MS, fetchImpl));
-
   app.get(/.*/, (req, res, next) => {
     if (req.path.startsWith('/api/') || req.path.startsWith('/health/') || req.path.startsWith('/backend/')) return next();
     res.sendFile(path.join(PWA_ROOT, 'index.html'));
   });
 
   app.use((req, res) => res.status(404).json({ code: 'not_found', message: 'The requested resource was not found.' }));
-  app.use((error, _req, res, _next) => {
-    const status = Number.isInteger(error?.status) && error.status >= 400 && error.status < 500 ? error.status : 500;
-    res.status(status).json({ code: 'internal_error', message: status >= 500 ? 'An unexpected server error occurred.' : 'The request could not be processed.' });
-  });
+  app.use(errorHandler());
   return app;
 }

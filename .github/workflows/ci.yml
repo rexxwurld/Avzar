@@ -130,13 +130,19 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check src/config/env.js
-          node --check src/http/proxy.js
           node --check src/http/readiness.js
+          node --check src/http/errors.js
           node --check src/http/app.js
+          node --check src/auth/mobileAuth.js
+          node --check src/auth/mobileAuthService.js
+          node --check src/security/bearerAuth.js
+          node --check src/security/csrf.js
+          node --check src/security/jwt.js
+          node --check src/security/passwordHasher.js
           node --check src/server.js
           node --check ../pwa/app.js
           node --check ../pwa/sw.js
-      - name: Run Node API and proxy tests
+      - name: Run Node API and PWA contract tests
         run: npm test
 
   # Applies the COMMITTED migrations to a clean PostgreSQL and inspects the real schema.

@@ -14,23 +14,23 @@ Rules for every slice:
 - [ ] Update inventory status; run `npm ci && npm test` and record the real result.
 
 ## Slice 0: Foundation (no endpoints)
-- [ ] Add dependencies: pg, argon2, pino, cookie-parser or equivalent, express-rate-limit, helmet, vitest, supertest; commit lockfile
-- [ ] Env validation for all vars the C# app read (DB, JWT, cookie, CORS, storage, email, AI, billing, Redis)
-- [ ] pg pool, `withTransaction` helper, graceful shutdown
-- [ ] Error/validation middleware, request IDs, log redaction
-- [ ] Security headers, CORS allowlist, rate-limit presets (`auth` and others from the inventory)
-- [ ] Migration runner wired to `migrations/` with status tracking (exists, verify against a real PostgreSQL)
-- [ ] Test harness against a real PostgreSQL (CI service container, not Docker smoke tests)
-- [ ] Health: `/health/live`, `/health/ready` checking the DB instead of the C# API
-- [ ] Keep PWA static hosting; stop depending on the proxy for readiness
+- [x] Add dependencies: pg, argon2, pino, cookie-parser or equivalent, express-rate-limit, helmet, vitest, supertest; commit lockfile
+- [x] Env validation for all vars the C# app read (DB, JWT, cookie, CORS, storage, email, AI, billing, Redis)
+- [x] pg pool, `withTransaction` helper, graceful shutdown
+- [x] Error/validation middleware, request IDs, log redaction
+- [x] Security headers, CORS allowlist, rate-limit presets (`auth` and others from the inventory)
+- [x] Migration runner wired to `migrations/` with status tracking (exists, verify against a real PostgreSQL)
+- [x] Test harness against a real PostgreSQL (CI service container, not Docker smoke tests)
+- [x] Health: `/health/live`, `/health/ready` checking the DB instead of the C# API
+- [x] Keep PWA static hosting; stop depending on the proxy for readiness
 
 ## Slice 1: Auth and accounts (26 endpoints)
 AuthController 7, MobileAuthController 3, AccountController 11, AccountRecoveryController 3, OwnershipController 2
-- [ ] Register, login, logout, refresh, cookie sessions, CSRF double-submit
-- [ ] Mobile bearer-token flow; no long-lived tokens in localStorage
-- [ ] Argon2id hashing; check compatibility with existing password hashes in the DB (PBKDF2/Identity format?) and add verify-and-rehash if needed
+- [x] Register, login, logout, refresh, cookie sessions, CSRF double-submit
+- [x] Mobile bearer-token flow; no long-lived tokens in localStorage
+- [x] Argon2id hashing; check compatibility with existing password hashes in the DB (PBKDF2/Identity format?) and add verify-and-rehash if needed
 - [ ] Email confirmation, password reset, account management, ownership transfer
-- [ ] Session revocation and lockout rules
+- [x] Session revocation and lockout rules
 
 ## Slice 2: Tenancy, staff and access (17 endpoints)
 StaffController 6, RolesController 4, LocationsController 2, WorkersController 2, AuditController 1, BrandingController 2
