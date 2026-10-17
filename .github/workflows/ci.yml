@@ -129,17 +129,7 @@ jobs:
         run: npm audit --audit-level=high
       - name: Check JavaScript syntax
         run: |
-          node --check src/config/env.js
-          node --check src/http/readiness.js
-          node --check src/http/errors.js
-          node --check src/http/app.js
-          node --check src/auth/mobileAuth.js
-          node --check src/auth/mobileAuthService.js
-          node --check src/security/bearerAuth.js
-          node --check src/security/csrf.js
-          node --check src/security/jwt.js
-          node --check src/security/passwordHasher.js
-          node --check src/server.js
+          find src test scripts -name '*.js' -print0 | xargs -0 -n1 node --check
           node --check ../pwa/app.js
           node --check ../pwa/sw.js
       - name: Run Node API and PWA contract tests
@@ -220,3 +210,34 @@ jobs:
           echo "--- financial/audit FKs that cascade (expect none) ---"
           q "select conrelid::regclass||' -> '||confrelid::regclass from pg_constraint where contype='f' and confdeltype='c' and conrelid::regclass::text in ('\"Payments\"','\"Receipts\"','\"CreditNotes\"','\"Invoices\"','\"Expenses\"','\"AuditLogs\"','\"Orders\"')" | tee cascades.txt
           [ ! -s cascades.txt ] || { echo "::error::Cascade delete on financial/audit table"; exit 1; }
+
+  # Applies the Node SQL migrations to a clean PostgreSQL (twice, to prove idempotency) and runs the database integration tests.
+  node-db:
+    runs-on: ubuntu-24.04
+    env:
+      DATABASE_URL: postgres://postgres:ci_only_password@localhost:5432/avzar_node_ci
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: avzar_node_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend-node
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: Apply migrations to clean PostgreSQL
+        run: npm run migrate
+      - name: Migrations are idempotent
+        run: npm run migrate
+      - name: Database integration tests
+        run: node --test "test/db/**/*.test.js"
