@@ -36,7 +36,7 @@
     <PackageVersion Include="AWSSDK.Core" Version="4.0.3.3" />
     <!-- GHSA-mggc-4xg6-vcxf / GHSA-q939-rpr3-3284: fixed in 2026.0.0 (pulled in by Testcontainers). -->
     <PackageVersion Include="SSH.NET" Version="2026.0.0" />
-    <!-- NU1902/NU1903: MessagePack 2.5.187 is transitive (SignalR/Redis stack). The 2026-06-25 advisory batch (incl. GHSA-hv8m-jj95-wg3x LZ4, high) is fixed in 2.5.301+ on the 2.x line. Stay on 2.x: the SignalR packages are built against it, 3.x is a major API change. Remove when the parent packages ship a patched dependency. -->
-    <PackageVersion Include="MessagePack" Version="2.5.302" />
+    <!-- NU1902/NU1903: MessagePack 2.5.187 is transitive (SignalR/Redis stack). The 2026-06-25 advisory batch (incl. GHSA-hv8m-jj95-wg3x LZ4, high) is fixed in 2.5.301+ on the 2.x line; GHSA-qhrr-8q5h-9q3h (nested arrays, moderate) needs 2.5.303+. Stay on 2.x: the SignalR packages are built against it, 3.x is a major API change. Remove when the parent packages ship a patched dependency. -->
+    <PackageVersion Include="MessagePack" Version="2.5.303" />
   </ItemGroup>
 </Project>
