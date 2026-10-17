@@ -225,7 +225,7 @@ public sealed class CustomerImportTests(PostgresFixture fx) : IClassFixture<Post
 public sealed class SearchTests(PostgresFixture fx) : IClassFixture<PostgresFixture>
 {
     private SearchService Search(Guid bid, IPermissionService perms)
-        => new(fx.Create(bid), new FakeUserTenant(bid, Guid.NewGuid()), perms);
+        => new(fx.Create(bid), new FakeUserTenant(bid, Guid.NewGuid()), perms, new UnrestrictedLocationScope());
 
     private async Task<Guid> SeedAsync(string name)
     {
