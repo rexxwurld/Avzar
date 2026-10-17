@@ -31,7 +31,7 @@ Open `http://localhost:8081`. The PWA can serve its shell without the upstream A
 
 The existing ASP.NET API remains authoritative. This Node service does not connect to PostgreSQL or write business data. Do not switch production traffic until database mapping, authentication compatibility, tenant isolation, domain parity, automated tests, staging verification, and rollback are complete.
 
-The initial PWA is a foundation, not a completed product. Customer list/detail/create/edit and measurement profile/revision/history screens are wired to the existing ASP.NET API but still require staging verification. Multi-business selection and two-factor login in the PWA, orders, scheduling, offline write queues, and the remaining business modules are still to be implemented and tested.
+The PWA is a broad slice, not a completed product. It has screens for sign-in with business selection and 2FA/recovery, home overview, customers and measurements (create, revise, history, compare), orders (list, detail, create/edit, quote/confirm/cancel/deliver, task generation), fittings, task board and detail, shop schedule, worker schedules and leave, finance (invoices, payments, credit notes, receipts), expenses, inventory, staff list/invite, customer-portal links, business settings and account security, all calling the existing ASP.NET API, and none of it has been verified on staging. It lacks the storefront editor, AI studio, billing/plans, platform admin, ownership transfer and a reports page. Offline business writes are not queued yet (the service worker caches only the static shell). The pwa-node CI job (`npm ci`, audit, `node --test`) has been green.
 
 ## Proxy request limits
 
