@@ -1,0 +1,3727 @@
+[
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountRecoveryController",
+  "line": 19,
+  "method": "POST",
+  "path": "/api/auth/confirm-email",
+  "handler": "ConfirmEmail",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountRecoveryController",
+  "line": 24,
+  "method": "POST",
+  "path": "/api/auth/forgot-password",
+  "handler": "ForgotPassword",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountRecoveryController",
+  "line": 28,
+  "method": "POST",
+  "path": "/api/auth/reset-password",
+  "handler": "ResetPassword",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountController",
+  "line": 40,
+  "method": "GET",
+  "path": "/api/account/security",
+  "handler": "Security",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountController",
+  "line": 43,
+  "method": "POST",
+  "path": "/api/account/resend-verification",
+  "handler": "ResendVerification",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountController",
+  "line": 47,
+  "method": "POST",
+  "path": "/api/account/change-password",
+  "handler": "ChangePassword",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountController",
+  "line": 56,
+  "method": "POST",
+  "path": "/api/account/two-factor/setup",
+  "handler": "BeginTwoFactor",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountController",
+  "line": 59,
+  "method": "POST",
+  "path": "/api/account/two-factor/enable",
+  "handler": "EnableTwoFactor",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountController",
+  "line": 63,
+  "method": "POST",
+  "path": "/api/account/two-factor/disable",
+  "handler": "DisableTwoFactor",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountController",
+  "line": 68,
+  "method": "GET",
+  "path": "/api/account/sessions",
+  "handler": "Sessions",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountController",
+  "line": 71,
+  "method": "DELETE",
+  "path": "/api/account/sessions/{sessionId:guid}",
+  "handler": "RevokeSession",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountController",
+  "line": 75,
+  "method": "POST",
+  "path": "/api/account/sessions/revoke-all",
+  "handler": "RevokeAll",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountController",
+  "line": 79,
+  "method": "GET",
+  "path": "/api/account/export",
+  "handler": "Export",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "AccountController",
+  "line": 86,
+  "method": "POST",
+  "path": "/api/account/delete",
+  "handler": "Delete",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "MobileAuthController",
+  "line": 109,
+  "method": "POST",
+  "path": "/api/auth/token",
+  "handler": "SignIn",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "MobileAuthController",
+  "line": 124,
+  "method": "POST",
+  "path": "/api/auth/token/refresh",
+  "handler": "Refresh",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "MobileAuthController",
+  "line": 132,
+  "method": "POST",
+  "path": "/api/auth/token/revoke",
+  "handler": "Revoke",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "BusinessScheduleController",
+  "line": 147,
+  "method": "GET",
+  "path": "/api/business/schedule",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "BusinessScheduleController",
+  "line": 150,
+  "method": "PUT",
+  "path": "/api/business/schedule/hours",
+  "handler": "SetHours",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "BusinessScheduleController",
+  "line": 153,
+  "method": "POST",
+  "path": "/api/business/schedule/holidays",
+  "handler": "AddHoliday",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AccountControllers.cs",
+  "controller": "BusinessScheduleController",
+  "line": 157,
+  "method": "DELETE",
+  "path": "/api/business/schedule/holidays/{holidayId:guid}",
+  "handler": "RemoveHoliday",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "StaffController",
+  "line": 19,
+  "method": "GET",
+  "path": "/api/staff",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StaffView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "StaffController",
+  "line": 22,
+  "method": "POST",
+  "path": "/api/staff/invitations",
+  "handler": "Invite",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StaffManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "StaffController",
+  "line": 26,
+  "method": "POST",
+  "path": "/api/staff/{membershipId:guid}/deactivate",
+  "handler": "Deactivate",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StaffManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "StaffController",
+  "line": 30,
+  "method": "POST",
+  "path": "/api/staff/{membershipId:guid}/reactivate",
+  "handler": "Reactivate",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StaffManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "StaffController",
+  "line": 34,
+  "method": "PUT",
+  "path": "/api/staff/{membershipId:guid}/roles",
+  "handler": "SetRoles",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StaffManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "StaffController",
+  "line": 38,
+  "method": "PUT",
+  "path": "/api/staff/{membershipId:guid}/locations",
+  "handler": "SetLocations",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StaffManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "RolesController",
+  "line": 46,
+  "method": "GET",
+  "path": "/api/roles",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StaffView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "RolesController",
+  "line": 49,
+  "method": "GET",
+  "path": "/api/roles/permissions",
+  "handler": "AvailablePermissions",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.RolesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "RolesController",
+  "line": 52,
+  "method": "POST",
+  "path": "/api/roles",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.RolesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "RolesController",
+  "line": 56,
+  "method": "PUT",
+  "path": "/api/roles/{roleId:guid}/permissions",
+  "handler": "SetPermissions",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.RolesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "LocationsController",
+  "line": 64,
+  "method": "GET",
+  "path": "/api/locations",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StaffView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "LocationsController",
+  "line": 67,
+  "method": "POST",
+  "path": "/api/locations",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.LocationsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "BillingController",
+  "line": 77,
+  "method": "GET",
+  "path": "/api/plans",
+  "handler": "Plans",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "BillingController",
+  "line": 81,
+  "method": "GET",
+  "path": "/api/billing/entitlements",
+  "handler": "Mine",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "AuditController",
+  "line": 94,
+  "method": "GET",
+  "path": "/api/audit",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.AuditView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "OwnershipController",
+  "line": 104,
+  "method": "POST",
+  "path": "/api/business/ownership-transfer",
+  "handler": "RequestVerification",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "OwnershipController",
+  "line": 109,
+  "method": "POST",
+  "path": "/api/business/ownership-transfer/confirm",
+  "handler": "Confirm",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "PlatformPlanAdminController",
+  "line": 128,
+  "method": "GET",
+  "path": "/api/platform-admin/plans",
+  "handler": "List",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AdminControllers.cs",
+  "controller": "PlatformPlanAdminController",
+  "line": 136,
+  "method": "PUT",
+  "path": "/api/platform-admin/plans/{code}",
+  "handler": "Update",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AiController.cs",
+  "controller": "AiController",
+  "line": 27,
+  "method": "POST",
+  "path": "/api/ai/fashion-design",
+  "handler": "FashionDesign",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AiController.cs",
+  "controller": "AiController",
+  "line": 49,
+  "method": "POST",
+  "path": "/api/ai/fashion-design/save",
+  "handler": "SaveFashionDesign",
+  "auth": [],
+  "rateLimit": [
+   "upload"
+  ],
+  "permissionAttrs": [
+   "Permissions.MediaManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AiController.cs",
+  "controller": "AiController",
+  "line": 64,
+  "method": "POST",
+  "path": "/api/ai/assistant-builder",
+  "handler": "AssistantBuilder",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [
+   "Permissions.StorefrontEdit"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AuthController.cs",
+  "controller": "AuthController",
+  "line": 18,
+  "method": "GET",
+  "path": "/api/auth/csrf",
+  "handler": "Csrf",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": true,
+  "status": "todo"
+ },
+ {
+  "file": "AuthController.cs",
+  "controller": "AuthController",
+  "line": 21,
+  "method": "POST",
+  "path": "/api/auth/register-business",
+  "handler": "RegisterBusiness",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AuthController.cs",
+  "controller": "AuthController",
+  "line": 30,
+  "method": "POST",
+  "path": "/api/auth/login",
+  "handler": "Login",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AuthController.cs",
+  "controller": "AuthController",
+  "line": 41,
+  "method": "POST",
+  "path": "/api/auth/accept-invitation",
+  "handler": "AcceptInvitation",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AuthController.cs",
+  "controller": "AuthController",
+  "line": 50,
+  "method": "POST",
+  "path": "/api/auth/accept-invitation/existing",
+  "handler": "AcceptInvitationExisting",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AuthController.cs",
+  "controller": "AuthController",
+  "line": 60,
+  "method": "POST",
+  "path": "/api/auth/logout",
+  "handler": "Logout",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "AuthController.cs",
+  "controller": "AuthController",
+  "line": 67,
+  "method": "GET",
+  "path": "/api/auth/me",
+  "handler": "Me",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "BrandingController.cs",
+  "controller": "BrandingController",
+  "line": 13,
+  "method": "GET",
+  "path": "/api/business/branding",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "BrandingController.cs",
+  "controller": "BrandingController",
+  "line": 16,
+  "method": "PUT",
+  "path": "/api/business/branding",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "CustomerPortalController.cs",
+  "controller": "CustomerPortalController",
+  "line": 31,
+  "method": "POST",
+  "path": "/api/customer-portal/customers/{customerId:guid}/link",
+  "handler": "SendLink",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [
+   "Permissions.CustomersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "CustomerPortalController.cs",
+  "controller": "CustomerPortalController",
+  "line": 48,
+  "method": "DELETE",
+  "path": "/api/customer-portal/customers/{customerId:guid}/links",
+  "handler": "RevokeLinks",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [
+   "Permissions.CustomersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "CustomerPortalController.cs",
+  "controller": "CustomerPortalController",
+  "line": 57,
+  "method": "POST",
+  "path": "/api/customer-portal/access",
+  "handler": "Access",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": true,
+  "status": "todo"
+ },
+ {
+  "file": "DocumentsController.cs",
+  "controller": "DocumentsController",
+  "line": 16,
+  "method": "POST",
+  "path": "/api/documents",
+  "handler": "Upload",
+  "auth": [],
+  "rateLimit": [
+   "upload"
+  ],
+  "permissionAttrs": [
+   "Permissions.DocumentsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "DocumentsController.cs",
+  "controller": "DocumentsController",
+  "line": 24,
+  "method": "GET",
+  "path": "/api/documents",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DocumentsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "DocumentsController.cs",
+  "controller": "DocumentsController",
+  "line": 27,
+  "method": "GET",
+  "path": "/api/documents/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DocumentsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "DocumentsController.cs",
+  "controller": "DocumentsController",
+  "line": 31,
+  "method": "GET",
+  "path": "/api/documents/{id:guid}/file",
+  "handler": "Download",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DocumentsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "DocumentsController.cs",
+  "controller": "DocumentsController",
+  "line": 40,
+  "method": "DELETE",
+  "path": "/api/documents/{id:guid}",
+  "handler": "Delete",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DocumentsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "EmailSuppressionAdminController.cs",
+  "controller": "EmailSuppressionAdminController",
+  "line": 16,
+  "method": "GET",
+  "path": "/api/platform-admin/email-suppressions",
+  "handler": "List",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "EmailWebhooksController.cs",
+  "controller": "EmailWebhooksController",
+  "line": 19,
+  "method": "POST",
+  "path": "/api/webhooks/email/resend",
+  "handler": "Resend",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "InvoicesController",
+  "line": 16,
+  "method": "GET",
+  "path": "/api/invoices",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InvoicesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "InvoicesController",
+  "line": 19,
+  "method": "GET",
+  "path": "/api/invoices/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InvoicesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "InvoicesController",
+  "line": 23,
+  "method": "POST",
+  "path": "/api/invoices",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InvoicesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "InvoicesController",
+  "line": 31,
+  "method": "POST",
+  "path": "/api/invoices/from-order/{orderId:guid}",
+  "handler": "FromOrder",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InvoicesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "InvoicesController",
+  "line": 39,
+  "method": "PUT",
+  "path": "/api/invoices/{id:guid}",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InvoicesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "InvoicesController",
+  "line": 42,
+  "method": "DELETE",
+  "path": "/api/invoices/{id:guid}",
+  "handler": "DeleteDraft",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InvoicesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "InvoicesController",
+  "line": 45,
+  "method": "POST",
+  "path": "/api/invoices/{id:guid}/issue",
+  "handler": "Issue",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InvoicesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "InvoicesController",
+  "line": 48,
+  "method": "POST",
+  "path": "/api/invoices/{id:guid}/void",
+  "handler": "Void",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InvoicesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "InvoicesController",
+  "line": 51,
+  "method": "POST",
+  "path": "/api/invoices/{id:guid}/credit-notes",
+  "handler": "CreditNote",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InvoicesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "InvoicesController",
+  "line": 55,
+  "method": "POST",
+  "path": "/api/invoices/{id:guid}/payments",
+  "handler": "RecordPayment",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PaymentsRecord"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "PaymentsController",
+  "line": 67,
+  "method": "GET",
+  "path": "/api/payments",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PaymentsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "PaymentsController",
+  "line": 70,
+  "method": "GET",
+  "path": "/api/payments/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PaymentsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "PaymentsController",
+  "line": 74,
+  "method": "POST",
+  "path": "/api/payments/{id:guid}/verify",
+  "handler": "Verify",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PaymentsVerify"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "PaymentsController",
+  "line": 77,
+  "method": "POST",
+  "path": "/api/payments/{id:guid}/reject",
+  "handler": "Reject",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PaymentsVerify"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "PaymentsController",
+  "line": 80,
+  "method": "POST",
+  "path": "/api/payments/{id:guid}/reverse",
+  "handler": "Reverse",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PaymentsVerify"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "PaymentsController",
+  "line": 83,
+  "method": "GET",
+  "path": "/api/payments/{id:guid}/receipt",
+  "handler": "ReceiptForPayment",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PaymentsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "ReceiptsController",
+  "line": 90,
+  "method": "GET",
+  "path": "/api/receipts/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PaymentsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "ExpensesController",
+  "line": 97,
+  "method": "GET",
+  "path": "/api/expense-categories",
+  "handler": "Categories",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.ExpensesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "ExpensesController",
+  "line": 100,
+  "method": "POST",
+  "path": "/api/expense-categories",
+  "handler": "CreateCategory",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.ExpensesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "ExpensesController",
+  "line": 104,
+  "method": "PUT",
+  "path": "/api/expense-categories/{id:guid}",
+  "handler": "UpdateCategory",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.ExpensesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "ExpensesController",
+  "line": 108,
+  "method": "GET",
+  "path": "/api/expenses/export",
+  "handler": "Export",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.ExpensesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "ExpensesController",
+  "line": 134,
+  "method": "GET",
+  "path": "/api/expenses",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.ExpensesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "ExpensesController",
+  "line": 137,
+  "method": "GET",
+  "path": "/api/expenses/summary",
+  "handler": "Summary",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.ExpensesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "ExpensesController",
+  "line": 141,
+  "method": "GET",
+  "path": "/api/expenses/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.ExpensesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "ExpensesController",
+  "line": 144,
+  "method": "POST",
+  "path": "/api/expenses",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.ExpensesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "ExpensesController",
+  "line": 151,
+  "method": "PUT",
+  "path": "/api/expenses/{id:guid}",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.ExpensesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "FinanceControllers.cs",
+  "controller": "ExpensesController",
+  "line": 154,
+  "method": "POST",
+  "path": "/api/expenses/{id:guid}/void",
+  "handler": "Void",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.ExpensesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "ImportExportControllers.cs",
+  "controller": "CustomerImportController",
+  "line": 32,
+  "method": "GET",
+  "path": "/api/customers/export",
+  "handler": "Export",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "ImportExportControllers.cs",
+  "controller": "CustomerImportController",
+  "line": 42,
+  "method": "POST",
+  "path": "/api/customers/import/preview",
+  "handler": "Preview",
+  "auth": [],
+  "rateLimit": [
+   "upload"
+  ],
+  "permissionAttrs": [
+   "Permissions.CustomersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "ImportExportControllers.cs",
+  "controller": "CustomerImportController",
+  "line": 48,
+  "method": "POST",
+  "path": "/api/customers/import/commit",
+  "handler": "Commit",
+  "auth": [],
+  "rateLimit": [
+   "upload"
+  ],
+  "permissionAttrs": [
+   "Permissions.CustomersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "ImportExportControllers.cs",
+  "controller": "SearchController",
+  "line": 71,
+  "method": "GET",
+  "path": "/api/search",
+  "handler": "Search",
+  "auth": [
+   "Authorize"
+  ],
+  "rateLimit": [
+   "upload"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "InventoryController.cs",
+  "controller": "InventoryController",
+  "line": 17,
+  "method": "GET",
+  "path": "/api/inventory",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InventoryView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "InventoryController.cs",
+  "controller": "InventoryController",
+  "line": 19,
+  "method": "GET",
+  "path": "/api/inventory/locations",
+  "handler": "Locations",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InventoryView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "InventoryController.cs",
+  "controller": "InventoryController",
+  "line": 21,
+  "method": "GET",
+  "path": "/api/inventory/export",
+  "handler": "Export",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InventoryView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "InventoryController.cs",
+  "controller": "InventoryController",
+  "line": 31,
+  "method": "POST",
+  "path": "/api/inventory/import/preview",
+  "handler": "PreviewImport",
+  "auth": [],
+  "rateLimit": [
+   "upload"
+  ],
+  "permissionAttrs": [
+   "Permissions.InventoryManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "InventoryController.cs",
+  "controller": "InventoryController",
+  "line": 36,
+  "method": "POST",
+  "path": "/api/inventory/import/commit",
+  "handler": "CommitImport",
+  "auth": [],
+  "rateLimit": [
+   "upload"
+  ],
+  "permissionAttrs": [
+   "Permissions.InventoryManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "InventoryController.cs",
+  "controller": "InventoryController",
+  "line": 49,
+  "method": "POST",
+  "path": "/api/inventory",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InventoryManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "InventoryController.cs",
+  "controller": "InventoryController",
+  "line": 51,
+  "method": "POST",
+  "path": "/api/inventory/{id:guid}/{actionName}",
+  "handler": "Change",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InventoryManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "InventoryController.cs",
+  "controller": "InventoryController",
+  "line": 53,
+  "method": "POST",
+  "path": "/api/inventory/tasks/{taskId:guid}/reserve",
+  "handler": "ReserveTask",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InventoryManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "InventoryController.cs",
+  "controller": "InventoryController",
+  "line": 55,
+  "method": "POST",
+  "path": "/api/inventory/tasks/{taskId:guid}/release",
+  "handler": "ReleaseTask",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InventoryManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "InventoryController.cs",
+  "controller": "InventoryController",
+  "line": 57,
+  "method": "POST",
+  "path": "/api/inventory/tasks/{taskId:guid}/consume",
+  "handler": "ConsumeTask",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InventoryManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "InventoryController.cs",
+  "controller": "InventoryController",
+  "line": 59,
+  "method": "GET",
+  "path": "/api/inventory/{id:guid}/movements",
+  "handler": "History",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InventoryView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "MediaControllers.cs",
+  "controller": "MediaController",
+  "line": 17,
+  "method": "POST",
+  "path": "/api/media",
+  "handler": "Upload",
+  "auth": [],
+  "rateLimit": [
+   "upload"
+  ],
+  "permissionAttrs": [
+   "Permissions.MediaManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "MediaControllers.cs",
+  "controller": "MediaController",
+  "line": 25,
+  "method": "GET",
+  "path": "/api/media",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.MediaView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "MediaControllers.cs",
+  "controller": "MediaController",
+  "line": 29,
+  "method": "GET",
+  "path": "/api/media/usage",
+  "handler": "Usage",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.MediaView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "MediaControllers.cs",
+  "controller": "MediaController",
+  "line": 32,
+  "method": "GET",
+  "path": "/api/media/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.MediaView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "MediaControllers.cs",
+  "controller": "MediaController",
+  "line": 36,
+  "method": "GET",
+  "path": "/api/media/{id:guid}/file/{variant}",
+  "handler": "File",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.MediaView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "MediaControllers.cs",
+  "controller": "MediaController",
+  "line": 45,
+  "method": "DELETE",
+  "path": "/api/media/{id:guid}",
+  "handler": "Delete",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.MediaManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "MediaControllers.cs",
+  "controller": "PublicMediaController",
+  "line": 57,
+  "method": "GET",
+  "path": "/public/media/{id:guid}/{variant}",
+  "handler": "Get",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "PdfControllers.cs",
+  "controller": "PdfController",
+  "line": 18,
+  "method": "GET",
+  "path": "/api/invoices/{id:guid}/pdf",
+  "handler": "Invoice",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InvoicesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "PdfControllers.cs",
+  "controller": "PdfController",
+  "line": 21,
+  "method": "GET",
+  "path": "/api/invoices/{id:guid}/credit-notes/{creditNoteId:guid}/pdf",
+  "handler": "CreditNote",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InvoicesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "PdfControllers.cs",
+  "controller": "PdfController",
+  "line": 24,
+  "method": "GET",
+  "path": "/api/receipts/{id:guid}/pdf",
+  "handler": "Receipt",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PaymentsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "PdfControllers.cs",
+  "controller": "PdfController",
+  "line": 27,
+  "method": "GET",
+  "path": "/api/orders/{id:guid}/quotation-pdf",
+  "handler": "Quotation",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.OrdersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "PdfControllers.cs",
+  "controller": "PdfController",
+  "line": 30,
+  "method": "GET",
+  "path": "/api/customers/{customerId:guid}/measurement-sets/{setId:guid}/pdf",
+  "handler": "MeasurementSheet",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "PdfControllers.cs",
+  "controller": "PdfController",
+  "line": 33,
+  "method": "GET",
+  "path": "/api/tasks/{id:guid}/job-sheet-pdf",
+  "handler": "JobSheet",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "PdfControllers.cs",
+  "controller": "PdfController",
+  "line": 37,
+  "method": "GET",
+  "path": "/api/my/tasks/{id:guid}/job-sheet-pdf",
+  "handler": "MyJobSheet",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksWork"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CustomersController",
+  "line": 21,
+  "method": "GET",
+  "path": "/api/customers",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CustomersController",
+  "line": 25,
+  "method": "GET",
+  "path": "/api/customers/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CustomersController",
+  "line": 29,
+  "method": "POST",
+  "path": "/api/customers",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CustomersController",
+  "line": 36,
+  "method": "PUT",
+  "path": "/api/customers/{id:guid}",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CustomersController",
+  "line": 40,
+  "method": "POST",
+  "path": "/api/customers/{id:guid}/status",
+  "handler": "SetStatus",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CustomersController",
+  "line": 45,
+  "method": "POST",
+  "path": "/api/customers/{sourceId:guid}/merge-into/{targetId:guid}",
+  "handler": "Merge",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersMerge"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CustomersController",
+  "line": 49,
+  "method": "GET",
+  "path": "/api/customers/{id:guid}/communications",
+  "handler": "Communications",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CustomersController",
+  "line": 53,
+  "method": "POST",
+  "path": "/api/customers/{id:guid}/communications",
+  "handler": "AddCommunication",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CustomersController",
+  "line": 57,
+  "method": "GET",
+  "path": "/api/customers/{id:guid}/measurements",
+  "handler": "Measurements",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CustomersController",
+  "line": 61,
+  "method": "POST",
+  "path": "/api/customers/{id:guid}/measurements",
+  "handler": "CreateMeasurements",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.MeasurementsRecord"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "MeasurementTemplatesController",
+  "line": 69,
+  "method": "GET",
+  "path": "/api/measurement-templates",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "MeasurementTemplatesController",
+  "line": 73,
+  "method": "GET",
+  "path": "/api/measurement-templates/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "MeasurementTemplatesController",
+  "line": 76,
+  "method": "POST",
+  "path": "/api/measurement-templates",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.MeasurementTemplates"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "MeasurementTemplatesController",
+  "line": 80,
+  "method": "PUT",
+  "path": "/api/measurement-templates/{id:guid}",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.MeasurementTemplates"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "MeasurementSetsController",
+  "line": 88,
+  "method": "POST",
+  "path": "/api/measurement-sets/{id:guid}/revisions",
+  "handler": "AddRevision",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.MeasurementsRecord"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "MeasurementSetsController",
+  "line": 92,
+  "method": "GET",
+  "path": "/api/measurement-sets/{id:guid}/history",
+  "handler": "History",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "MeasurementSetsController",
+  "line": 96,
+  "method": "GET",
+  "path": "/api/measurement-sets/{id:guid}/compare",
+  "handler": "Compare",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.CustomersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "OrdersController",
+  "line": 105,
+  "method": "GET",
+  "path": "/api/orders",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.OrdersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "OrdersController",
+  "line": 109,
+  "method": "GET",
+  "path": "/api/orders/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.OrdersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "OrdersController",
+  "line": 113,
+  "method": "GET",
+  "path": "/api/orders/{id:guid}/pricing",
+  "handler": "GetPricing",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PricingView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "OrdersController",
+  "line": 117,
+  "method": "POST",
+  "path": "/api/orders",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.OrdersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "OrdersController",
+  "line": 125,
+  "method": "PUT",
+  "path": "/api/orders/{id:guid}",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.OrdersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "OrdersController",
+  "line": 129,
+  "method": "POST",
+  "path": "/api/orders/{id:guid}/quote",
+  "handler": "Quote",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.OrdersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "OrdersController",
+  "line": 132,
+  "method": "POST",
+  "path": "/api/orders/{id:guid}/confirm",
+  "handler": "Confirm",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.OrdersConfirm"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "OrdersController",
+  "line": 135,
+  "method": "POST",
+  "path": "/api/orders/{id:guid}/cancel",
+  "handler": "Cancel",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.OrdersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "FittingsController",
+  "line": 143,
+  "method": "GET",
+  "path": "/api/fittings",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.OrdersView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "FittingsController",
+  "line": 147,
+  "method": "POST",
+  "path": "/api/fittings",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.FittingsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "FittingsController",
+  "line": 151,
+  "method": "POST",
+  "path": "/api/fittings/{id:guid}/status",
+  "handler": "SetStatus",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.FittingsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignsController",
+  "line": 159,
+  "method": "GET",
+  "path": "/api/designs/export",
+  "handler": "Export",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignsController",
+  "line": 183,
+  "method": "GET",
+  "path": "/api/designs",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignsController",
+  "line": 187,
+  "method": "GET",
+  "path": "/api/designs/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignsController",
+  "line": 191,
+  "method": "POST",
+  "path": "/api/designs",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignsController",
+  "line": 198,
+  "method": "PUT",
+  "path": "/api/designs/{id:guid}",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignsController",
+  "line": 202,
+  "method": "POST",
+  "path": "/api/designs/{id:guid}/status",
+  "handler": "SetStatus",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignsController",
+  "line": 206,
+  "method": "PUT",
+  "path": "/api/designs/{id:guid}/images",
+  "handler": "SetImages",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignsController",
+  "line": 210,
+  "method": "POST",
+  "path": "/api/designs/{id:guid}/visibility",
+  "handler": "SetVisibility",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignCategoriesController",
+  "line": 218,
+  "method": "GET",
+  "path": "/api/design-categories",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignCategoriesController",
+  "line": 221,
+  "method": "POST",
+  "path": "/api/design-categories",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignCategoriesController",
+  "line": 225,
+  "method": "PUT",
+  "path": "/api/design-categories/{id:guid}",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "DesignCategoriesController",
+  "line": 229,
+  "method": "DELETE",
+  "path": "/api/design-categories/{id:guid}",
+  "handler": "Delete",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CollectionsController",
+  "line": 240,
+  "method": "GET",
+  "path": "/api/collections/export",
+  "handler": "Export",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CollectionsController",
+  "line": 264,
+  "method": "GET",
+  "path": "/api/collections",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CollectionsController",
+  "line": 268,
+  "method": "GET",
+  "path": "/api/collections/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CollectionsController",
+  "line": 271,
+  "method": "POST",
+  "path": "/api/collections",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CollectionsController",
+  "line": 278,
+  "method": "PUT",
+  "path": "/api/collections/{id:guid}",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CollectionsController",
+  "line": 282,
+  "method": "PUT",
+  "path": "/api/collections/{id:guid}/items",
+  "handler": "SetItems",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "CollectionsController",
+  "line": 286,
+  "method": "DELETE",
+  "path": "/api/collections/{id:guid}",
+  "handler": "Delete",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.DesignsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "PricingController",
+  "line": 297,
+  "method": "GET",
+  "path": "/api/pricing/profile",
+  "handler": "GetProfile",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PricingView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "PricingController",
+  "line": 300,
+  "method": "PUT",
+  "path": "/api/pricing/profile",
+  "handler": "SaveProfile",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PricingManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase2Controllers.cs",
+  "controller": "PricingController",
+  "line": 305,
+  "method": "POST",
+  "path": "/api/pricing/calculate",
+  "handler": "Calculate",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.PricingView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkflowsController",
+  "line": 17,
+  "method": "GET",
+  "path": "/api/workflows",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkflowsController",
+  "line": 21,
+  "method": "GET",
+  "path": "/api/workflows/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkflowsController",
+  "line": 24,
+  "method": "POST",
+  "path": "/api/workflows",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.WorkflowsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkflowsController",
+  "line": 28,
+  "method": "PUT",
+  "path": "/api/workflows/{id:guid}",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.WorkflowsManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "TasksController",
+  "line": 37,
+  "method": "GET",
+  "path": "/api/tasks",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "TasksController",
+  "line": 42,
+  "method": "POST",
+  "path": "/api/tasks/schedule/preview",
+  "handler": "PreviewSchedule",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "TasksController",
+  "line": 47,
+  "method": "POST",
+  "path": "/api/tasks/schedule/apply",
+  "handler": "ApplySchedule",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "TasksController",
+  "line": 51,
+  "method": "GET",
+  "path": "/api/tasks/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "TasksController",
+  "line": 54,
+  "method": "PUT",
+  "path": "/api/tasks/{id:guid}",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "TasksController",
+  "line": 59,
+  "method": "POST",
+  "path": "/api/tasks/{id:guid}/assign",
+  "handler": "Assign",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksAssign"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "TasksController",
+  "line": 63,
+  "method": "POST",
+  "path": "/api/tasks/{id:guid}/unblock",
+  "handler": "Unblock",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "TasksController",
+  "line": 67,
+  "method": "POST",
+  "path": "/api/tasks/{id:guid}/cancel",
+  "handler": "Cancel",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "TasksController",
+  "line": 72,
+  "method": "POST",
+  "path": "/api/tasks/{id:guid}/override",
+  "handler": "Override",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksOverride"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "OrderProductionController",
+  "line": 80,
+  "method": "POST",
+  "path": "/api/orders/{orderId:guid}/tasks",
+  "handler": "AddTask",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "OrderProductionController",
+  "line": 85,
+  "method": "POST",
+  "path": "/api/orders/{orderId:guid}/generate-tasks",
+  "handler": "Generate",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "OrderProductionController",
+  "line": 89,
+  "method": "POST",
+  "path": "/api/orders/{orderId:guid}/deliver",
+  "handler": "Deliver",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.OrdersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "OrderProductionController",
+  "line": 92,
+  "method": "POST",
+  "path": "/api/order-garments/{garmentId:guid}/request-alterations",
+  "handler": "RequestAlterations",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "MyTasksController",
+  "line": 101,
+  "method": "GET",
+  "path": "/api/my/tasks",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksWork"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "MyTasksController",
+  "line": 105,
+  "method": "GET",
+  "path": "/api/my/tasks/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksWork"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "MyTasksController",
+  "line": 108,
+  "method": "POST",
+  "path": "/api/my/tasks/{id:guid}/start",
+  "handler": "Start",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksWork"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "MyTasksController",
+  "line": 111,
+  "method": "POST",
+  "path": "/api/my/tasks/{id:guid}/pause",
+  "handler": "Pause",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksWork"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "MyTasksController",
+  "line": 114,
+  "method": "POST",
+  "path": "/api/my/tasks/{id:guid}/resume",
+  "handler": "Resume",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksWork"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "MyTasksController",
+  "line": 117,
+  "method": "POST",
+  "path": "/api/my/tasks/{id:guid}/complete",
+  "handler": "Complete",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksWork"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "MyTasksController",
+  "line": 122,
+  "method": "POST",
+  "path": "/api/my/tasks/{id:guid}/issues",
+  "handler": "ReportIssue",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksWork"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkersController",
+  "line": 137,
+  "method": "GET",
+  "path": "/api/workers",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkersController",
+  "line": 140,
+  "method": "PUT",
+  "path": "/api/workers/{membershipId:guid}/skills",
+  "handler": "SetSkills",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.WorkersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkerScheduleController",
+  "line": 150,
+  "method": "GET",
+  "path": "/api/workers/{membershipId:guid}/schedule/availability",
+  "handler": "GetAvailability",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkerScheduleController",
+  "line": 154,
+  "method": "PUT",
+  "path": "/api/workers/{membershipId:guid}/schedule/availability",
+  "handler": "SetAvailability",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.WorkersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkerScheduleController",
+  "line": 158,
+  "method": "GET",
+  "path": "/api/workers/{membershipId:guid}/schedule/leave",
+  "handler": "ListLeave",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkerScheduleController",
+  "line": 162,
+  "method": "POST",
+  "path": "/api/workers/{membershipId:guid}/schedule/leave",
+  "handler": "AddLeave",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.WorkersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkerScheduleController",
+  "line": 166,
+  "method": "DELETE",
+  "path": "/api/workers/{membershipId:guid}/schedule/leave/{leaveId:guid}",
+  "handler": "CancelLeave",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.WorkersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkerScheduleController",
+  "line": 173,
+  "method": "GET",
+  "path": "/api/workers/{membershipId:guid}/schedule/leave-requests/pending",
+  "handler": "PendingLeaveRequests",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.WorkersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkerScheduleController",
+  "line": 177,
+  "method": "POST",
+  "path": "/api/workers/{membershipId:guid}/schedule/leave-requests/{leaveId:guid}/review",
+  "handler": "ReviewLeaveRequest",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.WorkersManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "WorkerScheduleController",
+  "line": 181,
+  "method": "GET",
+  "path": "/api/workers/{membershipId:guid}/schedule/calendar",
+  "handler": "Calendar",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "Phase3Controllers.cs",
+  "controller": "MyLeaveRequestsController",
+  "line": 190,
+  "method": "POST",
+  "path": "/api/my/leave-requests",
+  "handler": "RequestLeave",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.TasksWork"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "ReportsController.cs",
+  "controller": "ReportsController",
+  "line": 23,
+  "method": "GET",
+  "path": "/api/reports/summary",
+  "handler": "Summary",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.ReportsView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 17,
+  "method": "GET",
+  "path": "/api/storefront-builder/catalog",
+  "handler": "Catalog",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 20,
+  "method": "GET",
+  "path": "/api/storefronts",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 23,
+  "method": "GET",
+  "path": "/api/storefronts/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 26,
+  "method": "POST",
+  "path": "/api/storefronts",
+  "handler": "Create",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontEdit"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 33,
+  "method": "PUT",
+  "path": "/api/storefronts/{id:guid}/settings",
+  "handler": "Settings",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontEdit"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 38,
+  "method": "GET",
+  "path": "/api/storefronts/{id:guid}/draft",
+  "handler": "Draft",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 42,
+  "method": "PUT",
+  "path": "/api/storefronts/{id:guid}/draft",
+  "handler": "SaveDraft",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontEdit"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 46,
+  "method": "PUT",
+  "path": "/api/storefronts/{id:guid}/appearance",
+  "handler": "Appearance",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontEdit"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 49,
+  "method": "POST",
+  "path": "/api/storefronts/{id:guid}/preview-link",
+  "handler": "PreviewLink",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 54,
+  "method": "GET",
+  "path": "/api/storefronts/{id:guid}/template-switch",
+  "handler": "PreviewSwitch",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontEdit"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 57,
+  "method": "POST",
+  "path": "/api/storefronts/{id:guid}/template-switch",
+  "handler": "ApplySwitch",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontEdit"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 62,
+  "method": "POST",
+  "path": "/api/storefronts/{id:guid}/publish",
+  "handler": "Publish",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontPublish"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 65,
+  "method": "POST",
+  "path": "/api/storefronts/{id:guid}/unpublish",
+  "handler": "Unpublish",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontPublish"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 68,
+  "method": "GET",
+  "path": "/api/storefronts/{id:guid}/versions",
+  "handler": "Versions",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 71,
+  "method": "GET",
+  "path": "/api/storefronts/{id:guid}/versions/{number:int}",
+  "handler": "Version",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 74,
+  "method": "POST",
+  "path": "/api/storefronts/{id:guid}/versions/{number:int}/rollback",
+  "handler": "Rollback",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontPublish"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 79,
+  "method": "GET",
+  "path": "/api/storefront-presets",
+  "handler": "Presets",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 82,
+  "method": "POST",
+  "path": "/api/storefront-presets",
+  "handler": "CreatePreset",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontEdit"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 86,
+  "method": "DELETE",
+  "path": "/api/storefront-presets/{id:guid}",
+  "handler": "DeletePreset",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontEdit"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 91,
+  "method": "GET",
+  "path": "/api/storefronts/{id:guid}/domains",
+  "handler": "Domains",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 94,
+  "method": "POST",
+  "path": "/api/storefronts/{id:guid}/domains",
+  "handler": "AddDomain",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontPublish"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 98,
+  "method": "POST",
+  "path": "/api/storefronts/{id:guid}/domains/{domainId:guid}/verify",
+  "handler": "VerifyDomain",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontPublish"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "StorefrontsController",
+  "line": 101,
+  "method": "DELETE",
+  "path": "/api/storefronts/{id:guid}/domains/{domainId:guid}",
+  "handler": "RemoveDomain",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.StorefrontPublish"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "PublicSiteController",
+  "line": 109,
+  "method": "GET",
+  "path": "/public/sites/{slug}",
+  "handler": "Site",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "PublicSiteController",
+  "line": 112,
+  "method": "GET",
+  "path": "/public/preview/{token}",
+  "handler": "Preview",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "PublicSiteController",
+  "line": 119,
+  "method": "GET",
+  "path": "/public/sites/{slug}/designs",
+  "handler": "Designs",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "PublicSiteController",
+  "line": 122,
+  "method": "GET",
+  "path": "/public/sites/{slug}/designs/{designSlug}",
+  "handler": "Design",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "PublicSiteController",
+  "line": 125,
+  "method": "GET",
+  "path": "/public/sites/{slug}/categories",
+  "handler": "Categories",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "PublicSiteController",
+  "line": 128,
+  "method": "GET",
+  "path": "/public/sites/{slug}/collections/{collectionSlug}",
+  "handler": "Collection",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "PublicSiteController",
+  "line": 132,
+  "method": "GET",
+  "path": "/public/sites/{slug}/sitemap.xml",
+  "handler": "Sitemap",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "PublicSiteController",
+  "line": 136,
+  "method": "GET",
+  "path": "/public/sites/{slug}/robots.txt",
+  "handler": "Robots",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "PublicSiteController",
+  "line": 141,
+  "method": "GET",
+  "path": "/public/resolve",
+  "handler": "Resolve",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "PublicSiteController",
+  "line": 146,
+  "method": "GET",
+  "path": "/public/domains/allowed",
+  "handler": "Allowed",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "PublicSiteController",
+  "line": 151,
+  "method": "POST",
+  "path": "/public/sites/{slug}/inquiries",
+  "handler": "Submit",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [],
+  "permissionAttrs": [],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "InquiriesController",
+  "line": 165,
+  "method": "GET",
+  "path": "/api/inquiries",
+  "handler": "List",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InquiriesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "InquiriesController",
+  "line": 168,
+  "method": "GET",
+  "path": "/api/inquiries/summary",
+  "handler": "Summary",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InquiriesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "InquiriesController",
+  "line": 171,
+  "method": "GET",
+  "path": "/api/inquiries/{id:guid}",
+  "handler": "Get",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InquiriesView"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "InquiriesController",
+  "line": 174,
+  "method": "PUT",
+  "path": "/api/inquiries/{id:guid}",
+  "handler": "Update",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InquiriesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "StorefrontControllers.cs",
+  "controller": "InquiriesController",
+  "line": 178,
+  "method": "POST",
+  "path": "/api/inquiries/{id:guid}/convert",
+  "handler": "Convert",
+  "auth": [],
+  "rateLimit": [],
+  "permissionAttrs": [
+   "Permissions.InquiriesManage"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "SubscriptionBillingController.cs",
+  "controller": "SubscriptionBillingController",
+  "line": 24,
+  "method": "POST",
+  "path": "/api/billing/subscription/checkout",
+  "handler": "Checkout",
+  "auth": [],
+  "rateLimit": [
+   "auth"
+  ],
+  "permissionAttrs": [
+   "Permissions.BusinessSettings"
+  ],
+  "csrfIgnored": false,
+  "status": "todo"
+ },
+ {
+  "file": "SubscriptionBillingController.cs",
+  "controller": "SubscriptionBillingController",
+  "line": 50,
+  "method": "POST",
+  "path": "/api/billing/subscription/webhook",
+  "handler": "PaystackWebhook",
+  "auth": [
+   "anonymous"
+  ],
+  "rateLimit": [
+   "public"
+  ],
+  "permissionAttrs": [],
+  "csrfIgnored": true,
+  "status": "todo"
+ }
+]
