@@ -17,11 +17,23 @@ function walk(dir) {
 
 const found = new Map(); // "METHOD path" -> { file, real }
 const re = /router\.(get|post|put|patch|delete)\(\s*(['"`])([^'"`]+)\2([\s\S]*?)(?=\n\s*router\.|\n\s*return router)/g;
+const identifier = (name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 for (const file of walk(join(root, 'src'))) {
   const src = readFileSync(file, 'utf8');
+  const serviceFunctions = new Set();
+  for (const imported of src.matchAll(/import\s*{([\s\S]*?)}\s*from\s*['"][^'"]*Service\.js['"]/g)) {
+    for (const name of imported[1].split(',')) {
+      const importedName = name.trim().split(/\s+as\s+/)[0];
+      if (/^[A-Za-z_$][\w$]*$/.test(importedName)) serviceFunctions.add(importedName);
+    }
+  }
+  const serviceCall = serviceFunctions.size
+    ? new RegExp(`\\bawait\\s+(?:[A-Za-z_$][\\w$]*Service\\.)?(?:${[...serviceFunctions].map(identifier).join('|')})\\s*\\(`)
+    : null;
   for (const m of src.matchAll(re)) {
     const body = m[4];
-    const real = /\b(pool|client|db)\.query\(|\bawait\s+\w+Service\.|withTransaction\(/.test(body);
+    const real = /\b(pool|client|db)\.query\(|\bawait\s+\w+Service\.|withTransaction\(/.test(body)
+      || Boolean(serviceCall?.test(body));
     found.set(`${m[1].toUpperCase()} ${norm(m[3])}`, { file, real });
   }
 }

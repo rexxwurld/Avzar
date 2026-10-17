@@ -1,9 +1,9 @@
 {
  "summary": {
   "total": 245,
-  "implemented": 11,
-  "placeholder": 111,
-  "missing": 123
+  "implemented": 76,
+  "placeholder": 73,
+  "missing": 96
  },
  "rows": [
   {
@@ -94,19 +94,19 @@
    "method": "POST",
    "path": "/api/auth/token",
    "source": "AccountControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/auth/token/refresh",
    "source": "AccountControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/auth/token/revoke",
    "source": "AccountControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
@@ -382,55 +382,55 @@
    "method": "GET",
    "path": "/api/invoices",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/invoices/{id:guid}",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/invoices",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/invoices/from-order/{orderId:guid}",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "PUT",
    "path": "/api/invoices/{id:guid}",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "DELETE",
    "path": "/api/invoices/{id:guid}",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/invoices/{id:guid}/issue",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/invoices/{id:guid}/void",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/invoices/{id:guid}/credit-notes",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
@@ -484,43 +484,43 @@
    "method": "GET",
    "path": "/api/expense-categories",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/expense-categories",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "PUT",
    "path": "/api/expense-categories/{id:guid}",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/expenses/export",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/expenses",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/expenses/summary",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/expenses/{id:guid}",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
@@ -532,13 +532,13 @@
    "method": "PUT",
    "path": "/api/expenses/{id:guid}",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/expenses/{id:guid}/void",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
@@ -718,67 +718,67 @@
    "method": "GET",
    "path": "/api/customers",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/customers/{id:guid}",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/customers",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "PUT",
    "path": "/api/customers/{id:guid}",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/customers/{id:guid}/status",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/customers/{sourceId:guid}/merge-into/{targetId:guid}",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/customers/{id:guid}/communications",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/customers/{id:guid}/communications",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/customers/{id:guid}/measurements",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/customers/{id:guid}/measurements",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/measurement-templates",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
@@ -790,37 +790,37 @@
    "method": "POST",
    "path": "/api/measurement-templates",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "PUT",
    "path": "/api/measurement-templates/{id:guid}",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/measurement-sets/{id:guid}/revisions",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/measurement-sets/{id:guid}/history",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/measurement-sets/{id:guid}/compare",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/orders",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
@@ -832,55 +832,55 @@
    "method": "GET",
    "path": "/api/orders/{id:guid}/pricing",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/orders",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "PUT",
    "path": "/api/orders/{id:guid}",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/orders/{id:guid}/quote",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/orders/{id:guid}/confirm",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/orders/{id:guid}/cancel",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/fittings",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/fittings",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/fittings/{id:guid}/status",
    "source": "Phase2Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
@@ -1018,7 +1018,7 @@
    "method": "GET",
    "path": "/api/workflows",
    "source": "Phase3Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
@@ -1042,13 +1042,13 @@
    "method": "GET",
    "path": "/api/tasks",
    "source": "Phase3Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/tasks/schedule/preview",
    "source": "Phase3Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
@@ -1102,13 +1102,13 @@
    "method": "POST",
    "path": "/api/orders/{orderId:guid}/generate-tasks",
    "source": "Phase3Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/orders/{orderId:guid}/deliver",
    "source": "Phase3Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
@@ -1120,109 +1120,109 @@
    "method": "GET",
    "path": "/api/my/tasks",
    "source": "Phase3Controllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/my/tasks/{id:guid}",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/my/tasks/{id:guid}/start",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "placeholder"
   },
   {
    "method": "POST",
    "path": "/api/my/tasks/{id:guid}/pause",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "placeholder"
   },
   {
    "method": "POST",
    "path": "/api/my/tasks/{id:guid}/resume",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "placeholder"
   },
   {
    "method": "POST",
    "path": "/api/my/tasks/{id:guid}/complete",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "placeholder"
   },
   {
    "method": "POST",
    "path": "/api/my/tasks/{id:guid}/issues",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "placeholder"
   },
   {
    "method": "GET",
    "path": "/api/workers",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "PUT",
    "path": "/api/workers/{membershipId:guid}/skills",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/workers/{membershipId:guid}/schedule/availability",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "PUT",
    "path": "/api/workers/{membershipId:guid}/schedule/availability",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/workers/{membershipId:guid}/schedule/leave",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/workers/{membershipId:guid}/schedule/leave",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "DELETE",
    "path": "/api/workers/{membershipId:guid}/schedule/leave/{leaveId:guid}",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/workers/{membershipId:guid}/schedule/leave-requests/pending",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/workers/{membershipId:guid}/schedule/leave-requests/{leaveId:guid}/review",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/workers/{membershipId:guid}/schedule/calendar",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/my/leave-requests",
    "source": "Phase3Controllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",

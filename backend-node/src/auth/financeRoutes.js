@@ -15,13 +15,57 @@ import {
   updateExpense,
   voidExpense,
 } from './expenseService.js';
+import {
+  createInvoice,
+  createInvoiceFromOrder,
+  addInvoiceCreditNote,
+  deleteDraftInvoice,
+  getInvoice,
+  issueDraftInvoice,
+  listInvoices,
+  updateDraftInvoice,
+  voidInvoice,
+} from './invoiceService.js';
+
+const invoiceLineSchema = z.object({
+  description: z.string().trim().min(1).max(200),
+  quantity: z.number().min(0.01).max(100_000).default(1),
+  unitPrice: z.number().min(0).max(1_000_000_000).default(0),
+  discount: z.number().min(0).max(1_000_000_000).default(0),
+  taxPercent: z.number().min(0).max(100).nullable().optional(),
+});
 
 const invoiceSchema = z.object({
   customerId: z.string().uuid(),
-  amount: z.number().min(0).max(1_000_000_000).optional(),
-  currencyCode: z.string().trim().length(3).optional(),
-  dueDate: z.string().trim().max(30).optional(),
-  notes: z.string().trim().max(500).optional(),
+  lines: z.array(invoiceLineSchema).min(1).max(100),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  taxPercent: z.number().min(0).max(100).nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+  terms: z.string().max(2000).nullable().optional(),
+});
+
+const invoiceFromOrderSchema = z.object({
+  mode: z.string().trim().default('Full'),
+  depositPercent: z.number().min(0.01).max(99.99).nullable().optional(),
+  depositAmount: z.number().min(0.01).max(1_000_000_000).nullable().optional(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  taxPercent: z.number().min(0).max(100).nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+  terms: z.string().max(2000).nullable().optional(),
+});
+
+const updateInvoiceSchema = z.object({
+  version: z.number().int().min(0).max(4_294_967_295),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+  terms: z.string().max(2000).nullable().optional(),
+  lines: z.array(invoiceLineSchema).max(100).optional(),
+  taxPercent: z.number().min(0).max(100).nullable().optional(),
+});
+const voidInvoiceSchema = z.object({ reason: z.string().trim().min(3).max(500) });
+const creditNoteSchema = z.object({
+  amount: z.number().min(0.01).max(1_000_000_000),
+  reason: z.string().trim().min(3).max(500),
 });
 
 const paymentSchema = z.object({
@@ -117,6 +161,37 @@ function expenseListQuery(req) {
   return query;
 }
 
+function invoiceListQuery(req) {
+  const page = Number.parseInt(req.query.page ?? '1', 10);
+  const pageSize = Number.parseInt(req.query.pageSize ?? '25', 10);
+  if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100) {
+    throw AppError.badRequest('invalid_paging', 'Page must be positive and pageSize must be between 1 and 100.');
+  }
+  const query = { page, pageSize };
+  for (const field of ['customerId', 'orderId']) {
+    if (req.query[field] !== undefined) {
+      if (!isUuid(String(req.query[field]))) throw AppError.badRequest(`invalid_${field}`, `The ${field} is invalid.`);
+      query[field] = String(req.query[field]);
+    }
+  }
+  query.from = parseExpenseDateQuery(req.query.from, 'from');
+  query.to = parseExpenseDateQuery(req.query.to, 'to');
+  if (query.from && query.to && query.from > query.to) {
+    throw AppError.badRequest('invalid_date_range', 'The from date must not be later than the to date.');
+  }
+  for (const field of ['outstanding', 'overdue']) {
+    if (req.query[field] !== undefined) {
+      if (!['true', 'false'].includes(String(req.query[field]))) {
+        throw AppError.badRequest(`invalid_${field}`, `${field} must be true or false.`);
+      }
+      query[field] = String(req.query[field]) === 'true';
+    }
+  }
+  if (req.query.status !== undefined) query.status = String(req.query.status).trim();
+  if (req.query.search !== undefined) query.search = String(req.query.search).trim().slice(0, 200);
+  return query;
+}
+
 function parse(schema, body) {
   const result = schema.safeParse(body);
   if (!result.success) {
@@ -137,19 +212,64 @@ export function createFinanceRouter({ env, pool }) {
   const requireExpensesView = [requireBearerAuth(env, pool), requirePermission('expenses.view')];
   const requireExpensesManage = [requireBearerAuth(env, pool), requirePermission('expenses.manage')];
 
-  router.get('/invoices', ...requireInvoiceView, async (_req, res) => res.status(200).json([
-    { id: randomUUID(), customerId: randomUUID(), amount: 250000, currencyCode: 'NGN', status: 'draft', dueDate: '2025-07-01', notes: 'Alteration invoice' },
-    { id: randomUUID(), customerId: randomUUID(), amount: 160000, currencyCode: 'NGN', status: 'issued', dueDate: '2025-07-15', notes: 'Repair invoice' },
-  ]));
+  router.get('/invoices', ...requireInvoiceView, async (req, res) => {
+    return res.status(200).json(await listInvoices(pool, req.currentUser, invoiceListQuery(req),
+      await allowedLocations(pool, req.currentUser)));
+  });
 
   router.get('/invoices/:id', ...requireInvoiceView, async (req, res) => {
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) throw AppError.badRequest('invalid_invoice_id', 'The invoice ID is invalid.');
-    return res.status(200).json({ id: req.params.id, customerId: randomUUID(), amount: 250000, currencyCode: 'NGN', status: 'draft', dueDate: '2025-07-01', notes: 'Alteration invoice' });
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_invoice_id', 'The invoice ID is invalid.');
+    return res.status(200).json(await getInvoice(pool, req.currentUser, req.params.id,
+      await allowedLocations(pool, req.currentUser)));
   });
 
   router.post('/invoices', ...requireInvoiceManage, async (req, res) => {
     const payload = parse(invoiceSchema, req.body);
-    return res.status(201).json({ id: randomUUID(), customerId: payload.customerId, amount: payload.amount ?? 0, currencyCode: payload.currencyCode ?? 'NGN', status: 'draft', dueDate: payload.dueDate ?? '2025-07-01', notes: payload.notes ?? '' });
+    const result = await createInvoice(pool, transaction, req.currentUser, payload, req.get('Idempotency-Key'),
+      await allowedLocations(pool, req.currentUser));
+    return res.status(result.created ? 201 : 200).json(result.invoice);
+  });
+
+  router.post('/invoices/from-order/:orderId', ...requireInvoiceManage, async (req, res) => {
+    if (!isUuid(req.params.orderId)) throw AppError.badRequest('invalid_order_id', 'The order ID is invalid.');
+    const payload = parse(invoiceFromOrderSchema, req.body);
+    const result = await createInvoiceFromOrder(pool, transaction, req.currentUser, req.params.orderId,
+      payload, req.get('Idempotency-Key'), await allowedLocations(pool, req.currentUser));
+    return res.status(result.created ? 201 : 200).json(result.invoice);
+  });
+
+  router.put('/invoices/:id', ...requireInvoiceManage, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_invoice_id', 'The invoice ID is invalid.');
+    const payload = parse(updateInvoiceSchema, req.body);
+    return res.status(200).json(await updateDraftInvoice(pool, transaction, req.currentUser, req.params.id,
+      payload, await allowedLocations(pool, req.currentUser)));
+  });
+
+  router.delete('/invoices/:id', ...requireInvoiceManage, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_invoice_id', 'The invoice ID is invalid.');
+    await deleteDraftInvoice(pool, transaction, req.currentUser, req.params.id,
+      await allowedLocations(pool, req.currentUser));
+    return res.status(204).end();
+  });
+
+  router.post('/invoices/:id/issue', ...requireInvoiceManage, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_invoice_id', 'The invoice ID is invalid.');
+    return res.status(200).json(await issueDraftInvoice(pool, transaction, req.currentUser, req.params.id,
+      await allowedLocations(pool, req.currentUser)));
+  });
+
+  router.post('/invoices/:id/void', ...requireInvoiceManage, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_invoice_id', 'The invoice ID is invalid.');
+    const { reason } = parse(voidInvoiceSchema, req.body);
+    return res.status(200).json(await voidInvoice(pool, transaction, req.currentUser, req.params.id, reason,
+      await allowedLocations(pool, req.currentUser)));
+  });
+
+  router.post('/invoices/:id/credit-notes', ...requireInvoiceManage, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_invoice_id', 'The invoice ID is invalid.');
+    const payload = parse(creditNoteSchema, req.body);
+    return res.status(200).json(await addInvoiceCreditNote(pool, transaction, req.currentUser, req.params.id,
+      payload, await allowedLocations(pool, req.currentUser)));
   });
 
   router.post('/invoices/:id/payments', ...requirePaymentRecord, async (req, res) => {

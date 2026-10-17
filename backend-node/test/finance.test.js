@@ -68,6 +68,10 @@ describe('finance', () => {
         if (sql.includes('FROM "UserSessions"')) return { rows: [{ '?column?': 1 }] };
         if (sql.includes('FROM "Memberships"')) return { rows: [{ UserId: '00000000-0000-4000-8000-000000000001', BusinessId: '00000000-0000-4000-8000-000000000002', Email: 'owner@example.test', FullName: 'Owner', BusinessName: 'Shop', TimeZoneId: 'UTC', CurrencyCode: 'USD', IsOwner: true, Permissions: ['invoices.view', 'invoices.manage', 'payments.view', 'payments.record', 'payments.verify', 'expenses.view', 'expenses.manage'] }] };
         if (sql.includes('FROM "Plans" p')) return { rows: [{ Value: 'true' }] };
+        if (sql.includes('FROM "Customers"')) return { rows: [{ '?column?': 1 }] };
+        if (sql.includes('FROM "PricingProfiles"')) return { rows: [{ TaxPercent: '0' }] };
+        if (sql.includes('count(*)') && sql.includes('FROM "Invoices"')) return { rows: [{ TotalCount: 0 }] };
+        if (sql.includes('FROM "Invoices"')) return { rows: [] };
         if (sql.includes('SELECT 1 FROM "ExpenseCategories"')) return { rows: [{ '?column?': 1 }] };
         if (sql.includes('FROM "ExpenseCategories"')) return { rows: [{ Id: '00000000-0000-4000-8000-000000000050', Name: 'Fabric & materials', IsActive: true, SortOrder: 0 }] };
         if (sql.includes('count(*)') && sql.includes('FROM "Expenses"')) return { rows: [{ TotalCount: 0 }] };
@@ -77,6 +81,35 @@ describe('finance', () => {
       },
       connect: async () => ({
         query: async (sql, values) => {
+          if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') return { rows: [] };
+          if (sql.includes('INSERT INTO "Invoices"')) return { rows: [{
+            Id: values[0], BusinessId: values[1], CreatedByUserId: values[2],
+            CurrencyCode: values[3], CustomerId: values[4], DueDate: values[5],
+            IdempotencyKey: values[6], Kind: 'Standard', Notes: values[7], Status: 'Draft',
+            Subtotal: String(values[8]), TaxTotal: String(values[9]), Terms: values[10],
+            Total: String(values[11]), CreatedAtUtc: '2026-10-17T12:00:00.000Z', Version: '1',
+          }] };
+          if (sql.includes('INSERT INTO "InvoiceLines"')) return { rows: [] };
+          if (sql.includes('INSERT INTO "AuditLogs"')) return { rows: [] };
+          if (sql.includes('FROM "Invoices" i')) return { rows: [{
+            Id: '00000000-0000-4000-8000-000000000030',
+            BusinessId: '00000000-0000-4000-8000-000000000002',
+            Number: null, Kind: 'Standard', Status: 'Draft',
+            CustomerId: '00000000-0000-4000-8000-000000000010',
+            CustomerName: 'Owner customer', OrderId: null, OrderNumber: null,
+            CurrencyCode: 'USD', IssueDate: null, DueDate: '2026-11-01',
+            Notes: 'Alteration invoice', Terms: null, Subtotal: '250000',
+            TaxTotal: '0', Total: '250000', AmountPaid: '0', AmountPending: '0',
+            AmountCredited: '0', VoidReason: null, Version: '1',
+            CreatedAtUtc: '2026-10-17T12:00:00.000Z', IssuedAtUtc: null,
+          }] };
+          if (sql.includes('SELECT "CurrencyCode", "TimeZoneId"')) return { rows: [{ CurrencyCode: 'USD', TimeZoneId: 'UTC' }] };
+          if (sql.includes('FROM "InvoiceLines"')) return { rows: [{
+            Id: '00000000-0000-4000-8000-000000000031', LineNumber: 1,
+            Description: 'Alteration invoice', Quantity: '1', UnitPrice: '250000',
+            Discount: '0', TaxPercent: '0', NetAmount: '250000', TaxAmount: '0', LineTotal: '250000',
+          }] };
+          if (sql.includes('FROM "Payments" p') || sql.includes('FROM "CreditNotes"')) return { rows: [] };
           if (sql.includes('INSERT INTO "Expenses"')) return { rows: [{
             Id: values[0],
             CategoryId: values[2],
@@ -103,15 +136,22 @@ describe('finance', () => {
       headers: { authorization: `Bearer ${bearerToken()}` },
     });
     assert.equal(invoices.status, 200);
-    assert.equal(Array.isArray(invoices.body), true);
+    assert.equal(Array.isArray(invoices.body.items), true);
+    assert.equal(invoices.body.items.length, 0);
 
     const createInvoice = await requestApp(createApp(env, pool), '/api/invoices', {
       method: 'POST',
       headers: { authorization: `Bearer ${bearerToken()}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ customerId: '00000000-0000-4000-8000-000000000010', amount: 250000, currencyCode: 'NGN', dueDate: '2025-07-01', notes: 'Alteration invoice' }),
+      body: JSON.stringify({
+        customerId: '00000000-0000-4000-8000-000000000010',
+        lines: [{ description: 'Alteration invoice', quantity: 1, unitPrice: 250000 }],
+        dueDate: '2026-11-01',
+        notes: 'Alteration invoice',
+      }),
     });
     assert.equal(createInvoice.status, 201);
     assert.equal(createInvoice.body.customerId, '00000000-0000-4000-8000-000000000010');
+    assert.equal(createInvoice.body.total, 250000);
 
     const payments = await requestApp(createApp(env, pool), '/api/payments', {
       headers: { authorization: `Bearer ${bearerToken()}` },
