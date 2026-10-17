@@ -310,8 +310,8 @@ export async function deleteAccount(pool, userId, businessId, { password, twoFac
     // Financial and audit records stay (they reference the user id); the person behind them is anonymised.
     await tx.query(`UPDATE "Memberships" SET "Status" = 1, "DeactivatedAtUtc" = now(), "DisplayName" = 'Deleted user' WHERE "UserId" = $1`, [userId]);
     await tx.query(
-      `UPDATE "AspNetUsers" SET "FullName" = 'Deleted user', "PhoneNumber" = NULL, "UserName" = $2, "NormalizedUserName" = upper($2),
-         "Email" = $2, "NormalizedEmail" = upper($2), "PasswordHash" = NULL, "TwoFactorEnabled" = FALSE, "LastTotpStep" = NULL,
+      `UPDATE "AspNetUsers" SET "FullName" = 'Deleted user', "PhoneNumber" = NULL, "UserName" = $2::text, "NormalizedUserName" = upper($2::text),
+         "Email" = $2::text, "NormalizedEmail" = upper($2::text), "PasswordHash" = NULL, "TwoFactorEnabled" = FALSE, "LastTotpStep" = NULL,
          "LockoutEnabled" = TRUE, "LockoutEnd" = 'infinity', "SecurityStamp" = $3 WHERE "Id" = $1`, [userId, anon, randomUUID()]);
     await tx.query(`DELETE FROM "AspNetUserTokens" WHERE "UserId" = $1 AND "LoginProvider" = $2 AND "Name" IN ('AuthenticatorKey','RecoveryCodes')`, [userId, STORE]);
     await revokeAllSessions(tx, userId, 'account_deleted');
