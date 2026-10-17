@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#7c3f2b">
+  <meta name="description" content="Manage your tailoring business with Avzar.">
+  <meta name="color-scheme" content="light">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/styles.css">
+  <title>Avzar — Your tailoring business</title>
+</head>
+<body>
+  <div class="app-frame">
+    <header class="topbar">
+      <a class="brand" href="#home" aria-label="Avzar home">
+        <img src="/icons/icon-192.png" alt="" width="38" height="38">
+        <span>avzar</span>
+      </a>
+      <button id="install-button" class="button button-outline install-button" type="button">Install app</button>
+    </header>
+
+    <main id="app" class="main-content" tabindex="-1">
+      <section class="loading-card" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Opening Avzar…</p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Avzar</span>
+      <span id="connection-status">Checking connection…</span>
+    </footer>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

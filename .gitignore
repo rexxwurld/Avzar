@@ -9,3 +9,7 @@ data/
 
 # Six Labors license (secret)
 sixlabors.lic
+.expo/
+dist/
+coverage/
+*.tsbuildinfo
