@@ -61,10 +61,10 @@ public sealed class Phase3Tests(PostgresFixture fx) : IClassFixture<PostgresFixt
     }
 
     private OrderService Orders(World w, Guid? user = null)
-    { var (db, t) = Ctx(w, user ?? w.OwnerUser); return new(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new EntitlementService(db), new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions()); }
+    { var (db, t) = Ctx(w, user ?? w.OwnerUser); return new(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new EntitlementService(db), new PricingService(db, t, new AuditLogger(db)), new AllowAllPermissions(), new UnrestrictedLocationScope()); }
 
     private TaskService Tasks(World w, Guid? user = null)
-    { var (db, t) = Ctx(w, user ?? w.OwnerUser); return new(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new PermissionService(db)); }
+    { var (db, t) = Ctx(w, user ?? w.OwnerUser); return new(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new PermissionService(db), new UnrestrictedLocationScope()); }
 
     private MyTaskService Mine(World w, Guid user)
     { var (db, t) = Ctx(w, user); return new(db, t); }
