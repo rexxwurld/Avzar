@@ -14,14 +14,16 @@ export async function migrate(pool, dir, log = console) {
     await client.query('SELECT pg_advisory_lock($1)', [LOCK_KEY]);
     await client.query(`CREATE TABLE IF NOT EXISTS avzar_schema_migrations (
       name text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now(), adopted boolean NOT NULL DEFAULT false)`);
-    const done = new Map((await client.query('SELECT name, checksum FROM avzar_schema_migrations')).rows.map((r) => [r.name, r.checksum]));
+    const done = new Map((await client.query('SELECT name, checksum, adopted FROM avzar_schema_migrations')).rows.map((r) => [r.name, { checksum: r.checksum, adopted: r.adopted }]));
     const files = (await readdir(dir)).filter((f) => /^\d{4}_.+\.sql$/.test(f)).sort();
     const applied = [];
     for (const f of files) {
       const sql = await readFile(path.join(dir, f), 'utf8');
       const checksum = createHash('sha256').update(sql).digest('hex');
       if (done.has(f)) {
-        if (done.get(f) !== checksum) throw new Error(`Migration ${f} was modified after it was applied. Migrations are forward-only; add a new file instead.`);
+        const prior = done.get(f);
+        // An adopted baseline was recorded, not executed, so correcting its SQL for empty databases must not block existing ones.
+        if (!prior.adopted && prior.checksum !== checksum) throw new Error(`Migration ${f} was modified after it was applied. Migrations are forward-only; add a new file instead.`);
         continue;
       }
       let adopt = false;
