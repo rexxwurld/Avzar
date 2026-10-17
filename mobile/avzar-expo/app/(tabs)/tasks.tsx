@@ -3,10 +3,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { AppState, FlatList, Text, View } from 'react-native';
 import { api } from '@/api/client';
 import { Button, Card, Field, Heading, Loading, Message, Screen, colors } from '@/components/ui';
+import { useTaskEvents, type LiveState } from '@/realtime/events';
 import { listPending, performTaskAction, syncQueue, type TaskActionName } from '@/offline/queue';
 
 type Task = { id: string; title: string; stageName?: string; status: string; deadlineUtc?: string | null; instructions?: string | null };
 type Info = { tone: 'muted' | 'danger' | 'success'; text: string };
+
+const LIVE_LABEL: Record<LiveState, string> = {
+  connecting: 'Live updates: connecting…',
+  live: 'Live updates: on',
+  reconnecting: 'Live updates: reconnecting…',
+  offline: 'Live updates: off (use refresh)',
+};
 
 const ACTIONS: Array<{ label: string; action: TaskActionName }> = [
   { label: 'Start', action: 'start' },
@@ -22,6 +30,9 @@ export default function TasksScreen() {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [info, setInfo] = useState<Info | null>(null);
+  const live = useTaskEvents(useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
+  }, [queryClient]));
 
   const refreshAll = useCallback(async () => {
     await Promise.all([
@@ -77,6 +88,7 @@ export default function TasksScreen() {
     <Screen>
       <Heading subtitle="Tasks assigned to you by the workshop manager.">My tasks</Heading>
       {queued.length > 0 ? <Message>{queued.length} action{queued.length === 1 ? '' : 's'} waiting to be sent.</Message> : null}
+      <Message>{LIVE_LABEL[live]}</Message>
       {info ? <Message tone={info.tone}>{info.text}</Message> : null}
       <Field label="Note (used when you pause or complete)" value={note} onChangeText={setNote} placeholder="Optional" />
       <Button title={busy ? 'Working…' : 'Refresh / send saved actions'} variant="secondary" disabled={busy} onPress={() => void sync()} />
