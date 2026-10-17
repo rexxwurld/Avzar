@@ -161,6 +161,11 @@ export const api = {
     return request<MeasurementSet[]>(`/api/customers/${encodeURIComponent(customerId)}/measurements`);
   },
 
+  taskAction(taskId: string, action: 'start' | 'pause' | 'resume' | 'complete', note?: string): Promise<unknown> {
+    const body = action === 'pause' ? { note } : action === 'complete' ? { notes: note, completedChecks: [] as string[] } : {};
+    return request<unknown>(`/api/my/tasks/${encodeURIComponent(taskId)}/${action}`, { method: 'POST', body: JSON.stringify(body) });
+  },
+
   async myTasks(): Promise<Array<{ id: string; title: string; stageName?: string; status: string; deadlineUtc?: string | null; instructions?: string | null }>> {
     const result = await request<unknown>('/api/my/tasks?page=1&pageSize=100&show=open');
     if (Array.isArray(result)) return result as Array<{ id: string; title: string; stageName?: string; status: string; deadlineUtc?: string | null; instructions?: string | null }> ;
