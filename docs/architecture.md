@@ -1,6 +1,6 @@
 # Architecture - Tailoring Platform
 
-Status (2026-10-16): supplied CI #230 backend log (commit `c349faf9023a9a0c1c6d5e7ddb5950c76016953c`) reports 693/693 tests passed, a clean Release build and no EF model drift. The web job succeeded, but its exact test/build output and the #230 migration job were not supplied. Historical #207 applied eight migrations to clean PostgreSQL 17.11. The supplied ZIP has no Git metadata, and deployment readiness remains unverified. See `PROGRESS.md` and `docs/MASTER_ENGINEERING_HANDOFF.md`.
+Status (2026-10-17): CI #329 (commit `7e9f6aa`, "Create MediaIsolationApiTests.cs", 2026-10-17): backend Release build 0 warnings / 0 errors, 741/741 tests, committed migrations match the EF model. Earlier runs are recorded in `PROGRESS.md` and `docs/MASTER_ENGINEERING_HANDOFF.md`. Deployment readiness remains unverified (no real email/payment/storage/DNS checks).
 
 ## 1. Stack and versions
 | Layer | Choice | Pinned in |
@@ -9,7 +9,7 @@ Status (2026-10-16): supplied CI #230 backend log (commit `c349faf9023a9a0c1c6d5
 | Database | PostgreSQL 17 (Npgsql EF provider) | `docker-compose.yml` |
 | Realtime / jobs | SignalR, Hangfire (Postgres storage) | Phase 5 |
 | Web | Next.js (App Router), TypeScript, Tailwind, React Hook Form + Zod | Phase 1b/2 |
-| Mobile | .NET MAUI (Android + iOS), FCM | Phase 7 |
+| Mobile | Installable vanilla-JS PWA (`pwa/`, served by `backend-node/`); a dedicated Android app is optional and later | Current direction |
 
 **Package versions are pinned in `backend/Directory.Packages.props`, but current compatibility and vulnerability status are not verified by this workspace.** Run `dotnet restore`, Release build, and a current dependency/advisory scan before release. ImageSharp 4.1.2 requires `SIXLABORS_LICENSE_KEY`; QuestPDF requires an explicit `Pdf__QuestPdfLicense` choice.
 
@@ -36,7 +36,7 @@ Known gap, by design: code that runs with **no tenant** (registration, invitatio
 - **CSRF**: antiforgery with header `X-XSRF-TOKEN`, validated automatically on unsafe methods. `GET /api/auth/csrf` issues the token; re-fetch after login/logout. Next.js should proxy `/api/*` to the backend so the app and API are same-origin.
 - **Rate limiting**: 10/min per IP on register, login, accept-invitation. Behind a reverse proxy, configure forwarded headers or all clients share one IP.
 - **Permissions**: `[HasPermission("staff.manage")]` -> dynamic policy -> `PermissionHandler` queries the user's *current active membership and roles* each request (cached per request). Deactivation and role changes apply immediately. Owner holds all permissions. Users can hold several roles; permissions are the union.
-- **Mobile (Phase 7)**: separate bearer-token flow (short-lived access token, rotating refresh token stored hashed, revocation, MAUI SecureStorage). Not built yet.
+- **Mobile**: the API has a separate bearer-token flow (`/api/auth/token*`: short-lived access token, rotating refresh token stored hashed, revocation) used by the Expo reference app. The PWA uses the cookie + CSRF flow through the same-origin proxy.
 
 ## 5. Phase 1 data model
 ```mermaid
@@ -225,4 +225,4 @@ The current source includes persisted worker availability and approved leave, da
 - **AI:** optional OpenAI image generation and assistant-instruction drafting use server-side keys, rate limiting, permission checks, and plan entitlements (`ai.fashion_design`, `ai.assistant_builder`). Generated images are returned for review and are not silently added to the media library; assistant configurations are drafts and are not auto-published.
 - **Subscriptions/platform administration:** optional Paystack checkout supports NGN plans. Webhooks verify the HMAC and independently verify the transaction with Paystack before changing a subscription. Global plan edits are allowlisted by `PlatformAdmin:Emails`; business-owner permissions alone do not grant platform-admin access.
 - **Realtime/cache:** SignalR `/hubs/business-events` joins only the authenticated caller's business/user groups. Worker task transitions broadcast `task.updated`. Report caching uses Redis when configured and memory otherwise. Email delivery remains a durable PostgreSQL outbox with leased claims/retries/recovery rather than an ephemeral Redis-only queue.
-- **Mobile:** `mobile/Avzar.Mobile` is a .NET MAUI Android/iOS starter using bearer auth, SecureStorage token storage, a cached assigned-task list, and a local queue for worker task actions. This is not yet a complete offline-first client: conflict UX, measurements/orders offline, push notifications, device builds and testing remain open.
+- **Mobile:** the `mobile/Avzar.Mobile` MAUI starter was removed from the repository. The installable PWA (`pwa/`, served by `backend-node/`) is the mobile client; `mobile/avzar-expo` is a reference client using the bearer flow. Offline writes are not queued yet (static-shell cache only), and push notifications, device builds and device testing remain open.

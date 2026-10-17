@@ -4,6 +4,8 @@
 **Scope:** Static inspection of the supplied `Avzar-main.zip` archive.  
 **Verification caveat:** The archive does not contain `.git` metadata. This report cannot establish the live branch/commit or whether the files exactly match GitHub. The inspection environment has Node.js 22 but no .NET SDK or Docker; no production service or database was contacted.
 
+**Update 2026-10-17 (later):** the MAUI project (`mobile/Avzar.Mobile`) is no longer in the archive; Expo remains as reference only. Backend CI #329 is green (741/741). The PWA already covers customers, measurements, orders, fittings, tasks, scheduling, finance, expenses, inventory and staff (see `docs/FEATURE_INVENTORY.md`). Statements below about MAUI being retained, or about dependency installs timing out, are historical.
+
 ## Owner decision supersedes the original mobile direction (2026-10-17)
 
 The initial release is a **vanilla HTML/CSS/JavaScript PWA**, not React Native or Expo. Node.js + Express will become the primary backend gradually, while the existing ASP.NET API and PostgreSQL data remain authoritative until parity and staging checks pass. iPhone users will use Safari/Add to Home Screen; a dedicated Android app is a possible later phase, not a launch dependency. The experimental Expo and MAUI folders remain for reference and must not be deleted as part of the initial PWA work.
@@ -19,12 +21,12 @@ Do not perform a wholesale rewrite in one pass. The current codebase already con
 | ASP.NET Core API | `backend/src/Tailoring.Api`, controllers, security, exception handling | Existing primary API. Replacing it is a real migration, not a new empty backend. |
 | Application/domain layers | `Tailoring.Application`, `Tailoring.Domain` | Business rules and contracts should be mapped before translating. |
 | PostgreSQL / EF Core | `Tailoring.Infrastructure/Persistence/Migrations`; model snapshot; DbContext | Preserve data and schema. Add forward-only migrations; never regenerate or reset production schema. |
-| Integration tests | `backend/tests/Tailoring.IntegrationTests` | Existing regression suite is a source of truth for behavior. README reports a historical CI run with 693/693 tests passing, but this archive was not rebuilt locally. |
+| Integration tests | `backend/tests/Tailoring.IntegrationTests` | Existing regression suite is a source of truth for behavior. CI #329 (commit `7e9f6aa`, 2026-10-17) passed 741/741 tests. |
 | Web app | `web/`, Next.js App Router | Includes signed-in management routes and public storefront rendering. Preserve during transition; storefront publishing still needs a web runtime unless a deliberate alternative is built. |
-| MAUI app | `mobile/Avzar.Mobile` | Contains bearer sign-in, token refresh/revoke, assigned task listing, task actions, secure token storage, offline action queue, and SignalR updates. Build/device behavior remains unverified. |
+| MAUI app | Removed from the repository (was `mobile/Avzar.Mobile`) | Historical only. Its behavior is described in the next section for reference |
 | Deployment/config | `.env.example`, `docker-compose.yml`, `.github/workflows/` | Existing configuration is ASP.NET-oriented. New Node deployment must not replace the live API before parity checks. |
 | Expo app | An experimental implementation is present under `mobile/avzar-expo/`; it is not the selected initial product direction because the owner does not know React Native. Keep it as reference until its useful behavior is inventoried; the initial product is a vanilla-JavaScript PWA. |
-| Node API | Present under `backend-node/` | Converted to a JavaScript Express foundation and PWA host. It serves `pwa/` and provides a restricted proxy to the existing API; Node database access and business-domain routes are not migrated. Tests are written; dependency installation timed out in this environment. |
+| Node API | Present under `backend-node/` | JavaScript Express foundation and PWA host. It serves `pwa/` and provides a restricted proxy to the existing API; Node database access and business-domain routes are not migrated. The pwa-node CI job (`npm ci`, audit, tests) was green in #289 and #318 |
 
 ## Existing domain/API coverage observed
 
@@ -40,7 +42,7 @@ Route attributes and source files confirm the following existing API areas. This
 - Other areas: inventory, designs/collections, media/documents, AI endpoints, subscriptions/plans/entitlements, email delivery/suppression, storefront APIs and public Next.js storefront rendering.
 - Realtime: SignalR business event hub and MAUI client.
 
-## Mobile starter assessment
+## Mobile starter assessment (historical: the MAUI project has since been removed)
 
 `mobile/Avzar.Mobile/AvzarApi.cs` targets `POST /api/auth/token`, `/api/auth/token/refresh`, and `/api/auth/token/revoke`. The app stores access/refresh tokens with platform secure storage. `TasksPage.cs` calls `/api/my/tasks`, caches assigned tasks, and queues selected worker actions when offline. `BusinessEventsClient.cs` connects to the SignalR hub and refreshes task data after task events.
 
@@ -55,7 +57,7 @@ The MAUI README explicitly says that automatic retry/re-authentication on 401, c
 5. **Background work:** Email outbox, reminders, scheduling, and notifications need durable processing. BullMQ/Redis is not a drop-in replacement without retry, deduplication, recovery, and monitoring behavior.
 6. **Storefronts:** A mobile-only management app does not remove the need for a public web renderer for customer-facing storefronts.
 7. **External integrations:** README/PROGRESS identify several integrations that are source-implemented but not fully verified against live services. Do not mistake source presence for operational readiness.
-8. **Build verification:** This environment has no .NET SDK or Docker. The web and backend cannot be fully verified here; the current web CI error reported separately is in `web/src/app/help/[slug]/page.tsx` and should be fixed independently before treating CI as green.
+8. **Build verification:** backend CI #329 built and tested the .NET code (741/741). The earlier web error in `web/src/app/help/[slug]/page.tsx` was fixed; the web job has been green since. This archive still has no `.git` metadata.
 
 ## Recommended implementation sequence
 
@@ -71,15 +73,16 @@ The MAUI README explicitly says that automatic retry/re-authentication on 401, c
 - [x] Add sign-in, business-selection and two-factor/recovery-code UI states against the existing cookie + CSRF API contract.
 - [x] Convert the parallel Express service to JavaScript and add a constrained same-origin proxy to the existing API.
 - [x] Keep the ASP.NET API and PostgreSQL schema authoritative; preserve Next.js storefront, MAUI and Expo code during transition.
-- [ ] Install dependencies and run Express integration tests plus staging cookie/API checks.
+- [x] Dependencies install and Express tests run in CI (pwa-node job green in #318).
+- [ ] Staging cookie/API checks for the deployed PWA (blocked until the API is recreated on Render).
 - [x] Add PWA customer list/detail/create/edit and measurement profile creation, revision recording, and revision-history screens against the existing ASP.NET API.
-- [ ] Verify these workflows against staging; add measurement comparison UI, then implement offline-safe operations. No business mutations are queued yet.
+- [ ] Verify these workflows against staging; add offline-safe operations (no business mutations are queued yet). The measurement comparison UI exists.
 
 ### Pass 2 — Establish a stable baseline
 
 - [ ] Confirm the archive matches the intended GitHub commit and working tree.
 - [x] Confirm the supplied ZIP already contains the fix for the previously reported `await`-inside-`.find()` TypeScript error in `web/src/app/help/[slug]/page.tsx`; rerun GitHub CI to verify the uploaded branch contains this version.
-- [ ] Capture an API route/DTO/permission compatibility matrix from controllers and tests.
+- [ ] Capture an API route/DTO/permission compatibility matrix (a domain-level ledger exists in `docs/NODE_API_COMPATIBILITY_MATRIX.md`; per-endpoint DTO and permission detail is still open).
 - [ ] Establish a reproducible isolated PostgreSQL test environment in CI.
 - [ ] Record a schema/constraint/index baseline before introducing a second backend.
 

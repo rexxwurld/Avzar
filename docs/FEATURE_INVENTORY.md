@@ -1,6 +1,6 @@
 # Avzar feature inventory
 
-**Updated:** 2026-10-17 (security, inventory import, finance categories and overdue notifications follow-up)
+**Updated:** 2026-10-17 (reconciled with CI #329 and the PWA-first direction; PWA coverage read from `pwa/app.js`)
 **Source:** static inspection of the supplied project archive plus PWA Pass 17 and subsequent inventory/finance PWA slices; new screens have not been verified end-to-end.
 **Important:** this archive has no `.git` metadata. The status below does not establish the current GitHub branch or deployed commit. No production API or database was contacted during this work.
 
@@ -10,7 +10,7 @@ Statuses mean: **present** = source exists; **verified** = tested in the stated 
 |---|---|---|---|
 | PWA shell | Existing Next.js app manifest and install helper | **Partial; implemented in `pwa/`** | Installability, browser checks, accessibility and deployment verification |
 | Browser sign-in/session/logout | ASP.NET cookie session + CSRF; existing Next.js forms and same-origin proxy | **PWA sign-in/session/logout, multi-business selection and 2FA/recovery states present against the existing API** | Verify API integration and session expiry/logout behavior in staging |
-| Node service | `backend-node/` had an unconnected Express/TypeScript health scaffold | **Converted to JavaScript Express foundation** | Dependency installation/tests; database health; migrate domain by domain |
+| Node service | `backend-node/` had an unconnected Express/TypeScript health scaffold | **Converted to JavaScript Express foundation; pwa-node CI job (install, audit, tests) green in #318** | Database health; migrate domain by domain |
 | PostgreSQL | Existing EF Core models and migrations | **Preserved; Node does not write business data** | Schema map and isolated staging integration |
 | Customers | ASP.NET APIs and Next.js customer UI | **PWA customer CRUD, duplicate handling, communication log, permission-gated merge UI (all-location access required because merges rewrite cross-location records), and customer portal link send/revoke plus public portal view implemented against existing API** | Live overview includes API customer counts; verify on staging; add CSV tools and browser tests; keep duplicate detection and concurrency behavior covered |
 | Measurements | Templates, sets, revisions/history/compare in existing API | **PWA create-profile, revision, history, and revision-comparison screens added against existing API; not migrated to Node** | Verify with staging data and browser/API integration tests |
@@ -25,9 +25,9 @@ Statuses mean: **present** = source exists; **verified** = tested in the stated 
 | Public storefronts | Existing Next.js public storefront renderer and API | **Preserve existing implementation** | Keep public renderer available during business-dashboard migration; verify tenant isolation on published content in staging |
 | Storefront editor | Existing Next.js editor and ASP.NET storefront APIs | **Draft/theme editor, custom pages, SEO/navigation, section content/style, drag/drop reorder, media picker, template preview, DNS-verified domains, preview/publish/rollback are present in source** | Web dependency-backed build, browser E2E, domain DNS and publish/rollback smoke tests remain unverified |
 | Subscriptions | Existing plan/entitlement and billing code | **Not migrated to PWA/Node** | Contract tests and server-side entitlement parity |
-| Offline actions | MAUI starter contains an offline task-action queue; browser PWA shell caches static assets only | **Partial; no business writes are queued yet** | Design IndexedDB queue, idempotency, conflict handling and sensitive-data cleanup |
+| Offline actions | The removed MAUI starter had an offline task-action queue; the PWA service worker caches static assets only | **Partial; no business writes are queued yet** | Design IndexedDB queue, idempotency, conflict handling and sensitive-data cleanup |
 | Notifications | Existing email outbox, dispatcher, SignalR and schedule-assignment notifications | **Partial**: task assignment, blocked-task escalation, newly eligible next-step notices, schedule assignment/24-hour reminders, and daily deduplicated overdue-task reminders are queued through the durable email outbox; Web Push/mobile delivery is not implemented | Compile and integration-test notification paths; verify retries, deduplication and real delivery; implement/test Web Push/mobile delivery |
-| Expo / MAUI | Both experimental mobile folders are present in the archive | **Not the initial product direction; retained as reference** | Do not delete until their useful behavior is inventoried and PWA replacement needs are understood |
+| Expo / MAUI | Expo source is in the archive; the MAUI project was removed | **Not the product direction; Expo retained as reference only** | Inventory Expo's useful behavior, then keep or retire the folder |
 
 ## First implementation slice
 
@@ -40,7 +40,7 @@ Statuses mean: **present** = source exists; **verified** = tested in the stated 
 - Added permission-gated order search/filter/pagination and order detail views, then expanded them with create/edit (multiple garment lines), quote/confirm/cancel/deliver actions, and production-task generation against the existing ASP.NET API. Server-side pricing, permission, status, version, and lifecycle rules remain authoritative.
 - Added a live business overview, business opening-hours/holiday/document-branding settings, account security/password/2FA/session screens, customer communication log and merge UI, fitting appointments, production task list/detail, assignment, worker task actions, manager unblock/cancel/override actions, individual worker availability/leave/calendar/skills, staff invite/activation/role/location management, and shop schedule preview/apply screens. Schedule apply submits the preview's versioned plan for server revalidation.
 - Converted the parallel Node scaffold from TypeScript to JavaScript to align with the owner's maintainable stack.
-- Added proxy-path/origin tests and Express integration tests. Full test execution remains pending because package installation timed out in this environment.
+- Added proxy-path/origin tests and Express integration tests. The pwa-node CI job (`npm ci`, audit, `node --test`) was green in #289 and #318.
 
 ## Known limitations of this slice
 

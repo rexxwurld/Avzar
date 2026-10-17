@@ -34,7 +34,7 @@ The editor supports draft save with revision checks, page title/slug/visibility 
 
 ## Verification limits — do not skip
 
-The current environment has no .NET SDK and no Docker, and the npm registry is unreachable. The new backend code and migration have **not** been compiled, the PostgreSQL integration suite has **not** been run, and the Next production build/Vitest suite have **not** been run. TypeScript/TSX syntax transpilation was checked for the changed storefront editor file, but this is not a full typecheck. The new `20261016230000_AddEmailDeduplication` and `20261016233000_AddWorkerAvailabilityAndLeave` migrations must be applied to a disposable PostgreSQL database and compared against the EF model before merge/deploy. DST transition behavior and provider delivery must also be tested in CI/staging.
+As of CI #329 (commit `7e9f6aa`, "Create MediaIsolationApiTests.cs", 2026-10-17), the backend compiles and the PostgreSQL integration suite passes (741/741), including the schedule preview/apply, availability, leave and capacity tests, and the EF model-drift gate is clean. Still unverified: DST transition behavior, live delivery of assignment/reminder emails through a real provider, and the Next production build/Vitest results for the scheduling screens beyond the last green web job (#318).
 
 ## Required release checks
 
