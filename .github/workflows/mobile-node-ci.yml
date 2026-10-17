@@ -30,8 +30,10 @@ jobs:
           node-version: 22
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
-      - name: Align Expo packages to the selected SDK
-        run: npx expo install --fix
+      - name: Install Expo Router peer packages and align versions to the SDK
+        run: |
+          npx expo install expo-constants expo-linking react-native-safe-area-context react-native-screens expo-font
+          npx expo install --fix
       - name: Check Expo package compatibility
         run: npx expo-doctor
       - name: TypeScript check
