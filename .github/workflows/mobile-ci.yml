@@ -1,16 +1,14 @@
-name: Mobile + Node migration foundation
+name: Mobile CI
 
 on:
   push:
     paths:
       - 'mobile/avzar-expo/**'
-      - 'backend-node/**'
-      - '.github/workflows/mobile-node-ci.yml'
+      - '.github/workflows/mobile-ci.yml'
   pull_request:
     paths:
       - 'mobile/avzar-expo/**'
-      - 'backend-node/**'
-      - '.github/workflows/mobile-node-ci.yml'
+      - '.github/workflows/mobile-ci.yml'
   workflow_dispatch:
 
 permissions:
@@ -40,28 +38,3 @@ jobs:
         run: npx tsc --noEmit
       - name: Bundle Android JavaScript
         run: npx expo export --platform android
-
-  node-api:
-    name: Node API foundation checks
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend-node
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Audit dependencies
-        run: npm audit --audit-level=high
-      - name: Check JavaScript syntax
-        run: |
-          node --check src/config/env.js
-          node --check src/http/proxy.js
-          node --check src/http/readiness.js
-          node --check src/http/app.js
-          node --check src/server.js
-      - name: Tests
-        run: npm test
