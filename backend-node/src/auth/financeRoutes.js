@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { AppError } from '../http/errors.js';
@@ -26,6 +25,16 @@ import {
   updateDraftInvoice,
   voidInvoice,
 } from './invoiceService.js';
+import {
+  getPayment,
+  getReceipt,
+  getReceiptForPayment,
+  listPayments,
+  recordPayment,
+  rejectPayment,
+  reversePayment,
+  verifyPayment,
+} from './paymentService.js';
 
 const invoiceLineSchema = z.object({
   description: z.string().trim().min(1).max(200),
@@ -69,11 +78,14 @@ const creditNoteSchema = z.object({
 });
 
 const paymentSchema = z.object({
-  amount: z.number().min(0).max(1_000_000_000),
-  method: z.string().trim().min(1).max(60),
-  reference: z.string().trim().min(1).max(120).optional(),
-  status: z.string().trim().max(40).optional(),
+  amount: z.number().min(0.01).max(1_000_000_000),
+  method: z.string().trim().min(1).max(20),
+  reference: z.string().trim().max(100).nullable().optional(),
+  receivedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  notes: z.string().max(500).nullable().optional(),
+  verifyNow: z.boolean().default(false),
 });
+const paymentReasonSchema = z.object({ reason: z.string().trim().min(3).max(500) });
 
 const expenseCategorySchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -192,6 +204,28 @@ function invoiceListQuery(req) {
   return query;
 }
 
+function paymentListQuery(req) {
+  const page = Number.parseInt(req.query.page ?? '1', 10);
+  const pageSize = Number.parseInt(req.query.pageSize ?? '25', 10);
+  if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100) {
+    throw AppError.badRequest('invalid_paging', 'Page must be positive and pageSize must be between 1 and 100.');
+  }
+  const query = { page, pageSize };
+  for (const field of ['invoiceId', 'customerId']) {
+    if (req.query[field] !== undefined) {
+      if (!isUuid(String(req.query[field]))) throw AppError.badRequest(`invalid_${field}`, `The ${field} is invalid.`);
+      query[field] = String(req.query[field]);
+    }
+  }
+  query.from = parseExpenseDateQuery(req.query.from, 'from');
+  query.to = parseExpenseDateQuery(req.query.to, 'to');
+  if (query.from && query.to && query.from > query.to) {
+    throw AppError.badRequest('invalid_date_range', 'The from date must not be later than the to date.');
+  }
+  if (req.query.status !== undefined) query.status = String(req.query.status).trim();
+  return query;
+}
+
 function parse(schema, body) {
   const result = schema.safeParse(body);
   if (!result.success) {
@@ -273,29 +307,54 @@ export function createFinanceRouter({ env, pool }) {
   });
 
   router.post('/invoices/:id/payments', ...requirePaymentRecord, async (req, res) => {
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) throw AppError.badRequest('invalid_invoice_id', 'The invoice ID is invalid.');
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_invoice_id', 'The invoice ID is invalid.');
     const payload = parse(paymentSchema, req.body);
-    return res.status(201).json({ id: randomUUID(), invoiceId: req.params.id, amount: payload.amount, method: payload.method, reference: payload.reference ?? '', status: payload.status ?? 'pending', createdAtUtc: new Date().toISOString() });
+    const result = await recordPayment(pool, transaction, req.currentUser, req.params.id, payload,
+      req.get('Idempotency-Key'), await allowedLocations(pool, req.currentUser));
+    return res.status(result.created ? 201 : 200).json(result.payment);
   });
 
-  router.get('/payments', ...requirePaymentView, async (_req, res) => res.status(200).json([
-    { id: randomUUID(), invoiceId: randomUUID(), amount: 50000, method: 'bank_transfer', reference: 'REF-001', status: 'verified', createdAtUtc: new Date().toISOString() },
-    { id: randomUUID(), invoiceId: randomUUID(), amount: 25000, method: 'cash', reference: 'REF-002', status: 'pending', createdAtUtc: new Date().toISOString() },
-  ]));
+  router.get('/payments', ...requirePaymentView, async (req, res) => {
+    return res.status(200).json(await listPayments(pool, req.currentUser, paymentListQuery(req),
+      await allowedLocations(pool, req.currentUser)));
+  });
 
   router.get('/payments/:id', ...requirePaymentView, async (req, res) => {
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) throw AppError.badRequest('invalid_payment_id', 'The payment ID is invalid.');
-    return res.status(200).json({ id: req.params.id, invoiceId: randomUUID(), amount: 50000, method: 'bank_transfer', reference: 'REF-001', status: 'verified', createdAtUtc: new Date().toISOString() });
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_payment_id', 'The payment ID is invalid.');
+    return res.status(200).json(await getPayment(pool, req.currentUser, req.params.id,
+      await allowedLocations(pool, req.currentUser)));
   });
 
   router.post('/payments/:id/verify', ...requirePaymentVerify, async (req, res) => {
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) throw AppError.badRequest('invalid_payment_id', 'The payment ID is invalid.');
-    return res.status(200).json({ id: req.params.id, status: 'verified', verifiedAtUtc: new Date().toISOString() });
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_payment_id', 'The payment ID is invalid.');
+    return res.status(200).json(await verifyPayment(pool, transaction, req.currentUser, req.params.id,
+      await allowedLocations(pool, req.currentUser)));
   });
 
   router.post('/payments/:id/reject', ...requirePaymentVerify, async (req, res) => {
-    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) throw AppError.badRequest('invalid_payment_id', 'The payment ID is invalid.');
-    return res.status(200).json({ id: req.params.id, status: 'rejected', rejectedAtUtc: new Date().toISOString() });
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_payment_id', 'The payment ID is invalid.');
+    const { reason } = parse(paymentReasonSchema, req.body);
+    return res.status(200).json(await rejectPayment(pool, transaction, req.currentUser, req.params.id, reason,
+      await allowedLocations(pool, req.currentUser)));
+  });
+
+  router.post('/payments/:id/reverse', ...requirePaymentVerify, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_payment_id', 'The payment ID is invalid.');
+    const { reason } = parse(paymentReasonSchema, req.body);
+    return res.status(200).json(await reversePayment(pool, transaction, req.currentUser, req.params.id, reason,
+      await allowedLocations(pool, req.currentUser)));
+  });
+
+  router.get('/payments/:id/receipt', ...requirePaymentView, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_payment_id', 'The payment ID is invalid.');
+    return res.status(200).json(await getReceiptForPayment(pool, req.currentUser, req.params.id,
+      await allowedLocations(pool, req.currentUser)));
+  });
+
+  router.get('/receipts/:id', ...requirePaymentView, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_receipt_id', 'The receipt ID is invalid.');
+    return res.status(200).json(await getReceipt(pool, req.currentUser, req.params.id,
+      await allowedLocations(pool, req.currentUser)));
   });
 
   router.get('/expense-categories', ...requireExpensesView, async (req, res) => {

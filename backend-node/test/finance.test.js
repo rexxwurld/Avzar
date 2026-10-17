@@ -157,15 +157,16 @@ describe('finance', () => {
       headers: { authorization: `Bearer ${bearerToken()}` },
     });
     assert.equal(payments.status, 200);
-    assert.equal(Array.isArray(payments.body), true);
+    assert.equal(Array.isArray(payments.body.items), true);
+    assert.equal(payments.body.items.length, 0);
 
     const recordPayment = await requestApp(createApp(env, pool), '/api/invoices/' + '00000000-0000-4000-8000-000000000030' + '/payments', {
       method: 'POST',
       headers: { authorization: `Bearer ${bearerToken()}`, 'content-type': 'application/json' },
       body: JSON.stringify({ amount: 50000, method: 'bank_transfer', reference: 'REF-001' }),
     });
-    assert.equal(recordPayment.status, 201);
-    assert.equal(recordPayment.body.amount, 50000);
+    assert.equal(recordPayment.status, 409);
+    assert.equal(recordPayment.body.code, 'invoice_not_payable');
 
     const expenseCategories = await requestApp(createApp(env, pool), '/api/expense-categories', {
       headers: { authorization: `Bearer ${bearerToken()}` },

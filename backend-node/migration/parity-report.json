@@ -1,9 +1,9 @@
 {
  "summary": {
   "total": 245,
-  "implemented": 76,
-  "placeholder": 73,
-  "missing": 96
+  "implemented": 84,
+  "placeholder": 68,
+  "missing": 93
  },
  "rows": [
   {
@@ -436,49 +436,49 @@
    "method": "POST",
    "path": "/api/invoices/{id:guid}/payments",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/payments",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/payments/{id:guid}",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/payments/{id:guid}/verify",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/payments/{id:guid}/reject",
    "source": "FinanceControllers.cs",
-   "node": "placeholder"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/payments/{id:guid}/reverse",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/payments/{id:guid}/receipt",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/receipts/{id:guid}",
    "source": "FinanceControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
