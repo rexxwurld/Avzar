@@ -135,6 +135,7 @@ public sealed class MyTaskService(AppDbContext db, ITenantContext tenant) : IMyT
         newlyEligible.AddRange(activatedIds);
 
         t.Status = ProductionTaskStatus.Completed;
+        t.UpdatedAtUtc = DateTime.UtcNow;
         t.CompletedAtUtc = DateTime.UtcNow;
         t.CompletedChecks = t.RequiredChecks.ToList();
         t.CompletionNotes = Parse.Clean(req.Notes);
@@ -142,7 +143,15 @@ public sealed class MyTaskService(AppDbContext db, ITenantContext tenant) : IMyT
         TaskSupport.Record(db, t, TaskEventTypes.Completed, ProductionTaskStatus.InProgress, t.Status, tenant.UserId,
             t.CompletionNotes, new { newlyEligible, alterationsRequested = req.AlterationsRequired });
 
-        // newlyEligible is what Phase 5 will turn into "your next step is ready" notifications.
+        var businessId = tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
+        var eligibleTasks = await db.ProductionTasks.Where(x => newlyEligible.Contains(x.Id)).ToListAsync(ct);
+        foreach (var eligible in eligibleTasks)
+        {
+            if (eligible.AssignedMembershipId is not { } nextWorker) continue;
+            await ProductionNotificationQueue.QueueMembershipAsync(db, businessId, eligible, nextWorker,
+                "task.next-step-ready", "Your next production step is ready",
+                $"Task '{eligible.Title}' is now eligible to start.", ct);
+        }
         await TaskSupport.SaveWithOrderSyncAsync(db, t.OrderId, ct);
         return await GetAsync(id, ct);
     }
@@ -160,6 +169,9 @@ public sealed class MyTaskService(AppDbContext db, ITenantContext tenant) : IMyT
         t.BlockedType = type;
         t.BlockedReason = req.Description.Trim();
         t.UpdatedByUserId = tenant.UserId;
+        t.UpdatedAtUtc = DateTime.UtcNow;
+        var businessId = tenant.BusinessId ?? throw AppException.Unauthorized("no_tenant", "No business in scope.");
+        await ProductionNotificationQueue.QueueIssueForManagersAsync(db, businessId, t, ct);
         TaskSupport.Record(db, t, TaskEventTypes.IssueReported, fromStatus, t.Status, tenant.UserId, t.BlockedReason, new { type = type.ToString() });
         await TaskSupport.SaveWithOrderSyncAsync(db, t.OrderId, ct);
         return await GetAsync(id, ct);

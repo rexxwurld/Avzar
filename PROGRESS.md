@@ -1,4 +1,26 @@
+## Verification, notification and finance follow-up (2026-10-17)
+- Fixed `.github/workflows/mobile-node-ci.yml`: it previously invoked `npm run typecheck` and `npm run build` in `backend-node`, but those scripts do not exist. The Node job now uses the committed lockfile, audits dependencies, checks the actual JavaScript entry points, and runs the Node test suite. The Expo job invokes `npx tsc --noEmit` directly instead of assuming a package script exists.
+- Added `scripts/verify-local.sh` to run available JavaScript syntax checks, Node tests, web typecheck/tests/build, and .NET build/tests while explicitly marking checks blocked when required dependencies or SDKs are missing. It returns status 2 when checks are blocked, rather than falsely reporting a full pass.
+- Added production email-outbox notifications for task assignment, manager notification when a worker reports a blocked task, and notification to assigned workers when a next step becomes eligible. Messages are queued in the same DbContext save as the task change, use stable deduplication keys, and rely on the existing retrying email dispatcher rather than calling an email provider during the API request. This code is written but **not compiled or integration-tested in this environment**.
+- Expanded the PWA finance detail workflow with credit-note issuance and receipt details through the existing permission-protected ASP.NET endpoints. Server-side balance/permission checks remain authoritative; the UI also validates positive, two-decimal amounts and displays API errors. Added static regression coverage.
+- Verification performed in this authoring environment: all JS syntax checks passed; 30 dependency-free Node/proxy/PWA/readiness tests passed. The full Node test suite is still blocked by a partially installed `express` package after dependency installation timed out. Web dependencies are not installed and .NET 10 SDK is unavailable, so web build/typecheck, .NET compilation and PostgreSQL integration tests remain blocked. Do not treat the C# notification changes as compile-verified.
+
+## Phase 6 continuation — inventory and finance PWA workflows (2026-10-17)
+- Added the permission-gated Inventory area: server-backed material list, manager-only material creation, stock receipt/physical-count adjustment, optimistic version submission, low-stock status, and stock movement history.
+- Added a permission-gated Finance area: invoice list/detail, draft issue action, payment recording with an idempotency key, pending-payment review, verify/reject actions, and clear distinction between pending claims and verified payments. The existing ASP.NET API remains authoritative for all financial rules and receipt issuance.
+- Added a separate Expenses area with category-backed expense creation, summary totals, expense listing, CSV export, and audited void action; view/manage permissions are checked in the UI and re-enforced by the existing API.
+- Added customer portal management actions on customer profiles (send a seven-day email link and revoke active links) plus a public `/customer-portal` renderer for order progress, invoices, balances, and verified payments. The token is removed from the URL immediately, sent only in the anonymous access request body, and is not stored in localStorage; API rate limiting and token expiry/revocation remain enforced upstream.
+- Bumped the static-shell cache to `avzar-shell-v6` so users can receive the new UI; API responses remain excluded from service-worker caching.
+- Added static policy regression tests for inventory and finance endpoint use and permission gating.
+- Verification: JavaScript syntax checks passed; targeted dependency-free Node suite passed **28/28**. No browser/staging test, .NET build, or PostgreSQL integration test was run. This does not mean Phase 6 is complete, and Node still does not own these domains.
+
 # Progress checklist
+
+## PWA update lifecycle hardening (2026-10-17)
+- Implemented a user-controlled service-worker update flow: a newly installed worker waits instead of replacing the active worker immediately; the PWA shows an accessible “Update now” prompt, activates the waiting worker only after user action, then reloads once the new controller takes over.
+- Bumped the static-shell cache to `avzar-shell-v3`; API routes remain explicitly excluded from service-worker caching.
+- Added dependency-free regression tests for API-cache bypass and the update-confirmation handshake.
+- Verification: `node --check` passed for the changed PWA JavaScript. Targeted proxy/PWA policy tests: 4/4 passed. The full Express test suite remains blocked because `supertest` is not installed; package installation timed out. No database, production traffic, or existing ASP.NET behavior was changed.
 
 ## PWA Pass 17 — Phase 4 and Phase 5 workflow slice (2026-10-17)
 - **Phase 4 — Orders and production UI:** added permission-gated order creation and editing against `POST/PUT /api/orders`, multiple garment lines, customer/location selection, promised dates, priority, delivery details, discounts, idempotency keys on create, and server-authoritative pricing/validation. Existing order edits send the row version and preserve per-line measurement/design snapshots; removing a line is delegated to the API's update contract.
@@ -603,3 +625,75 @@ Added source for the next roadmap slice on top of the recovered 2026-10-16 ZIP:
 - Updated the feature inventory and migration checklist. No database schema, production service, ASP.NET implementation, or existing mobile project was changed.
 - Verification: `node --check` passed for `pwa/app.js` and `pwa/sw.js`; built-in proxy tests passed. The full Node integration suite could not run because `supertest`/project dependencies are not installed, and dependency installation timed out. No staging credentials or production API requests were available, so browser/API workflow verification remains open.
 - Next: validate the measurement screens against staging, then implement PWA order list/detail and daily task list using the existing API contracts. Keep Node off production traffic until dependency-backed tests, API compatibility and security checks pass.
+
+
+## Pass 16 — Transitional Node readiness probe (2026-10-17)
+
+- Replaced the unconditional Node `/health/ready` 503 with a bounded probe of the existing authoritative ASP.NET `/health` endpoint. The request uses `cache: no-store`, rejects redirects, and times out after 2.5 seconds.
+- Missing/invalid upstream configuration, unhealthy responses and network failures return safe generic readiness reasons; upstream bodies/errors are not reflected to callers. This checks the existing API's database-aware health endpoint but does **not** claim Node owns PostgreSQL or has completed backend migration.
+- Added isolated Node built-in tests for configured/unconfigured upstreams, healthy/unhealthy responses, network failures, invalid URLs, and safe error output.
+- Verification: `node --check` passed for changed app, readiness module, and tests. Nine independent tests across readiness, proxy and PWA policy passed. The full app integration test remains blocked because the environment's `backend-node/node_modules` is incomplete (Express is missing); `npm ci --ignore-scripts --no-audit --no-fund` timed out. No build, live upstream probe, deployment, or production data operation was performed.
+- Files changed: `backend-node/src/http/app.js`, new `backend-node/src/http/readiness.js`, `backend-node/test/app.test.js`, new `backend-node/test/readiness.test.js`, and `docs/DEPLOYMENT.md`.
+- Next: restore dependencies in a network-enabled environment and run the full Node suite; then verify PWA order/task flows against staging and proceed with the next migration slice without switching production traffic.
+
+## PWA/Node verification correction (2026-10-17)
+- Corrected `backend-node/test/app.test.js` to use its existing dependency-free HTTP request helper for upstream-unhealthy/unavailable readiness cases; the test previously called an undefined `request` symbol.
+- `node --check` passed for `pwa/app.js`, `pwa/sw.js`, `backend-node/src/http/app.js`, and `backend-node/test/app.test.js`.
+- Dependency-free tests passed: **9/9** across `proxy.test.js`, `pwa-policy.test.js`, and `readiness.test.js`.
+- Full `backend-node/test/*.test.js` remains blocked because `npm ci` timed out and left an incomplete `node_modules/express` directory. The Express app integration suite did not execute, so it is **not** counted as passing. Retry `npm ci` on a network-enabled environment, then run `npm test`.
+- This is a test-harness correction only. It does not complete the Node/PostgreSQL domain migration or certify Phases 1–5 for production; the existing ASP.NET API and PostgreSQL remain authoritative, and no production data/traffic was changed.
+
+## Continuation — migration proxy hardening (2026-10-17)
+
+Implemented in source:
+- Fixed a request-header adapter defect in the Node proxy: Express supplies a plain header object, while the proxy previously treated it like a `Headers` instance. This caused normal proxied requests to fail before reaching ASP.NET.
+- Added a configurable request-body limit (`MAX_PROXY_BODY_BYTES`, default 25 MiB) for both declared `Content-Length` requests and streamed/chunked requests. Oversized requests return a safe `413 request_body_too_large` response.
+- Added configurable upstream request timeout (`UPSTREAM_TIMEOUT_MS`, default 30 seconds) using `AbortSignal.timeout`.
+- Added regression tests for oversized bodies, chunked body limits, allowlisted header forwarding, and query-string preservation.
+
+Verification performed:
+- `node --check` passed for the changed Node JavaScript files.
+- Targeted dependency-free Node tests: 13 passed, 0 failed (`proxy.test.js`, `readiness.test.js`, `pwa-policy.test.js`).
+- Full Express app tests and end-to-end checks have not been run because this archive has no installed `node_modules`; no dependency install or production deployment was performed.
+
+Migration safety:
+- ASP.NET remains authoritative; this pass does not change PostgreSQL schema/data or route production traffic to a Node business API.
+
+## Phase 1–5 PWA completion increment (2026-10-17)
+
+Implemented additional concrete browser workflows on top of the existing ASP.NET/PostgreSQL-authoritative system:
+
+- Replaced the placeholder home screen with a permission-aware live business overview using existing customer, order, and task APIs. It shows only returned API values, surfaces per-section failures, and does not fabricate business counts.
+- Added business settings UI for weekly opening hours, holiday create/remove, and PDF/document branding. Writes are permission-gated in the PWA and remain validated by the existing API; opening/closing times are checked client-side as usability feedback.
+- Added measurement revision comparison UI using the existing `/api/measurement-sets/{id}/compare?from=&to=` endpoint, with revision selectors and change values supplied by the API.
+- Fixed staff invitation error handling so API failures render in the visible form and re-enable the submit button for retry.
+- Fixed shop-schedule date initialization: the date input now uses local calendar components instead of slicing an ISO UTC date, which could select the previous day in UTC+ time zones.
+- Added dependency-free regression checks for the new workflows and preserved the rule that private API responses are never service-worker cached.
+
+Verification performed in this workspace:
+- `node --check pwa/app.js` passed.
+- Dependency-free tests `node --test backend-node/test/proxy.test.js backend-node/test/pwa-policy.test.js backend-node/test/readiness.test.js`: **19 passed, 0 failed**.
+- The full Node app integration test remains blocked because Express is incomplete in `node_modules`; `npm ci` timed out in this environment. No .NET SDK, PostgreSQL test service, staging credentials, or browser runtime was available, so no claims of end-to-end verification are made.
+- ASP.NET remains the authoritative business API and PostgreSQL data remains untouched. This increment does not finish the Node.js domain migration or authorize production cutover.
+
+## Phase 1–5 follow-up: account security and customer relationship tools (2026-10-17)
+
+- Added an account security screen backed by existing account endpoints: email verification resend, password change with confirmation, two-factor setup/enable/disable, recovery-code display after enablement, device-session listing/revocation, and revoke-all sessions.
+- Added customer communication history and a form to record incoming/outgoing phone, email, WhatsApp, in-person, or other interactions. Values match the existing domain enums.
+- Added permission-gated customer merge UI that requires choosing a listed target and confirming the action; the existing API remains authoritative and preserves the source as a merged record.
+- Verified `node --check pwa/app.js` and dependency-free Node tests: **21 passed, 0 failed**. Full Express integration and staging workflows remain unverified due incomplete dependency installation and unavailable test services.
+
+## Phase 1–5 follow-up: fitting appointments (2026-10-17)
+
+- Added a permission-aware Fittings PWA section backed by existing `/api/fittings` endpoints.
+- Added appointment creation using a customer, workshop location, local date/time converted to an explicit UTC offset, 5–480 minute duration validation, and optional notes.
+- Added status changes for scheduled fittings (Completed, Cancelled, NoShow). The existing API remains responsible for authorization and domain validation.
+- Hardened the two-factor setup link to accept only `otpauth://` URIs returned by the API.
+- Verification: `node --check pwa/app.js` passed; dependency-free tests across proxy/PWA policy/readiness: **23 passed, 0 failed**. Full Express integration, .NET compilation, PostgreSQL tests, and staging/device workflows remain unverified.
+
+## Phase 6 continuation — inventory PWA slice (2026-10-17)
+- Added an Inventory navigation item gated by `inventory.view` and a stock dashboard backed by the existing permission-protected `/api/inventory` endpoint.
+- Added manager-only material creation and stock receive/physical-count adjustment flows, including non-negative/positive quantity checks, concurrency version submission, visible API errors, and stock movement history.
+- UI uses server-reported on-hand, reserved, available, reorder level, and low-stock status; it does not calculate or fabricate inventory records. Reservation and consumption remain task-linked server workflows.
+- Added static regression checks for permission gating, stock APIs, movement history, and controller authorization.
+- Verification: `node --check pwa/app.js` passed. Dependency-free proxy/PWA/readiness tests pass after updating the assertion to match the exact API call; .NET/PostgreSQL integration and browser tests are not available in this environment. This is not a Phase 6 completion claim.

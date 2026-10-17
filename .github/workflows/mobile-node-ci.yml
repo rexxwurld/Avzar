@@ -35,7 +35,7 @@ jobs:
       - name: Check Expo package compatibility
         run: npx expo-doctor
       - name: TypeScript check
-        run: npm run typecheck
+        run: npx tsc --noEmit
       - name: Bundle Android JavaScript
         run: npx expo export --platform android
 
@@ -50,11 +50,16 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-      - name: TypeScript check
-        run: npm run typecheck
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+      - name: Check JavaScript syntax
+        run: |
+          node --check src/config/env.js
+          node --check src/http/proxy.js
+          node --check src/http/readiness.js
+          node --check src/http/app.js
+          node --check src/server.js
       - name: Tests
         run: npm test
-      - name: Production build
-        run: npm run build

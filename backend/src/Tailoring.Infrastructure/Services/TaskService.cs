@@ -213,11 +213,16 @@ public sealed class TaskService(
         var before = t.AssignedMembershipId;
         t.AssignedMembershipId = memberId;
         t.UpdatedByUserId = ActorId;
+        t.UpdatedAtUtc = DateTime.UtcNow;
         var overridden = problems.Count > 0;
         TaskSupport.Record(db, t, overridden ? TaskEventTypes.OverrideAssign : TaskEventTypes.Assigned, t.Status, t.Status, ActorId,
             req.Reason, new { before, after = memberId, problems });
         if (overridden)
             audit.Record(BusinessId, ActorId, "task.override_assign", nameof(ProductionTask), t.Id, new { reason = req.Reason, problems });
+        if (before != memberId)
+            await ProductionNotificationQueue.QueueMembershipAsync(db, BusinessId, t, memberId,
+                "task.assignment", "A production task has been assigned to you",
+                $"Task '{t.Title}' has been assigned to you.", ct);
         await TaskSupport.SaveWithOrderSyncAsync(db, t.OrderId, ct);
         return await GetAsync(id, ct);
     }
@@ -237,7 +242,12 @@ public sealed class TaskService(
         t.Status = back;
         t.StatusBeforeBlock = null; t.BlockedType = null; t.BlockedReason = null;
         t.UpdatedByUserId = ActorId;
+        t.UpdatedAtUtc = DateTime.UtcNow;
         TaskSupport.Record(db, t, TaskEventTypes.Unblocked, ProductionTaskStatus.Blocked, back, ActorId, req.Note, new { issue = issue?.ToString() });
+        if (t.AssignedMembershipId is { } memberId)
+            await ProductionNotificationQueue.QueueMembershipAsync(db, BusinessId, t, memberId,
+                "task.unblocked", "A blocked production task is ready for review",
+                $"Task '{t.Title}' has been unblocked and is now {back}.", ct);
         await TaskSupport.SaveWithOrderSyncAsync(db, t.OrderId, ct);
         return await GetAsync(id, ct);
     }

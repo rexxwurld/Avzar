@@ -165,8 +165,12 @@ function navMarkup(view) {
     <a class="nav-item" href="#home" ${root === 'home' ? 'aria-current="page"' : ''}>Overview</a>
     <a class="nav-item" href="#customers" ${root === 'customers' ? 'aria-current="page"' : ''}>Customers</a>
     <a class="nav-item" href="#orders" ${root === 'orders' ? 'aria-current="page"' : ''}>Orders</a>
+    ${hasPermission('orders.view') ? `<a class="nav-item" href="#fittings" ${root === 'fittings' ? 'aria-current="page"' : ''}>Fittings</a>` : ''}
     <a class="nav-item" href="#tasks" ${root === 'tasks' ? 'aria-current="page"' : ''}>Daily work</a>
     ${hasPermission('staff.view') ? `<a class="nav-item" href="#staff" ${root === 'staff' ? 'aria-current="page"' : ''}>Staff</a>` : ''}
+    ${hasPermission('inventory.view') ? `<a class="nav-item" href="#inventory" ${root === 'inventory' ? 'aria-current="page"' : ''}>Inventory</a>` : ''}
+    ${(hasPermission('invoices.view') || hasPermission('payments.view')) ? `<a class="nav-item" href="#finance" ${root === 'finance' ? 'aria-current="page"' : ''}>Finance</a>` : ''}
+    ${hasPermission('expenses.view') ? `<a class="nav-item" href="#expenses" ${root === 'expenses' ? 'aria-current="page"' : ''}>Expenses</a>` : ''}
     <a class="nav-item" href="#settings" ${root === 'settings' ? 'aria-current="page"' : ''}>Settings</a>
   </nav>`;
 }
@@ -194,18 +198,20 @@ async function renderDashboard() {
 async function renderRoute(view = activeViewFromHash()) {
   const container = document.querySelector('#view-content');
   if (!container) return;
-  if (view === 'home') {
-    container.innerHTML = `<section class="card panel"><div class="panel-head"><div><h2>Your workspace is connected</h2><p>Avzar verified your signed-in session with the existing API. Business modules will be connected in staged releases.</p></div></div><p class="status-line"><span class="status-dot"></span> Signed in securely</p><p class="form-note">Customers, orders and production scheduling connect to the existing API. Finance, inventory, storefront editing and offline write synchronization are separate rollout stages.</p></section>`;
-    return;
-  }
+  if (view === 'home') return renderHomeDashboard(container);
   if (view === 'customers') return renderCustomerList(container);
   if (view === 'customers/new') return renderCustomerForm(container);
   if (view === 'orders') return renderOrderList(container);
   if (view === 'orders/new') return renderOrderForm(container);
+  if (view === 'fittings') return renderFittings(container);
   if (view === 'tasks') return renderTaskBoard(container);
   if (view === 'tasks/schedule') return renderShopSchedule(container);
   if (view === 'tasks/workers') return renderWorkerSchedules(container);
   if (view === 'staff') return renderStaffList(container);
+  if (view === 'inventory') return renderInventory(container);
+  if (view === 'finance') return renderFinance(container);
+  if (view === 'expenses') return renderExpenses(container);
+  if (view.startsWith('finance/')) return renderFinance(container, view.split('/')[1]);
   if (view === 'staff/invite') return renderStaffInvite(container);
   const parts = view.split('/');
   if (parts[0] === 'customers' && parts[1] && parts[2] === 'measurements' && parts[3] === 'new') {
@@ -216,6 +222,10 @@ async function renderRoute(view = activeViewFromHash()) {
   }
   if (parts[0] === 'customers' && parts[1] && parts[2] === 'measurements' && parts[3] && parts[4] === 'history') {
     return renderMeasurementHistory(container, parts[1], parts[3]);
+  }
+  if (parts[0] === 'customers' && parts[1] && parts[2] === 'measurements' && parts[3] && parts[4] === 'compare') {
+    const query = new URLSearchParams(location.hash.split('?')[1] || '');
+    return renderMeasurementCompare(container, parts[1], parts[3], query.get('from'), query.get('to'));
   }
   if (parts[0] === 'customers' && parts[1] && parts[1] !== 'new') {
     if (parts[2] === 'edit') return renderCustomerForm(container, parts[1]);
@@ -228,13 +238,115 @@ async function renderRoute(view = activeViewFromHash()) {
   if (parts[0] === 'tasks' && parts[1] === 'workers') return renderWorkerSchedules(container);
   if (parts[0] === 'tasks' && parts[1]) return renderTaskDetail(container, parts[1]);
   if (parts[0] === 'staff' && parts[1] === 'invite') return renderStaffInvite(container);
-  const names = { settings: 'Settings' };
-  const title = names[parts[0]];
-  if (title) {
-    container.innerHTML = `<section class="card panel"><p class="eyebrow">Coming next</p><h2>${title}</h2><p class="lead">This module has not yet been connected to the PWA. The existing application remains available during migration; no sample data is shown here.</p></section>`;
+  if (parts[0] === 'settings' && parts[1] === 'security') return renderAccountSecurity(container);
+  if (parts[0] === 'settings') return renderBusinessSettings(container);
+  container.innerHTML = `<section class="card"><h2>Page not found</h2><p><a href="#home">Return to overview</a></p></section>`;
+}
+
+async function renderHomeDashboard(container) {
+  container.innerHTML = '<section class="card loading-card"><div class="spinner" aria-hidden="true"></div><p>Loading your business overview…</p></section>';
+  const canViewCustomers = hasPermission('customers.view');
+  const canViewOrders = hasPermission('orders.view');
+  const canViewTasks = hasPermission('tasks.view') || hasPermission('tasks.work');
+  const requests = await Promise.allSettled([
+    canViewCustomers ? api('/api/customers?page=1&pageSize=1') : Promise.resolve(null),
+    canViewOrders ? api('/api/orders?page=1&pageSize=5') : Promise.resolve(null),
+    canViewTasks ? api(hasPermission('tasks.view') ? '/api/tasks?page=1&pageSize=10' : '/api/my/tasks?page=1&pageSize=10') : Promise.resolve(null)
+  ]);
+  const [customerResult, orderResult, taskResult] = requests;
+  const customers = customerResult.status === 'fulfilled' ? customerResult.value : null;
+  const ordersPayload = orderResult.status === 'fulfilled' ? orderResult.value : null;
+  const tasksPayload = taskResult.status === 'fulfilled' ? taskResult.value : null;
+  const orderItems = Array.isArray(ordersPayload?.items) ? ordersPayload.items : [];
+  const taskItems = Array.isArray(tasksPayload?.items) ? tasksPayload.items : Array.isArray(tasksPayload) ? tasksPayload : [];
+  const metric = (label, value, note) => `<article class="card metric-card"><p class="eyebrow">${escapeHtml(label)}</p><h3>${escapeHtml(value)}</h3><p>${escapeHtml(note)}</p></article>`;
+  const failed = (result) => result.status === 'rejected' ? `<p class="form-note">Could not load this summary: ${escapeHtml(result.reason?.message || 'request failed')}.</p>` : '';
+  const recentOrders = orderItems.slice(0, 5).map((order) => `<tr><td><a href="#orders/${escapeHtml(order.id)}"><strong>${escapeHtml(order.orderNumber || 'Order')}</strong></a><small>${escapeHtml(order.customerName || '')}</small></td><td><span class="pill">${escapeHtml(order.status || '—')}</span></td><td>${escapeHtml(dateLabel(order.promisedDate))}</td><td>${escapeHtml(order.currencyCode || '')} ${escapeHtml(Number(order.total || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }))}</td></tr>`).join('');
+  const openTasks = taskItems.filter((task) => !['Completed', 'Cancelled'].includes(task.status));
+  container.innerHTML = `<section class="panel"><div class="panel-head"><div><p class="eyebrow">Business overview</p><h2>Welcome back${currentUser?.fullName ? `, ${escapeHtml(currentUser.fullName)}` : ''}</h2><p class="lead">A live summary from the business records your account is allowed to access.</p></div><span class="status-line"><span class="status-dot"></span> Signed in</span></div><div class="metric-grid">${canViewCustomers ? metric('Customers', customers && Number.isFinite(Number(customers.totalCount)) ? Number(customers.totalCount).toLocaleString() : '—', 'Registered customer records') : ''}${canViewOrders ? metric('Orders', ordersPayload && Number.isFinite(Number(ordersPayload.totalCount)) ? Number(ordersPayload.totalCount).toLocaleString() : '—', 'Orders in this business') : ''}${canViewTasks ? metric('Open tasks', tasksPayload ? openTasks.length.toLocaleString() : '—', 'Open tasks in the loaded task window') : ''}</div>${failed(customerResult)}${failed(orderResult)}${failed(taskResult)}${canViewOrders ? `<div class="card panel"><div class="panel-head"><div><h3>Recent orders</h3><p>Latest records returned by the order API.</p></div><a class="button button-outline button-fit" href="#orders">View all</a></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Order</th><th>Status</th><th>Promised date</th><th>Total</th></tr></thead><tbody>${recentOrders || '<tr><td colspan="4">No recent orders returned.</td></tr>'}</tbody></table></div></div>` : ''}${canViewTasks ? `<div class="card panel"><div class="panel-head"><div><h3>Production work</h3><p>Current open tasks in the loaded window.</p></div><a class="button button-outline button-fit" href="#tasks">Open daily work</a></div>${openTasks.length ? `<ul class="dashboard-task-list">${openTasks.slice(0, 5).map((task) => `<li><a href="#tasks/${escapeHtml(task.id)}"><strong>${escapeHtml(task.title || task.orderNumber || 'Production task')}</strong></a><span class="pill">${escapeHtml(task.status || 'Pending')}</span><small>${escapeHtml(task.stageName || '')} · Due ${escapeHtml(dateLabel(task.deadlineUtc))}</small></li>`).join('')}</ul>` : '<p class="empty-state">No open tasks in the loaded window.</p>'}</div>` : ''}<p class="form-note">Summary cards use real API responses. A dash or an error message means that the API did not return a usable count; Avzar does not invent totals.</p></section>`;
+}
+
+async function renderBusinessSettings(container) {
+  if (!hasPermission('business.settings')) {
+    container.innerHTML = '<section class="card panel"><p class="eyebrow">Settings</p><h2>Settings</h2><p class="form-note">Your role cannot change business opening hours or document branding.</p><a class="button button-primary" href="#settings/security">Account security and sessions</a></section>';
     return;
   }
-  container.innerHTML = `<section class="card"><h2>Page not found</h2><p><a href="#home">Return to overview</a></p></section>`;
+  container.innerHTML = '<section class="card loading-card"><div class="spinner"></div><p>Loading business settings…</p></section>';
+  try {
+    const [schedule, branding] = await Promise.all([api('/api/business/schedule'), api('/api/business/branding')]);
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const byDay = new Map((schedule.days || []).map((day) => [Number(day.dayOfWeek), day]));
+    const hoursRows = days.map((name, index) => {
+      const day = byDay.get(index) || { dayOfWeek: index, isOpen: false, opensAt: '09:00', closesAt: '17:00' };
+      return `<tr><td>${name}</td><td><input type="checkbox" aria-label="${name} open" data-hours-day="${index}" data-hours-field="isOpen" ${day.isOpen ? 'checked' : ''}></td><td><input type="time" aria-label="${name} opens at" data-hours-day="${index}" data-hours-field="opensAt" value="${escapeHtml(String(day.opensAt || '09:00').slice(0,5))}" ${day.isOpen ? '' : 'disabled'}></td><td><input type="time" aria-label="${name} closes at" data-hours-day="${index}" data-hours-field="closesAt" value="${escapeHtml(String(day.closesAt || '17:00').slice(0,5))}" ${day.isOpen ? '' : 'disabled'}></td></tr>`;
+    }).join('');
+    const holidays = Array.isArray(schedule.holidays) ? schedule.holidays : [];
+    const holidayRows = holidays.map((holiday) => `<tr><td>${escapeHtml(holiday.date)}</td><td>${escapeHtml(holiday.name)}</td><td><button class="button button-outline" type="button" data-remove-holiday="${escapeHtml(holiday.id)}">Remove</button></td></tr>`).join('');
+    container.innerHTML = `<section class="panel"><p class="eyebrow">Business setup</p><h2>Business settings</h2><p class="lead">Configure opening hours, holidays and the contact details printed on business documents.</p><p><a class="button button-outline button-fit" href="#settings/security">Account security and sessions</a></p><div id="settings-error"></div><div class="card panel"><h3>Opening hours</h3><p class="form-note">Business time zone: ${escapeHtml(schedule.timeZoneId || 'Not configured')}</p><form id="business-hours-form"><div class="table-wrap"><table class="data-table"><thead><tr><th>Day</th><th>Open</th><th>Opens</th><th>Closes</th></tr></thead><tbody>${hoursRows}</tbody></table></div><button class="button button-primary" type="submit">Save opening hours</button></form></div><div class="card panel"><h3>Business holidays</h3><form id="business-holiday-form" class="filter-form"><div class="field"><label for="holiday-date">Date</label><input id="holiday-date" type="date" required></div><div class="field"><label for="holiday-name">Name</label><input id="holiday-name" maxlength="80" minlength="1" required placeholder="e.g. Public holiday"></div><button class="button button-outline" type="submit">Add holiday</button></form><div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Holiday</th><th>Action</th></tr></thead><tbody>${holidayRows || '<tr><td colspan="3">No holidays configured.</td></tr>'}</tbody></table></div></div><div class="card panel"><h3>Document branding</h3><form id="business-branding-form"><div class="field"><label for="branding-accent">Accent colour</label><input id="branding-accent" type="color" value="${/^#[0-9a-f]{6}$/i.test(branding.accentColor || '') ? branding.accentColor : '#1F3A5F'}"></div><div class="field"><label for="branding-phone">Business phone</label><input id="branding-phone" maxlength="40" value="${escapeHtml(branding.phone || '')}"></div><div class="field"><label for="branding-email">Business email</label><input id="branding-email" type="email" maxlength="254" value="${escapeHtml(branding.email || '')}"></div><div class="field"><label for="branding-tax">Tax number</label><input id="branding-tax" maxlength="60" value="${escapeHtml(branding.taxNumber || '')}"></div><div class="field"><label for="branding-footer">Document footer</label><textarea id="branding-footer" maxlength="300" rows="3">${escapeHtml(branding.footerNote || '')}</textarea></div><button class="button button-primary" type="submit">Save document branding</button></form></div></section>`;
+    const errorBox = document.querySelector('#settings-error');
+    const showError = (error) => { errorBox.innerHTML = `<p class="form-error" role="alert">${escapeHtml(error.message || 'The setting could not be saved.')}</p>`; };
+    document.querySelectorAll('[data-hours-day]').forEach((input) => input.addEventListener('change', () => {
+      if (input.dataset.hoursField !== 'isOpen') return;
+      const day = input.dataset.hoursDay;
+      document.querySelectorAll(`[data-hours-day="${day}"][data-hours-field="opensAt"], [data-hours-day="${day}"][data-hours-field="closesAt"]`).forEach((time) => { time.disabled = !input.checked; });
+    }));
+    document.querySelector('#business-hours-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const values = days.map((_, dayOfWeek) => {
+        const read = (field) => document.querySelector(`[data-hours-day="${dayOfWeek}"][data-hours-field="${field}"]`);
+        const isOpen = read('isOpen').checked;
+        return { dayOfWeek, isOpen, opensAt: isOpen ? read('opensAt').value : null, closesAt: isOpen ? read('closesAt').value : null };
+      });
+      if (values.some((day) => day.isOpen && (!day.opensAt || !day.closesAt || day.opensAt >= day.closesAt))) { showError(new Error('For each open day, closing time must be later than opening time.')); return; }
+      try { await api('/api/business/schedule/hours', { method: 'PUT', body: { days: values } }); showToast('Business opening hours saved.'); await renderBusinessSettings(container); }
+      catch (error) { showError(error); }
+    });
+    document.querySelector('#business-holiday-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      try { await api('/api/business/schedule/holidays', { method: 'POST', body: { date: form.elements[0].value, name: form.elements[1].value.trim() } }); showToast('Business holiday added.'); await renderBusinessSettings(container); }
+      catch (error) { showError(error); }
+    });
+    document.querySelectorAll('[data-remove-holiday]').forEach((button) => button.addEventListener('click', async () => {
+      if (!confirm('Remove this business holiday?')) return;
+      try { await api(`/api/business/schedule/holidays/${encodeURIComponent(button.dataset.removeHoliday)}`, { method: 'DELETE' }); showToast('Business holiday removed.'); await renderBusinessSettings(container); }
+      catch (error) { showError(error); }
+    }));
+    document.querySelector('#business-branding-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const value = (id) => document.querySelector(id).value.trim();
+      const body = { accentColor: value('#branding-accent'), phone: value('#branding-phone') || null, email: value('#branding-email') || null, taxNumber: value('#branding-tax') || null, footerNote: value('#branding-footer') || null, logoMediaId: branding.logoMediaId || null };
+      try { await api('/api/business/branding', { method: 'PUT', body }); showToast('Document branding saved.'); }
+      catch (error) { showError(error); }
+    });
+  } catch (error) {
+    container.innerHTML = `<section class="card"><h2>Could not load business settings</h2><p class="form-error" role="alert">${escapeHtml(error.message || 'Try again shortly.')}</p></section>`;
+  }
+}
+
+async function renderAccountSecurity(container) {
+  container.innerHTML = '<section class="card loading-card"><div class="spinner"></div><p>Loading account security…</p></section>';
+  try {
+    const [security, sessions] = await Promise.all([api('/api/account/security'), api('/api/account/sessions')]);
+    const recoveryCodesMarkup = Array.isArray(window.__avzarRecoveryCodes) && window.__avzarRecoveryCodes.length
+      ? `<section class="card panel"><h3>Save your recovery codes</h3><p class="form-note">These codes are shown only after enabling two-factor authentication. Store them somewhere safe; each code works once.</p><ul>${window.__avzarRecoveryCodes.map((code) => `<li><code>${escapeHtml(code)}</code></li>`).join('')}</ul><button class="button button-outline" id="dismiss-recovery-codes" type="button">I saved these codes</button></section>` : '';
+    const sessionRows = (Array.isArray(sessions) ? sessions : []).map((session) => `<tr><td>${escapeHtml(session.deviceName || 'Unknown device')}</td><td>${escapeHtml(dateLabel(session.lastUsedAtUtc))}</td><td>${escapeHtml(dateLabel(session.expiresAtUtc))}</td><td><button class="button button-outline" type="button" data-revoke-session="${escapeHtml(session.id)}">Revoke</button></td></tr>`).join('');
+    container.innerHTML = `<section class="panel"><p><a href="#settings">← Business settings</a></p><p class="eyebrow">Your account</p><h2>Security and sessions</h2><div id="security-error"></div>${recoveryCodesMarkup}<div class="card panel"><h3>Account security</h3><dl class="detail-list"><dt>Email verified</dt><dd>${security.emailConfirmed ? 'Yes' : 'Not yet verified'}</dd><dt>Two-factor authentication</dt><dd>${security.twoFactorEnabled ? 'Enabled' : 'Disabled'}</dd><dt>Recovery codes remaining</dt><dd>${Number(security.recoveryCodesLeft) || 0}</dd><dt>Active device sessions</dt><dd>${Number(security.activeSessions) || 0}</dd></dl>${!security.emailConfirmed ? '<button class="button button-outline" id="resend-verification" type="button">Resend verification email</button>' : ''}${security.twoFactorEnabled ? `<form id="disable-two-factor-form"><h4>Disable two-factor authentication</h4><div class="field"><label for="disable-2fa-password">Current password</label><input id="disable-2fa-password" type="password" required autocomplete="current-password"></div><div class="field"><label for="disable-2fa-type">Verification method</label><select id="disable-2fa-type"><option value="authenticator">Authenticator code</option><option value="recovery">Recovery code</option></select></div><div class="field"><label for="disable-2fa-code">Verification code</label><input id="disable-2fa-code" maxlength="80" required autocomplete="one-time-code"></div><button class="button button-outline" type="submit">Disable two-factor authentication</button></form>` : '<button class="button button-primary" id="begin-two-factor" type="button">Set up two-factor authentication</button>'}</div><div class="card panel"><h3>Change password</h3><form id="change-password-form"><div class="field"><label for="current-password">Current password</label><input id="current-password" type="password" required autocomplete="current-password"></div><div class="field"><label for="new-password">New password</label><input id="new-password" type="password" minlength="10" maxlength="128" required autocomplete="new-password"></div><div class="field"><label for="confirm-password">Confirm new password</label><input id="confirm-password" type="password" minlength="10" maxlength="128" required autocomplete="new-password"></div><button class="button button-primary" type="submit">Change password</button></form></div><div class="card panel"><div class="panel-head"><div><h3>Device sessions</h3><p>Revoke sessions you no longer recognize or use.</p></div><button class="button button-outline button-fit" type="button" id="revoke-all-sessions">Revoke all</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Device</th><th>Last used</th><th>Expires</th><th>Action</th></tr></thead><tbody>${sessionRows || '<tr><td colspan="4">No device sessions were returned.</td></tr>'}</tbody></table></div></div><div id="two-factor-setup"></div></section>`;
+    const errorBox = document.querySelector('#security-error');
+    const showError = (error) => { errorBox.innerHTML = `<p class="form-error" role="alert">${escapeHtml(error.message || 'The security change failed.')}</p>`; };
+    document.querySelector('#dismiss-recovery-codes')?.addEventListener('click', () => { window.__avzarRecoveryCodes = null; renderAccountSecurity(container); });
+    document.querySelector('#resend-verification')?.addEventListener('click', async () => { try { await api('/api/account/resend-verification', { method: 'POST' }); showToast('If verification can be resent, an email has been queued.'); } catch (error) { showError(error); } });
+    document.querySelector('#begin-two-factor')?.addEventListener('click', async () => {
+      try { const setup = await api('/api/account/two-factor/setup', { method: 'POST' }); const target = document.querySelector('#two-factor-setup'); const otpAuthUri = typeof setup.otpAuthUri === 'string' && setup.otpAuthUri.startsWith('otpauth://') ? setup.otpAuthUri : null; target.innerHTML = `<section class="card panel"><h3>Finish two-factor setup</h3><p>Enter this key in your authenticator app, then submit the current code. Keep the key private.</p><p><strong>Setup key</strong></p><p><code>${escapeHtml(setup.sharedKey)}</code></p>${otpAuthUri ? `<p><a href="${escapeHtml(otpAuthUri)}">Open authenticator link</a></p>` : ''}<form id="enable-two-factor-form"><div class="field"><label for="enable-2fa-code">Authenticator code</label><input id="enable-2fa-code" inputmode="numeric" autocomplete="one-time-code" minlength="6" maxlength="12" required></div><button class="button button-primary" type="submit">Enable two-factor authentication</button></form></section>`; document.querySelector('#enable-two-factor-form').addEventListener('submit', async (event) => { event.preventDefault(); try { const result = await api('/api/account/two-factor/enable', { method: 'POST', body: { code: document.querySelector('#enable-2fa-code').value.trim() } }); window.__avzarRecoveryCodes = result.codes || []; showToast('Two-factor authentication enabled. Save your recovery codes now.'); await renderAccountSecurity(container); } catch (error) { showError(error); } }); }
+      catch (error) { showError(error); }
+    });
+    document.querySelector('#disable-two-factor-form')?.addEventListener('submit', async (event) => { event.preventDefault(); const value = document.querySelector('#disable-2fa-code').value.trim(); const method = document.querySelector('#disable-2fa-type').value; if (!value) { showError(new Error('Enter the selected verification code.')); return; } try { await api('/api/account/two-factor/disable', { method: 'POST', body: { password: document.querySelector('#disable-2fa-password').value, ...(method === 'recovery' ? { recoveryCode: value } : { code: value }) } }); window.__avzarRecoveryCodes = null; showToast('Two-factor authentication disabled.'); await renderAccountSecurity(container); } catch (error) { showError(error); } });
+    document.querySelector('#change-password-form').addEventListener('submit', async (event) => { event.preventDefault(); const currentPassword = document.querySelector('#current-password').value; const newPassword = document.querySelector('#new-password').value; const confirmPassword = document.querySelector('#confirm-password').value; if (newPassword !== confirmPassword) { showError(new Error('The new password and confirmation do not match.')); return; } try { await api('/api/account/change-password', { method: 'POST', body: { currentPassword, newPassword } }); showToast('Password changed successfully.'); event.currentTarget.reset(); } catch (error) { showError(error); } });
+    document.querySelectorAll('[data-revoke-session]').forEach((button) => button.addEventListener('click', async () => { if (!confirm('Revoke this device session?')) return; try { await api(`/api/account/sessions/${encodeURIComponent(button.dataset.revokeSession)}`, { method: 'DELETE' }); showToast('Device session revoked.'); await renderAccountSecurity(container); } catch (error) { showError(error); } }));
+    document.querySelector('#revoke-all-sessions')?.addEventListener('click', async () => { if (!confirm('Revoke all device sessions? This may sign out other devices.')) return; try { await api('/api/account/sessions/revoke-all', { method: 'POST' }); showToast('Device sessions revoked.'); await renderAccountSecurity(container); } catch (error) { showError(error); } });
+  } catch (error) {
+    container.innerHTML = `<section class="card"><h2>Could not load account security</h2><p class="form-error" role="alert">${escapeHtml(error.message || 'Try again shortly.')}</p><a href="#settings">Back to settings</a></section>`;
+  }
 }
 
 async function renderOrderList(container) {
@@ -376,6 +488,43 @@ async function renderOrderForm(container, orderId = null) {
   } catch (error) { container.innerHTML = `<section class="card"><h2>Could not prepare order</h2><p class="form-error" role="alert">${escapeHtml(error.message || 'Could not load customers and locations.')}</p><a href="#orders">Back to orders</a></section>`; }
 }
 
+async function renderFittings(container) {
+  if (!hasPermission('orders.view')) { container.innerHTML = '<section class="card"><h2>Fittings</h2><p class="form-error">Your account does not have permission to view fitting appointments.</p></section>'; return; }
+  container.innerHTML = '<section class="card loading-card"><div class="spinner"></div><p>Loading fitting appointments…</p></section>';
+  try {
+    const [fittingsPayload, customersPayload, locations] = await Promise.all([
+      api('/api/fittings?page=1&pageSize=100'),
+      hasPermission('customers.view') ? api('/api/customers?page=1&pageSize=100&status=Active') : Promise.resolve({ items: [] }),
+      hasPermission('fittings.manage') ? api('/api/locations') : Promise.resolve([])
+    ]);
+    const fittings = Array.isArray(fittingsPayload?.items) ? fittingsPayload.items : [];
+    const customers = Array.isArray(customersPayload?.items) ? customersPayload.items : [];
+    const canManage = hasPermission('fittings.manage');
+    const customerOptions = customers.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.fullName)}</option>`).join('');
+    const locationOptions = (locations || []).map((l) => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('');
+    const rows = fittings.map((f) => `<tr><td><strong>${escapeHtml(customers.find((c) => c.id === f.customerId)?.fullName || f.customerName || 'Customer')}</strong><small>${escapeHtml(f.notes || '')}</small></td><td>${escapeHtml(new Date(f.scheduledAtUtc).toLocaleString())}</td><td>${Number(f.durationMinutes) || 30} min</td><td><span class="pill">${escapeHtml(f.status)}</span></td><td>${canManage && f.status === 'Scheduled' ? `<select aria-label="Update fitting status" data-fitting-status="${escapeHtml(f.id)}"><option value="">Change status…</option><option>Completed</option><option>Cancelled</option><option>NoShow</option></select>` : '—'}</td></tr>`).join('');
+    const createForm = canManage ? `<div class="card panel"><h3>Schedule a fitting</h3><form id="fitting-create-form"><div class="field"><label for="fitting-customer">Customer *</label><select id="fitting-customer" required>${customerOptions}</select></div><div class="field"><label for="fitting-location">Location *</label><select id="fitting-location" required>${locationOptions}</select></div><div class="field"><label for="fitting-date">Date and time *</label><input id="fitting-date" type="datetime-local" required></div><div class="field"><label for="fitting-duration">Duration (minutes)</label><input id="fitting-duration" type="number" min="5" max="480" step="5" value="30" required></div><div class="field"><label for="fitting-notes">Notes</label><textarea id="fitting-notes" maxlength="2000" rows="2"></textarea></div><button class="button button-primary" type="submit">Schedule fitting</button></form></div>` : '';
+    container.innerHTML = `<section class="panel"><div class="panel-head"><div><p class="eyebrow">Appointments</p><h2>Fittings</h2><p class="lead">Schedule fittings and track whether the customer attended.</p></div></div>${createForm}<div class="card panel"><h3>Recent fitting appointments</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Scheduled</th><th>Duration</th><th>Status</th><th>Action</th></tr></thead><tbody>${rows || '<tr><td colspan="5">No fitting appointments returned.</td></tr>'}</tbody></table></div><p class="form-note">Showing up to 100 records. Permissions and schedule rules are enforced by the API.</p></div></section>`;
+    document.querySelector('#fitting-create-form')?.addEventListener('submit', async (event) => {
+      event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button[type="submit"]');
+      const localDate = document.querySelector('#fitting-date').value; const date = new Date(localDate); const durationMinutes = Number(document.querySelector('#fitting-duration').value);
+      if (!localDate || Number.isNaN(date.getTime()) || !Number.isInteger(durationMinutes) || durationMinutes < 5 || durationMinutes > 480) { showToast('Enter a valid fitting date and duration.'); return; }
+      if (!customers.length || !locations?.length) { showToast('An active customer and workshop location are required.'); return; }
+      button.disabled = true; button.textContent = 'Scheduling…';
+      try { await api('/api/fittings', { method: 'POST', body: { customerId: document.querySelector('#fitting-customer').value, locationId: document.querySelector('#fitting-location').value, scheduledAt: date.toISOString(), durationMinutes, notes: document.querySelector('#fitting-notes').value.trim() || null } }); showToast('Fitting appointment scheduled.'); await renderFittings(container); }
+      catch (error) { showToast(error.message || 'Could not schedule fitting.'); button.disabled = false; button.textContent = 'Schedule fitting'; }
+    });
+    document.querySelectorAll('[data-fitting-status]').forEach((select) => select.addEventListener('change', async () => {
+      if (!select.value) return;
+      const status = select.value; select.disabled = true;
+      try { await api(`/api/fittings/${encodeURIComponent(select.dataset.fittingStatus)}/status`, { method: 'POST', body: { status } }); showToast('Fitting status updated.'); await renderFittings(container); }
+      catch (error) { showToast(error.message || 'Could not update fitting status.'); select.disabled = false; select.value = ''; }
+    }));
+  } catch (error) {
+    container.innerHTML = `<section class="card"><h2>Could not load fittings</h2><p class="form-error" role="alert">${escapeHtml(error.message || 'Try again shortly.')}</p></section>`;
+  }
+}
+
 async function renderTaskBoard(container) {
   if (!hasPermission('tasks.view') && !hasPermission('tasks.work')) { container.innerHTML = '<section class="card"><h2>Daily work</h2><p class="form-error">Your account does not have permission to view tasks.</p></section>'; return; }
   const query = new URLSearchParams(location.hash.split('?')[1] || '');
@@ -424,8 +573,8 @@ async function renderTaskDetail(container, taskId) {
 
 async function renderShopSchedule(container) {
   if (!hasPermission('tasks.view')) { container.innerHTML = '<section class="card"><h2>Shop schedule</h2><p class="form-error">Your account cannot view the shop schedule.</p></section>'; return; }
-  const start = new Date(); start.setHours(0,0,0,0); const startValue = start.toISOString();
-  container.innerHTML = `<section class="card panel"><p><a href="#tasks">← Back to daily work</a></p><p class="eyebrow">Capacity-aware planning</p><h2>Shop-wide schedule</h2><p>Preview assigns work using the server's worker availability, skills, dependencies and capacity. Applying a plan revalidates task versions on the server.</p><form id="schedule-form"><div class="field"><label for="schedule-start">Start date</label><input id="schedule-start" name="start" type="date" required value="${startValue.slice(0,10)}"></div><div class="field"><label for="schedule-days">Planning horizon (days)</label><input id="schedule-days" name="days" type="number" min="1" max="366" value="14" required></div><button class="button button-primary" type="submit">Preview schedule</button></form><div id="schedule-results"></div></section>`;
+  const start = new Date(); start.setHours(0,0,0,0); const startValue = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`;
+  container.innerHTML = `<section class="card panel"><p><a href="#tasks">← Back to daily work</a></p><p class="eyebrow">Capacity-aware planning</p><h2>Shop-wide schedule</h2><p>Preview assigns work using the server's worker availability, skills, dependencies and capacity. Applying a plan revalidates task versions on the server.</p><form id="schedule-form"><div class="field"><label for="schedule-start">Start date</label><input id="schedule-start" name="start" type="date" required value="${startValue}"></div><div class="field"><label for="schedule-days">Planning horizon (days)</label><input id="schedule-days" name="days" type="number" min="1" max="366" value="14" required></div><button class="button button-primary" type="submit">Preview schedule</button></form><div id="schedule-results"></div></section>`;
   document.querySelector('#schedule-form').addEventListener('submit', async e => { e.preventDefault(); const data = new FormData(e.currentTarget); const startUtc = new Date(`${data.get('start')}T00:00:00`).toISOString(); const horizonDays = Number(data.get('days')); const target = document.querySelector('#schedule-results'); target.innerHTML = '<p>Calculating a fresh schedule preview…</p>';
     try { const preview = await api('/api/tasks/schedule/preview', { method: 'POST', body: { startUtc, horizonDays } }); const scheduled = preview.scheduled || []; const unscheduled = preview.unscheduled || []; target.innerHTML = `<h3>Preview result</h3><p>${scheduled.length} task(s) scheduled · ${unscheduled.length} unscheduled · ${escapeHtml(preview.timeZoneId || '')}</p>${unscheduled.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Task ID</th><th>Reason</th></tr></thead><tbody>${unscheduled.map(x=>`<tr><td>${escapeHtml(x.taskId)}</td><td>${escapeHtml(x.reason)}</td></tr>`).join('')}</tbody></table></div>` : ''}<div class="table-wrap"><table class="data-table"><thead><tr><th>Task ID</th><th>Start</th><th>End</th></tr></thead><tbody>${scheduled.map(x=>`<tr><td>${escapeHtml(x.taskId)}</td><td>${escapeHtml(new Date(x.startUtc).toLocaleString())}</td><td>${escapeHtml(new Date(x.endUtc).toLocaleString())}</td></tr>`).join('') || '<tr><td colspan="3">No tasks scheduled.</td></tr>'}</tbody></table></div>${hasPermission('tasks.manage') && scheduled.length && !unscheduled.length ? '<button class="button button-primary" id="apply-schedule">Apply this complete schedule</button>' : ''}<p class="form-note">This is a preview. No task planned times are written until you explicitly apply it.</p>`;
       document.querySelector('#apply-schedule')?.addEventListener('click', async () => { if (!confirm('Apply this schedule? The server will revalidate the plan before saving.')) return; try { const result = await api('/api/tasks/schedule/apply', { method: 'POST', body: { startUtc, horizonDays, expectedTaskVersions: preview.taskVersions, expectedSlots: scheduled } }); showToast(`Schedule applied to ${result.updatedTasks} tasks. Notifications queued: ${result.notificationsQueued ? 'yes' : 'no'}.`); } catch (error) { target.insertAdjacentHTML('afterbegin', `<p class="form-error" role="alert">${escapeHtml(error.message)}</p>`); } });
@@ -463,6 +612,129 @@ async function renderWorkerSchedules(container) {
   } catch (error) { container.innerHTML = `<section class="card"><h2>Could not load workers</h2><p class="form-error">${escapeHtml(error.message || 'Try again.')}</p></section>`; }
 }
 
+
+
+
+async function renderExpenses(container) {
+  const canView = hasPermission('expenses.view'); const canManage = hasPermission('expenses.manage');
+  if (!canView) { container.innerHTML = '<section class="card"><h2>Expense access required</h2><p>Your account cannot view expense records.</p></section>'; return; }
+  container.innerHTML = '<section class="card loading-card"><div class="spinner" aria-hidden="true"></div><p>Loading expenses…</p></section>';
+  const results = await Promise.allSettled([api('/api/expenses?page=1&pageSize=100'), api('/api/expense-categories'), api('/api/expenses/summary')]);
+  const expenses = results[0].status === 'fulfilled' ? (results[0].value.items || []) : [];
+  const categories = results[1].status === 'fulfilled' ? results[1].value.filter((x) => x.isActive) : [];
+  const summary = results[2].status === 'fulfilled' ? results[2].value : null;
+  const errorMarkup = results.map((r, i) => r.status === 'rejected' ? `<p class="form-error" role="alert">${['Expense list','Categories','Expense summary'][i]}: ${escapeHtml(r.reason.message)}</p>` : '').join('');
+  container.innerHTML = `<section class="panel"><div class="card"><p class="eyebrow">Money out</p><h2>Expenses</h2><p>Expenses are separate from revenue and receivables. Voided entries remain in the audit trail.</p>${errorMarkup}<div class="account-line"><span class="pill">Recorded total: ${summary ? `${escapeHtml(summary.total)} ${escapeHtml(summary.currencyCode)}` : 'Unavailable'}</span><span class="pill">Categories: ${summary && Array.isArray(summary.byCategory) ? summary.byCategory.length : '—'}</span></div>${canManage ? '<button id="expense-add" class="button button-primary" type="button">Record expense</button>' : ''}<a class="button button-outline" href="/backend/api/expenses/export" target="_blank" rel="noopener">Export CSV</a></div><div id="expense-form-area" class="card"></div><div class="card"><h3>Expense records</h3><div class="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Vendor</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>${expenses.map((e) => `<tr><td>${escapeHtml(e.expenseDate)}</td><td>${escapeHtml(e.categoryName)}</td><td>${escapeHtml(e.description)}</td><td>${escapeHtml(e.vendor || '—')}</td><td>${escapeHtml(e.amount)} ${escapeHtml(e.currencyCode)}</td><td>${e.isVoid ? `Voided: ${escapeHtml(e.voidReason || '')}` : 'Recorded'}</td><td>${canManage && !e.isVoid ? `<button class="button button-small button-outline" type="button" data-expense-void="${escapeHtml(e.id)}">Void</button>` : '—'}</td></tr>`).join('') || '<tr><td colspan="7">No expenses were returned.</td></tr>'}</tbody></table></div></div></section>`;
+  const area = container.querySelector('#expense-form-area');
+  container.querySelector('#expense-add')?.addEventListener('click', () => {
+    if (!categories.length) { area.innerHTML = '<p class="form-error" role="alert">No active expense categories are available. An authorized manager must create or activate a category first.</p>'; return; }
+    const now = new Date(); const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    area.innerHTML = `<h3>Record expense</h3><form id="expense-form" class="form-grid"><div class="field"><label for="expense-category">Category</label><select id="expense-category" required>${categories.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('')}</select></div><div class="field"><label for="expense-date">Date</label><input id="expense-date" type="date" value="${today}" required></div><div class="field"><label for="expense-amount">Amount</label><input id="expense-amount" type="number" min="0.01" step="0.01" required></div><div class="field"><label for="expense-description">Description</label><input id="expense-description" maxlength="300" required></div><div class="field"><label for="expense-vendor">Vendor (optional)</label><input id="expense-vendor" maxlength="120"></div><div class="field"><label for="expense-reference">Reference (optional)</label><input id="expense-reference" maxlength="100"></div><div class="form-actions"><button class="button button-primary" type="submit">Save expense</button><button class="button button-outline" id="expense-cancel" type="button">Cancel</button></div><p id="expense-error" class="form-error" role="alert"></p></form>`;
+    area.querySelector('#expense-cancel').addEventListener('click', () => { area.innerHTML = ''; });
+    area.querySelector('#expense-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('[type="submit"]'); button.disabled = true; const amount = Number(form.querySelector('#expense-amount').value); if (!Number.isFinite(amount) || amount <= 0) { form.querySelector('#expense-error').textContent = 'Enter an amount greater than zero.'; button.disabled = false; return; } try { await api('/api/expenses', { method: 'POST', body: { categoryId: form.querySelector('#expense-category').value, expenseDate: form.querySelector('#expense-date').value, amount, description: form.querySelector('#expense-description').value.trim(), vendor: form.querySelector('#expense-vendor').value.trim() || null, reference: form.querySelector('#expense-reference').value.trim() || null } }); showToast('Expense recorded.'); await renderExpenses(container); } catch (error) { form.querySelector('#expense-error').textContent = error.message; button.disabled = false; } });
+  });
+  container.querySelectorAll('[data-expense-void]').forEach((button) => button.addEventListener('click', async () => { const reason = prompt('Reason for voiding this expense (required):'); if (!reason || reason.trim().length < 3) return; if (!confirm('Void this expense? The record will be retained for audit.')) return; button.disabled = true; try { await api(`/api/expenses/${encodeURIComponent(button.dataset.expenseVoid)}/void`, { method: 'POST', body: { reason: reason.trim() } }); showToast('Expense voided; the audit record was retained.'); await renderExpenses(container); } catch (error) { showToast(error.message); button.disabled = false; } }));
+}
+
+async function renderFinance(container, invoiceId = null) {
+  const canViewInvoices = hasPermission('invoices.view');
+  const canViewPayments = hasPermission('payments.view');
+  const canRecordPayments = hasPermission('payments.record');
+  const canVerifyPayments = hasPermission('payments.verify');
+  if (!canViewInvoices && !canViewPayments) {
+    container.innerHTML = '<section class="card"><h2>Finance access required</h2><p>Your account does not have permission to view invoices or payments.</p></section>';
+    return;
+  }
+  if (invoiceId && canViewInvoices) {
+    container.innerHTML = '<section class="card loading-card"><div class="spinner" aria-hidden="true"></div><p>Loading invoice…</p></section>';
+    try {
+      const invoice = await api(`/api/invoices/${encodeURIComponent(invoiceId)}`);
+      const payments = Array.isArray(invoice.payments) ? invoice.payments : [];
+      const paymentRows = payments.map((p) => `<tr><td>${escapeHtml(p.receivedOn || '—')}</td><td>${escapeHtml(p.method)}</td><td>${escapeHtml(p.amount)} ${escapeHtml(invoice.currencyCode)}</td><td>${escapeHtml(p.status)}</td><td>${escapeHtml(p.reference || '—')}</td><td>${p.receiptId && p.status === 'Verified' ? `<button class="button button-small button-outline" type="button" data-receipt-view="${escapeHtml(p.receiptId)}">View receipt</button> ` : ''}${p.status === 'Pending' && canVerifyPayments ? `<button class="button button-small button-primary" type="button" data-payment-verify="${escapeHtml(p.id)}">Verify</button> <button class="button button-small button-outline" type="button" data-payment-reject="${escapeHtml(p.id)}">Reject</button>` : (p.receiptId && p.status === 'Verified' ? '' : '—')}</td></tr>`).join('');
+      container.innerHTML = `<section class="panel"><p><a href="#finance">← Back to finance</a></p><div class="card"><p class="eyebrow">${escapeHtml(invoice.kind)} invoice</p><h2>${escapeHtml(invoice.number || 'Draft invoice')}</h2><p>${escapeHtml(invoice.customerName)} · ${escapeHtml(invoice.status)}</p><div class="account-line"><span class="pill">Total: ${escapeHtml(invoice.total)} ${escapeHtml(invoice.currencyCode)}</span><span class="pill">Paid: ${escapeHtml(invoice.amountPaid)}</span><span class="pill">Balance: ${escapeHtml(invoice.balance)}</span></div><p>Issue date: ${escapeHtml(invoice.issueDate || 'Not issued')} · Due date: ${escapeHtml(invoice.dueDate || 'Not set')}</p><p>${escapeHtml(invoice.notes || '')}</p><div class="account-line">${invoice.status === 'Draft' && hasPermission('invoices.manage') ? '<button class="button button-primary" id="invoice-issue" type="button">Issue invoice</button>' : ''}${invoice.status === 'Issued' && canRecordPayments && Number(invoice.balance) > 0 ? '<button class="button button-primary" id="payment-add" type="button">Record payment</button>' : ''}${invoice.status === 'Issued' && hasPermission('invoices.manage') && Number(invoice.balance) > 0 ? '<button class="button button-outline" id="credit-note-add" type="button">Add credit note</button>' : ''}</div><div id="finance-action" class="stack"></div></div><div class="card"><h3>Credit notes</h3><div class="table-wrap"><table><thead><tr><th>Number</th><th>Amount</th><th>Reason</th><th>Created</th></tr></thead><tbody>${(invoice.creditNotes || []).map((note) => `<tr><td>${escapeHtml(note.number)}</td><td>${escapeHtml(note.amount)} ${escapeHtml(invoice.currencyCode)}</td><td>${escapeHtml(note.reason)}</td><td>${escapeHtml(note.createdAtUtc || '—')}</td></tr>`).join('') || '<tr><td colspan="4">No credit notes issued.</td></tr>'}</tbody></table></div></div><div class="card"><h3>Invoice lines</h3><div class="table-wrap"><table><thead><tr><th>Description</th><th>Qty</th><th>Unit price</th><th>Total</th></tr></thead><tbody>${(invoice.lines || []).map((line) => `<tr><td>${escapeHtml(line.description)}</td><td>${escapeHtml(line.quantity)}</td><td>${escapeHtml(line.unitPrice)}</td><td>${escapeHtml(line.lineTotal)}</td></tr>`).join('') || '<tr><td colspan="4">No lines were returned.</td></tr>'}</tbody></table></div></div><div class="card"><h3>Payments</h3><div class="table-wrap"><table><thead><tr><th>Date</th><th>Method</th><th>Amount</th><th>Status</th><th>Reference</th><th>Actions</th></tr></thead><tbody>${paymentRows || '<tr><td colspan="6">No payments recorded.</td></tr>'}</tbody></table></div></div></section>`;
+      container.querySelector('#invoice-issue')?.addEventListener('click', async (event) => { const button = event.currentTarget; if (!confirm('Issue this invoice? The issued document is frozen and gets an invoice number.')) return; button.disabled = true; try { await api(`/api/invoices/${encodeURIComponent(invoice.id)}/issue`, { method: 'POST' }); showToast('Invoice issued.'); await renderFinance(container, invoice.id); } catch (error) { showToast(error.message); button.disabled = false; } });
+      container.querySelector('#credit-note-add')?.addEventListener('click', () => {
+        const action = container.querySelector('#finance-action');
+        action.innerHTML = `<h3>Add credit note</h3><p class="form-note">A credit note reduces the unpaid invoice balance. The server rejects credits above the remaining balance.</p><form id="credit-note-form" class="form-grid"><div class="field"><label for="credit-note-amount">Credit amount (${escapeHtml(invoice.currencyCode)})</label><input id="credit-note-amount" type="number" min="0.01" max="${escapeHtml(invoice.balance)}" step="0.01" required></div><div class="field"><label for="credit-note-reason">Reason</label><textarea id="credit-note-reason" minlength="3" maxlength="500" required></textarea></div><div class="form-actions"><button class="button button-primary" type="submit">Issue credit note</button><button class="button button-outline" id="credit-note-cancel" type="button">Cancel</button></div><p id="credit-note-error" class="form-error" role="alert"></p></form>`;
+        action.querySelector('#credit-note-cancel').addEventListener('click', () => { action.innerHTML = ''; });
+        action.querySelector('#credit-note-form').addEventListener('submit', async (event) => {
+          event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('[type="submit"]'); button.disabled = true;
+          const amount = Number(form.querySelector('#credit-note-amount').value); const reason = form.querySelector('#credit-note-reason').value.trim();
+          if (!Number.isFinite(amount) || amount <= 0 || amount > Number(invoice.balance) || Math.round(amount * 100) !== amount * 100 || reason.length < 3) { form.querySelector('#credit-note-error').textContent = 'Enter a valid amount within the outstanding balance and a reason of at least three characters.'; button.disabled = false; return; }
+          try { await api(`/api/invoices/${encodeURIComponent(invoice.id)}/credit-notes`, { method: 'POST', body: { amount, reason } }); showToast('Credit note issued.'); await renderFinance(container, invoice.id); }
+          catch (error) { form.querySelector('#credit-note-error').textContent = error.message; button.disabled = false; }
+        });
+      });
+      container.querySelectorAll('[data-receipt-view]').forEach((button) => button.addEventListener('click', async () => {
+        const action = container.querySelector('#finance-action'); action.innerHTML = '<p class="form-note">Loading receipt…</p>'; button.disabled = true;
+        try { const receipt = await api(`/api/receipts/${encodeURIComponent(button.dataset.receiptView)}`); action.innerHTML = `<div class="card"><h3>Receipt ${escapeHtml(receipt.number)}</h3><p>Customer: ${escapeHtml(receipt.customerName)}</p><p>Invoice: ${escapeHtml(receipt.invoiceNumber || receipt.invoiceId)}</p><p>Amount received: ${escapeHtml(receipt.amount)} ${escapeHtml(receipt.currencyCode)}</p><p>Method: ${escapeHtml(receipt.method)} · Date: ${escapeHtml(receipt.issuedAtUtc)}</p><p>Reference: ${escapeHtml(receipt.reference || '—')}</p><p>Balance after payment: ${escapeHtml(receipt.balanceAfter)} ${escapeHtml(receipt.currencyCode)}</p>${receipt.isVoid ? '<p class="form-error">This receipt is void.</p>' : ''}<button class="button button-outline" id="receipt-close" type="button">Close receipt</button></div>`; action.querySelector('#receipt-close').addEventListener('click', () => { action.innerHTML = ''; }); }
+        catch (error) { action.innerHTML = `<p class="form-error" role="alert">${escapeHtml(error.message)}</p>`; } finally { button.disabled = false; }
+      }));
+      container.querySelector('#payment-add')?.addEventListener('click', () => {
+        const action = container.querySelector('#finance-action'); action.innerHTML = `<h3>Record payment</h3><form id="payment-form" class="form-grid"><div class="field"><label for="payment-amount">Amount (${escapeHtml(invoice.currencyCode)})</label><input id="payment-amount" type="number" min="0.01" max="${escapeHtml(invoice.balance)}" step="0.01" required></div><div class="field"><label for="payment-method">Method</label><select id="payment-method"><option>Cash</option><option>BankTransfer</option><option>Card</option><option>MobileMoney</option><option>Other</option></select></div><div class="field"><label for="payment-date">Received on</label><input id="payment-date" type="date" value="${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}" required></div><div class="field"><label for="payment-reference">Reference (optional)</label><input id="payment-reference" maxlength="100"></div><div class="field"><label for="payment-notes">Notes (optional)</label><input id="payment-notes" maxlength="500"></div>${canVerifyPayments ? '<label class="checkbox-line"><input id="payment-verify-now" type="checkbox"> Verify immediately (only if funds are confirmed)</label>' : '<p class="form-note">This payment will remain pending until an authorized staff member verifies it.</p>'}<div class="form-actions"><button class="button button-primary" type="submit">Save payment</button><button class="button button-outline" id="payment-cancel" type="button">Cancel</button></div><p id="payment-error" class="form-error" role="alert"></p></form>`;
+        action.querySelector('#payment-cancel').addEventListener('click', () => { action.innerHTML = ''; });
+        action.querySelector('#payment-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; const submit = form.querySelector('[type="submit"]'); submit.disabled = true; const amount = Number(form.querySelector('#payment-amount').value); if (!Number.isFinite(amount) || amount <= 0 || amount > Number(invoice.balance)) { form.querySelector('#payment-error').textContent = 'Enter an amount above zero and no greater than the current balance.'; submit.disabled = false; return; } try { await api(`/api/invoices/${encodeURIComponent(invoice.id)}/payments`, { method: 'POST', headers: { 'idempotency-key': crypto.randomUUID() }, body: { amount, method: form.querySelector('#payment-method').value, receivedOn: form.querySelector('#payment-date').value, reference: form.querySelector('#payment-reference').value.trim() || null, notes: form.querySelector('#payment-notes').value.trim() || null, verifyNow: Boolean(form.querySelector('#payment-verify-now')?.checked) } }); showToast('Payment recorded. A pending payment does not count toward the paid balance until verified.'); await renderFinance(container, invoice.id); } catch (error) { form.querySelector('#payment-error').textContent = error.message; submit.disabled = false; } });
+      });
+      container.querySelectorAll('[data-payment-verify]').forEach((button) => button.addEventListener('click', async () => { if (!confirm('Verify this payment? Only verify funds that have actually been received.')) return; button.disabled = true; try { await api(`/api/payments/${encodeURIComponent(button.dataset.paymentVerify)}/verify`, { method: 'POST' }); showToast('Payment verified.'); await renderFinance(container, invoice.id); } catch (error) { showToast(error.message); button.disabled = false; } }));
+      container.querySelectorAll('[data-payment-reject]').forEach((button) => button.addEventListener('click', async () => { const reason = prompt('Why is this payment being rejected?'); if (!reason || reason.trim().length < 3) return; button.disabled = true; try { await api(`/api/payments/${encodeURIComponent(button.dataset.paymentReject)}/reject`, { method: 'POST', body: { reason: reason.trim() } }); showToast('Payment rejected.'); await renderFinance(container, invoice.id); } catch (error) { showToast(error.message); button.disabled = false; } }));
+    } catch (error) { container.innerHTML = `<section class="card"><h2>Invoice could not load</h2><p class="form-error" role="alert">${escapeHtml(error.message)}</p><a href="#finance">Back to finance</a></section>`; }
+    return;
+  }
+  container.innerHTML = '<section class="card loading-card"><div class="spinner" aria-hidden="true"></div><p>Loading finance records…</p></section>';
+  const results = await Promise.allSettled([canViewInvoices ? api('/api/invoices?page=1&pageSize=50') : Promise.resolve(null), canViewPayments ? api('/api/payments?page=1&pageSize=50&status=Pending') : Promise.resolve(null)]);
+  const invoicesResult = results[0]; const paymentsResult = results[1];
+  const invoices = invoicesResult.status === 'fulfilled' && invoicesResult.value ? (invoicesResult.value.items || []) : [];
+  const pendingPayments = paymentsResult.status === 'fulfilled' && paymentsResult.value ? (paymentsResult.value.items || []) : [];
+  container.innerHTML = `<section class="panel"><div class="card"><p class="eyebrow">Finance</p><h2>Invoices and payments</h2><p>Balances count verified payments only. Pending claims do not reduce the outstanding balance.</p>${invoicesResult.status === 'rejected' ? `<p class="form-error" role="alert">Invoices: ${escapeHtml(invoicesResult.reason.message)}</p>` : ''}${paymentsResult.status === 'rejected' ? `<p class="form-error" role="alert">Payments: ${escapeHtml(paymentsResult.reason.message)}</p>` : ''}</div>${canViewInvoices ? `<div class="card"><h3>Invoices</h3><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Customer</th><th>Status</th><th>Total</th><th>Balance</th><th>Due</th><th></th></tr></thead><tbody>${invoices.map((i) => `<tr><td>${escapeHtml(i.number || 'Draft')}</td><td>${escapeHtml(i.customerName)}</td><td>${escapeHtml(i.status)}${i.isOverdue ? ' · Overdue' : ''}</td><td>${escapeHtml(i.total)} ${escapeHtml(i.currencyCode)}</td><td>${escapeHtml(i.balance)}</td><td>${escapeHtml(i.dueDate || '—')}</td><td><a class="button button-small button-outline" href="#finance/${encodeURIComponent(i.id)}">Open</a></td></tr>`).join('') || '<tr><td colspan="7">No invoices were returned.</td></tr>'}</tbody></table></div></div>` : ''}${canViewPayments ? `<div class="card"><h3>Pending payments</h3><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Amount</th><th>Method</th><th>Received</th><th>Status</th><th></th></tr></thead><tbody>${pendingPayments.map((p) => `<tr><td>${escapeHtml(p.invoiceNumber || p.invoiceId)}</td><td>${escapeHtml(p.amount)} ${escapeHtml(p.currencyCode)}</td><td>${escapeHtml(p.method)}</td><td>${escapeHtml(p.receivedOn)}</td><td>${escapeHtml(p.status)}</td><td>${canViewInvoices ? `<a class="button button-small button-outline" href="#finance/${encodeURIComponent(p.invoiceId)}">Open invoice</a>` : '—'}</td></tr>`).join('') || '<tr><td colspan="6">No pending payments were returned.</td></tr>'}</tbody></table></div></div>` : ''}</section>`;
+}
+
+async function renderInventory(container) {
+  if (!hasPermission('inventory.view')) {
+    container.innerHTML = '<section class="card"><h2>Inventory access required</h2><p>Your account does not have permission to view stock records.</p></section>';
+    return;
+  }
+  container.innerHTML = '<section class="card loading-card"><div class="spinner" aria-hidden="true"></div><p>Loading inventory…</p></section>';
+  let materials;
+  try { materials = await api('/api/inventory'); }
+  catch (error) {
+    container.innerHTML = `<section class="card"><h2>Inventory could not load</h2><p class="form-error" role="alert">${escapeHtml(error.message)}</p><button class="button button-outline" id="inventory-retry" type="button">Try again</button></section>`;
+    container.querySelector('#inventory-retry').addEventListener('click', () => renderInventory(container));
+    return;
+  }
+  if (!Array.isArray(materials)) materials = [];
+  const canManage = hasPermission('inventory.manage');
+  const rows = materials.map((m) => `<tr><td><strong>${escapeHtml(m.name)}</strong><small>${escapeHtml(m.sku)}</small></td><td>${escapeHtml(m.unit)}</td><td>${escapeHtml(m.onHand)}</td><td>${escapeHtml(m.reserved)}</td><td>${escapeHtml(m.available)}</td><td>${escapeHtml(m.reorderLevel)}</td><td><span class="pill ${m.lowStock ? 'pill-warning' : ''}">${m.lowStock ? 'Low stock' : 'In stock'}</span></td><td><button class="button button-small button-outline" type="button" data-stock-history="${escapeHtml(m.id)}">History</button>${canManage ? ` <button class="button button-small button-outline" type="button" data-stock-change="${escapeHtml(m.id)}" data-stock-version="${escapeHtml(m.version)}" data-stock-name="${escapeHtml(m.name)}">Update stock</button>` : ''}</td></tr>`).join('');
+  container.innerHTML = `<section class="card"><div class="section-heading"><div><p class="eyebrow">Materials and stock</p><h2>Inventory</h2><p>Available stock excludes quantities reserved for production tasks.</p></div>${canManage ? '<button class="button button-primary" id="inventory-add" type="button">Add material</button>' : ''}</div><div class="table-wrap"><table><thead><tr><th>Material</th><th>Unit</th><th>On hand</th><th>Reserved</th><th>Available</th><th>Reorder at</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan="8">No inventory records were returned.</td></tr>'}</tbody></table></div><p class="form-note">Stock figures come from the business API. Low-stock status is calculated by the server.</p><div id="inventory-action" class="stack"></div></section>`;
+  const action = container.querySelector('#inventory-action');
+  container.querySelector('#inventory-add')?.addEventListener('click', () => {
+    action.innerHTML = `<h3>Add material</h3><form id="inventory-create" class="form-grid"><div class="field"><label for="material-sku">SKU</label><input id="material-sku" maxlength="64" required></div><div class="field"><label for="material-name">Material name</label><input id="material-name" maxlength="160" required></div><div class="field"><label for="material-unit">Unit (e.g. m, yd, pcs)</label><input id="material-unit" maxlength="24" value="m" required></div><div class="field"><label for="material-opening">Opening stock</label><input id="material-opening" type="number" min="0" step="0.001" value="0" required></div><div class="field"><label for="material-reorder">Reorder level</label><input id="material-reorder" type="number" min="0" step="0.001" value="0" required></div><div class="field"><label for="material-notes">Notes (optional)</label><input id="material-notes" maxlength="1000"></div><div class="form-actions"><button class="button button-primary" type="submit">Save material</button><button class="button button-outline" id="inventory-cancel" type="button">Cancel</button></div><p id="inventory-form-error" class="form-error" role="alert"></p></form>`;
+    action.querySelector('#inventory-cancel').addEventListener('click', () => { action.innerHTML = ''; });
+    action.querySelector('#inventory-create').addEventListener('submit', async (event) => {
+      event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('[type="submit"]'); button.disabled = true;
+      const openingStock = Number(form.querySelector('#material-opening').value); const reorderLevel = Number(form.querySelector('#material-reorder').value);
+      if (!Number.isFinite(openingStock) || openingStock < 0 || !Number.isFinite(reorderLevel) || reorderLevel < 0) { form.querySelector('#inventory-form-error').textContent = 'Stock and reorder level must be valid non-negative numbers.'; button.disabled = false; return; }
+      try { await api('/api/inventory', { method: 'POST', body: { sku: form.querySelector('#material-sku').value.trim(), name: form.querySelector('#material-name').value.trim(), unit: form.querySelector('#material-unit').value.trim(), openingStock, reorderLevel, notes: form.querySelector('#material-notes').value.trim() || null } }); showToast('Material added.'); await renderInventory(container); }
+      catch (error) { form.querySelector('#inventory-form-error').textContent = error.message; button.disabled = false; }
+    });
+  });
+  container.querySelectorAll('[data-stock-history]').forEach((button) => button.addEventListener('click', async () => {
+    action.innerHTML = '<p>Loading stock movement history…</p>';
+    try { const history = await api(`/api/inventory/${encodeURIComponent(button.dataset.stockHistory)}/movements?take=100`); const entries = Array.isArray(history) ? history : []; action.innerHTML = `<h3>Stock movement history</h3>${entries.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Action</th><th>Quantity</th><th>On hand</th><th>Reserved</th><th>Note</th></tr></thead><tbody>${entries.map((x) => `<tr><td>${escapeHtml(new Date(x.createdAtUtc).toLocaleString())}</td><td>${escapeHtml(x.kind)}</td><td>${escapeHtml(x.quantity)}</td><td>${escapeHtml(x.onHandAfter)}</td><td>${escapeHtml(x.reservedAfter)}</td><td>${escapeHtml(x.note || '—')}</td></tr>`).join('')}</tbody></table></div>` : '<p>No stock movements were returned.</p>'}`; }
+    catch (error) { action.innerHTML = `<p class="form-error" role="alert">${escapeHtml(error.message)}</p>`; }
+  }));
+  container.querySelectorAll('[data-stock-change]').forEach((button) => button.addEventListener('click', () => {
+    action.innerHTML = `<h3>Update ${escapeHtml(button.dataset.stockName)}</h3><form id="inventory-stock-change" class="form-grid"><div class="field"><label for="stock-action">Action</label><select id="stock-action"><option value="receive">Receive additional stock</option><option value="adjust">Set physical stock count</option></select></div><div class="field"><label for="stock-quantity">Quantity</label><input id="stock-quantity" type="number" min="0.001" step="0.001" required></div><div class="field"><label for="stock-note">Reason / note</label><input id="stock-note" maxlength="500"></div><div class="form-actions"><button class="button button-primary" type="submit">Save stock update</button><button class="button button-outline" id="stock-cancel" type="button">Cancel</button></div><p class="form-note">“Receive” adds quantity. “Set physical stock count” sets total on-hand stock and cannot reduce it below reserved stock.</p><p id="stock-change-error" class="form-error" role="alert"></p></form>`;
+    action.querySelector('#stock-cancel').addEventListener('click', () => { action.innerHTML = ''; });
+    action.querySelector('#inventory-stock-change').addEventListener('submit', async (event) => {
+      event.preventDefault(); const form = event.currentTarget; const submit = form.querySelector('[type="submit"]'); submit.disabled = true;
+      const quantity = Number(form.querySelector('#stock-quantity').value); const actionName = form.querySelector('#stock-action').value;
+      if (!Number.isFinite(quantity) || quantity <= 0) { form.querySelector('#stock-change-error').textContent = 'Enter a quantity greater than zero.'; submit.disabled = false; return; }
+      try { await api(`/api/inventory/${encodeURIComponent(button.dataset.stockChange)}/${actionName}`, { method: 'POST', body: { quantity, note: form.querySelector('#stock-note').value.trim() || null, expectedVersion: Number(button.dataset.stockVersion) } }); showToast('Stock updated.'); await renderInventory(container); }
+      catch (error) { form.querySelector('#stock-change-error').textContent = error.message; submit.disabled = false; }
+    });
+  }));
+}
+
 async function renderStaffList(container) {
   if (!hasPermission('staff.view')) { container.innerHTML = '<section class="card"><h2>Staff</h2><p class="form-error">Your account does not have permission to view staff.</p></section>'; return; }
   container.innerHTML = '<section class="card loading-card"><div class="spinner"></div><p>Loading staff and roles…</p></section>';
@@ -475,7 +747,7 @@ async function renderStaffList(container) {
 async function renderStaffInvite(container) {
   if (!hasPermission('staff.manage')) { container.innerHTML = '<section class="card"><h2>Invite staff</h2><p class="form-error">Your account cannot invite staff.</p></section>'; return; }
   try { const [roles, locations] = await Promise.all([api('/api/roles'), api('/api/locations')]); container.innerHTML = `<section class="card panel"><p><a href="#staff">← Back to staff</a></p><p class="eyebrow">Team management</p><h2>Invite a team member</h2><div id="staff-invite-error"></div><form id="staff-invite-form"><div class="field"><label for="invite-name">Full name *</label><input id="invite-name" name="fullName" required minlength="2" maxlength="120"></div><div class="field"><label for="invite-email">Email *</label><input id="invite-email" name="email" type="email" required maxlength="256"></div><fieldset><legend>Roles *</legend>${roles.map(r=>`<label class="check-row"><input type="checkbox" name="roleIds" value="${escapeHtml(r.id)}"> ${escapeHtml(r.name)}</label>`).join('')}</fieldset><fieldset><legend>Workshop locations</legend>${locations.map(l=>`<label class="check-row"><input type="checkbox" name="locationIds" value="${escapeHtml(l.id)}"> ${escapeHtml(l.name)}</label>`).join('')}</fieldset><button class="button button-primary" type="submit">Create invitation</button></form></section>`;
-    document.querySelector('#staff-invite-form').addEventListener('submit', async e => { e.preventDefault(); const f = e.currentTarget; const data = new FormData(f); const roleIds = data.getAll('roleIds'); const locationIds = data.getAll('locationIds'); const error = document.querySelector('#staff-invite-error'); if (!roleIds.length) { error.innerHTML = '<p class="form-error">Select at least one role.</p>'; return; } try { const invite = await api('/api/staff/invitations', { method: 'POST', body: { fullName: String(data.get('fullName')).trim(), email: String(data.get('email')).trim(), roleIds, locationIds } }); container.innerHTML = `<section class="card panel"><h2>Invitation created</h2><p>Invitation for ${escapeHtml(invite.email)} created. Expires ${escapeHtml(dateLabel(invite.expiresAtUtc))}.</p><p class="form-note">The invitation email depends on the configured email provider.</p><a class="button button-primary" href="#staff">Return to staff</a></section>`; } catch (error) { error.innerHTML = `<p class="form-error" role="alert">${escapeHtml(error.message)}</p>`; } });
+    document.querySelector('#staff-invite-form').addEventListener('submit', async e => { e.preventDefault(); const f = e.currentTarget; const data = new FormData(f); const roleIds = data.getAll('roleIds'); const locationIds = data.getAll('locationIds'); const errorBox = document.querySelector('#staff-invite-error'); if (!roleIds.length) { errorBox.innerHTML = '<p class="form-error">Select at least one role.</p>'; return; } const submitButton = f.querySelector('button[type="submit"]'); submitButton.disabled = true; submitButton.textContent = 'Creating invitation…'; try { const invite = await api('/api/staff/invitations', { method: 'POST', body: { fullName: String(data.get('fullName')).trim(), email: String(data.get('email')).trim(), roleIds, locationIds } }); container.innerHTML = `<section class="card panel"><h2>Invitation created</h2><p>Invitation for ${escapeHtml(invite.email)} created. Expires ${escapeHtml(dateLabel(invite.expiresAtUtc))}.</p><p class="form-note">The invitation email depends on the configured email provider.</p><a class="button button-primary" href="#staff">Return to staff</a></section>`; } catch (error) { errorBox.innerHTML = `<p class="form-error" role="alert">${escapeHtml(error.message || 'Could not create invitation.')}</p>`; submitButton.disabled = false; submitButton.textContent = 'Create invitation'; } });
   } catch (error) { container.innerHTML = `<section class="card"><h2>Could not prepare invitation</h2><p class="form-error">${escapeHtml(error.message)}</p></section>`; }
 }
 
@@ -619,7 +891,10 @@ async function renderCustomerDetail(container, customerId) {
   container.innerHTML = `<section class="card loading-card"><div class="spinner" aria-hidden="true"></div><p>Loading customer…</p></section>`;
   try {
     const customer = await api(`/api/customers/${encodeURIComponent(customerId)}`);
-    const measurements = await api(`/api/customers/${encodeURIComponent(customerId)}/measurements`).catch(() => null);
+    const [measurements, communications] = await Promise.all([
+      api(`/api/customers/${encodeURIComponent(customerId)}/measurements`).catch(() => null),
+      api(`/api/customers/${encodeURIComponent(customerId)}/communications`).catch(() => null)
+    ]);
     const merged = customer.status === 'Merged';
     const measurementContent = measurements === null
       ? '<p class="form-note">Measurement profiles could not be loaded for this account.</p>'
@@ -629,7 +904,49 @@ async function renderCustomerDetail(container, customerId) {
     const measurementAction = hasPermission('measurements.record') && !merged
       ? `<div class="account-line"><a class="button button-primary button-fit" href="#customers/${escapeHtml(customer.id)}/measurements/new">Record measurements</a></div>`
       : '';
-    container.innerHTML = `<section class="panel"><p><a href="#customers">← Customers</a></p><div class="card panel"><div class="panel-head"><div><p class="eyebrow">Customer profile</p><h2>${escapeHtml(customer.fullName)}</h2><span class="pill">${escapeHtml(customer.status)}</span></div>${hasPermission('customers.manage') && !merged ? `<a class="button button-outline" href="#customers/${escapeHtml(customer.id)}/edit">Edit</a>` : ''}</div>${merged ? '<p class="form-error">This profile has been merged and cannot be edited.</p>' : ''}<dl class="detail-list"><dt>Email</dt><dd>${escapeHtml(customer.email || '—')}</dd><dt>Phone</dt><dd>${escapeHtml(customer.phone || '—')}</dd><dt>Address</dt><dd>${escapeHtml([customer.addressLine, customer.city].filter(Boolean).join(', ') || '—')}</dd><dt>Customer since</dt><dd>${escapeHtml(dateLabel(customer.createdAtUtc))}</dd><dt>Garment preferences</dt><dd>${escapeHtml(customer.garmentPreferences || '—')}</dd><dt>Notes</dt><dd class="pre-wrap">${escapeHtml(customer.notes || '—')}</dd></dl>${hasPermission('customers.manage') && !merged ? `<div class="account-line"><button class="button button-outline" id="toggle-customer-status" type="button">${customer.status === 'Inactive' ? 'Reactivate customer' : 'Mark inactive'}</button></div>` : ''}</div><div class="card panel"><div class="panel-head"><div><p class="eyebrow">Measurements</p><h2>Measurement profiles</h2><p class="lead">Profiles preserve revision history and can be linked to garment orders.</p></div></div>${measurementAction}${measurementContent}</div></section>`;
+    const communicationRows = Array.isArray(communications) ? communications.map((item) => `<article class="revision-card"><div class="panel-head"><div><h3>${escapeHtml(item.subject || item.channel)}</h3><p>${escapeHtml(item.channel)} · ${escapeHtml(item.direction)} · ${escapeHtml(dateLabel(item.createdAtUtc))}</p></div></div><p class="pre-wrap">${escapeHtml(item.body)}</p></article>`).join('') : '<p class="form-note">Communication history could not be loaded.</p>';
+    const communicationForm = hasPermission('customers.manage') && !merged ? `<form id="customer-communication-form"><div class="field"><label for="communication-channel">Channel</label><select id="communication-channel"><option>Email</option><option>Phone</option><option>WhatsApp</option><option>InPerson</option><option>Other</option></select></div><div class="field"><label for="communication-direction">Direction</label><select id="communication-direction"><option>Outbound</option><option>Inbound</option></select></div><div class="field"><label for="communication-subject">Subject (optional)</label><input id="communication-subject" maxlength="200"></div><div class="field"><label for="communication-body">Summary *</label><textarea id="communication-body" maxlength="4000" minlength="1" required rows="3"></textarea></div><button class="button button-primary" type="submit">Add communication record</button></form>` : '';
+    const mergeAction = hasPermission('customers.merge') && !merged ? '<div class="account-line"><button class="button button-outline" id="merge-customer" type="button">Merge into another customer</button></div>' : '';
+    container.innerHTML = `<section class="panel"><p><a href="#customers">← Customers</a></p><div class="card panel"><div class="panel-head"><div><p class="eyebrow">Customer profile</p><h2>${escapeHtml(customer.fullName)}</h2><span class="pill">${escapeHtml(customer.status)}</span></div>${hasPermission('customers.manage') && !merged ? `<a class="button button-outline" href="#customers/${escapeHtml(customer.id)}/edit">Edit</a>` : ''}</div>${merged ? '<p class="form-error">This profile has been merged and cannot be edited.</p>' : ''}<dl class="detail-list"><dt>Email</dt><dd>${escapeHtml(customer.email || '—')}</dd><dt>Phone</dt><dd>${escapeHtml(customer.phone || '—')}</dd><dt>Address</dt><dd>${escapeHtml([customer.addressLine, customer.city].filter(Boolean).join(', ') || '—')}</dd><dt>Customer since</dt><dd>${escapeHtml(dateLabel(customer.createdAtUtc))}</dd><dt>Garment preferences</dt><dd>${escapeHtml(customer.garmentPreferences || '—')}</dd><dt>Notes</dt><dd class="pre-wrap">${escapeHtml(customer.notes || '—')}</dd></dl>${hasPermission('customers.manage') && !merged ? `<div class="account-line"><button class="button button-outline" id="toggle-customer-status" type="button">${customer.status === 'Inactive' ? 'Reactivate customer' : 'Mark inactive'}</button>${customer.email ? '<button class="button button-outline" id="send-customer-portal" type="button">Send customer portal link</button><button class="button button-outline" id="revoke-customer-portal" type="button">Revoke portal links</button>' : ''}</div>` : ''}${mergeAction}</div><div class="card panel"><div class="panel-head"><div><p class="eyebrow">Measurements</p><h2>Measurement profiles</h2><p class="lead">Profiles preserve revision history and can be linked to garment orders.</p></div></div>${measurementAction}${measurementContent}</div><div class="card panel"><div><p class="eyebrow">Customer relationship</p><h2>Communication history</h2><p class="lead">Record calls, messages and other customer interactions for the next team member.</p></div>${communicationForm}<div class="revision-list">${communicationRows || '<p class="empty-state">No communications recorded yet.</p>'}</div></div></section>`;
+    document.querySelector('#customer-communication-form')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const body = document.querySelector('#communication-body').value.trim();
+      if (!body) return;
+      const button = event.currentTarget.querySelector('button[type="submit"]'); button.disabled = true; button.textContent = 'Saving record…';
+      try {
+        await api(`/api/customers/${encodeURIComponent(customer.id)}/communications`, { method: 'POST', body: { channel: document.querySelector('#communication-channel').value, direction: document.querySelector('#communication-direction').value, subject: document.querySelector('#communication-subject').value.trim() || null, body } });
+        showToast('Communication record added.'); await renderCustomerDetail(container, customerId);
+      } catch (error) { showToast(error.message || 'Could not save communication.'); button.disabled = false; button.textContent = 'Add communication record'; }
+    });
+    document.querySelector('#merge-customer')?.addEventListener('click', async () => {
+      if (!hasPermission('customers.merge')) return;
+      try {
+        const result = await api('/api/customers?page=1&pageSize=100&status=Active');
+        const targets = (result.items || []).filter((item) => item.id !== customer.id && item.status !== 'Merged');
+        if (!targets.length) { showToast('No other active customer profiles are available to merge into.'); return; }
+        const options = targets.map((item) => `${item.id} | ${item.fullName}${item.email ? ` (${item.email})` : ''}`).join('\n');
+        const targetId = prompt(`Enter the ID of the customer that should be kept. This profile will be marked merged.\n${options}`);
+        if (targetId === null) return;
+        const target = targets.find((item) => item.id.toLowerCase() === targetId.trim().toLowerCase());
+        if (!target) { showToast('Choose a target ID from the listed customers.'); return; }
+        if (!confirm(`Merge ${customer.fullName} into ${target.fullName}? The source profile will remain as a merged record.`)) return;
+        await api(`/api/customers/${encodeURIComponent(customer.id)}/merge-into/${encodeURIComponent(target.id)}`, { method: 'POST' });
+        showToast('Customer profiles merged.'); location.hash = `customers/${encodeURIComponent(target.id)}`;
+      } catch (error) { showToast(error.message || 'Could not merge customer profiles.'); }
+    });
+    document.querySelector('#send-customer-portal')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget; button.disabled = true; button.textContent = 'Sending link…';
+      try { const result = await api(`/api/customer-portal/customers/${encodeURIComponent(customer.id)}/link`, { method: 'POST' }); showToast(`Portal link emailed to ${result.maskedEmail}. It expires ${dateLabel(result.expiresAtUtc)}.`); }
+      catch (error) { showToast(error.message || 'Could not send customer portal link.'); }
+      finally { button.disabled = false; button.textContent = 'Send customer portal link'; }
+    });
+    document.querySelector('#revoke-customer-portal')?.addEventListener('click', async (event) => {
+      if (!confirm('Revoke all active customer portal links for this customer? Existing links will stop working.')) return;
+      const button = event.currentTarget; button.disabled = true;
+      try { await api(`/api/customer-portal/customers/${encodeURIComponent(customer.id)}/links`, { method: 'DELETE' }); showToast('Active customer portal links revoked.'); }
+      catch (error) { showToast(error.message || 'Could not revoke portal links.'); }
+      finally { button.disabled = false; }
+    });
     const statusButton = document.querySelector('#toggle-customer-status');
     if (statusButton) statusButton.addEventListener('click', async () => {
       statusButton.disabled = true;
@@ -779,13 +1096,95 @@ async function renderMeasurementHistory(container, customerId, setId) {
     if (!set || !Array.isArray(history)) throw new ApiError(404, { message: 'Measurement history was not found for this customer.' });
     const revisions = [...history].sort((a, b) => Number(b.revisionNumber) - Number(a.revisionNumber));
     const revisionCards = revisions.length ? revisions.map((revision) => {
+      const revisionNumber = Number(revision.revisionNumber) || 1;
       const values = Array.isArray(revision.values) ? revision.values : [];
       const valueRows = values.map((value) => `<tr><td>${escapeHtml(value.label || value.key)}</td><td>${escapeHtml(value.value)} ${escapeHtml(value.unit || '')}</td></tr>`).join('');
-      return `<article class="revision-card"><div class="panel-head"><div><h3>Revision ${Number(revision.revisionNumber) || '—'}${Number(revision.revisionNumber) === Number(set.currentRevision) ? ' <span class="pill">Current</span>' : ''}</h3><p>${escapeHtml(dateLabel(revision.recordedAtUtc))}</p></div></div>${revision.notes ? `<p class="pre-wrap">${escapeHtml(revision.notes)}</p>` : ''}<div class="table-wrap"><table class="data-table"><thead><tr><th>Measurement</th><th>Value</th></tr></thead><tbody>${valueRows || '<tr><td colspan="2">No values recorded.</td></tr>'}</tbody></table></div></article>`;
+      const currentRevision = Number(set.currentRevision) || revisionNumber;
+      const compareFrom = revisionNumber === currentRevision ? Math.max(1, currentRevision - 1) : Math.min(revisionNumber, currentRevision);
+      const compareTo = revisionNumber === currentRevision ? currentRevision : Math.max(revisionNumber, currentRevision);
+      const compareAction = revisions.length > 1
+        ? `<a class="button button-outline button-fit" href="#customers/${escapeHtml(customerId)}/measurements/${escapeHtml(setId)}/compare?from=${compareFrom}&to=${compareTo}">Compare with current</a>`
+        : '';
+      return `<article class="revision-card"><div class="panel-head"><div><h3>Revision ${revisionNumber}${revisionNumber === Number(set.currentRevision) ? ' <span class="pill">Current</span>' : ''}</h3><p>${escapeHtml(dateLabel(revision.recordedAtUtc))}</p></div>${compareAction}</div>${revision.notes ? `<p class="pre-wrap">${escapeHtml(revision.notes)}</p>` : ''}<div class="table-wrap"><table class="data-table"><thead><tr><th>Measurement</th><th>Value</th></tr></thead><tbody>${valueRows || '<tr><td colspan="2">No values recorded.</td></tr>'}</tbody></table></div></article>`;
     }).join('') : '<p class="empty-state">No measurement revisions were found.</p>';
     container.innerHTML = `<section class="panel"><p><a href="#customers/${escapeHtml(customerId)}">← Back to ${escapeHtml(customer.fullName)}</a></p><div class="card panel"><div class="panel-head"><div><p class="eyebrow">Measurement history</p><h2>${escapeHtml(set.label)}</h2><p class="lead">${escapeHtml(set.templateName)} · Current revision ${Number(set.currentRevision) || 1}</p></div>${hasPermission('measurements.record') ? `<a class="button button-primary button-fit" href="#customers/${escapeHtml(customerId)}/measurements/${escapeHtml(setId)}/revise">Record revision</a>` : ''}</div><div class="revision-list">${revisionCards}</div></div></section>`;
   } catch (error) {
     container.innerHTML = `<section class="card"><h2>Could not load measurement history</h2><p class="form-error" role="alert">${escapeHtml(error.message || 'Try again shortly.')}</p><a href="#customers/${escapeHtml(customerId)}">Back to customer</a></section>`;
+  }
+}
+
+async function renderMeasurementCompare(container, customerId, setId, fromValue, toValue) {
+  if (!hasPermission('customers.view')) {
+    container.innerHTML = '<section class="card"><h2>Measurement access</h2><p class="form-error">You do not have permission to compare measurements.</p></section>';
+    return;
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(customerId) || !/^[0-9a-f-]{36}$/i.test(setId)) {
+    container.innerHTML = '<section class="card"><h2>Measurement profile not found</h2><a href="#customers">Back to customers</a></section>';
+    return;
+  }
+  container.innerHTML = '<section class="card loading-card"><div class="spinner"></div><p>Loading revision comparison…</p></section>';
+  try {
+    const [customer, sets, history] = await Promise.all([
+      api(`/api/customers/${encodeURIComponent(customerId)}`),
+      api(`/api/customers/${encodeURIComponent(customerId)}/measurements`),
+      api(`/api/measurement-sets/${encodeURIComponent(setId)}/history`)
+    ]);
+    const set = Array.isArray(sets) ? sets.find((item) => item.id === setId) : null;
+    if (!set || !Array.isArray(history)) throw new ApiError(404, { message: 'Measurement history was not found for this customer.' });
+    const revisions = [...history].map((item) => Number(item.revisionNumber)).filter((n) => Number.isInteger(n) && n > 0).sort((a, b) => a - b);
+    if (revisions.length < 2) {
+      container.innerHTML = `<section class="card panel"><p><a href="#customers/${escapeHtml(customerId)}/measurements/${escapeHtml(setId)}/history">← Back to measurement history</a></p><h2>Not enough revisions to compare</h2><p class="lead">Record another revision before comparing changes.</p></section>`;
+      return;
+    }
+    const latest = Math.max(...revisions);
+    let from = Number.parseInt(fromValue || String(Math.max(1, latest - 1)), 10);
+    let to = Number.parseInt(toValue || String(latest), 10);
+    if (!revisions.includes(from) || !revisions.includes(to) || from === to) { from = Math.max(1, latest - 1); to = latest; }
+    const loadComparison = async (fromRevision, toRevision) => api(`/api/measurement-sets/${encodeURIComponent(setId)}/compare?from=${fromRevision}&to=${toRevision}`);
+    const comparison = await loadComparison(from, to);
+    const rows = Array.isArray(comparison) ? comparison : [];
+    const rowMarkup = rows.map((item) => {
+      const delta = item.delta;
+      const formatted = (value) => value === null || value === undefined ? '—' : `${value}${item.unit ? ` ${item.unit}` : ''}`;
+      return `<tr><td>${escapeHtml(item.label || item.key)}</td><td>${escapeHtml(formatted(item.from))}</td><td>${escapeHtml(formatted(item.to))}</td><td>${escapeHtml(formatted(delta))}</td></tr>`;
+    }).join('');
+    const options = (selected) => revisions.map((n) => `<option value="${n}" ${n === selected ? 'selected' : ''}>Revision ${n}</option>`).join('');
+    container.innerHTML = `<section class="panel"><p><a href="#customers/${escapeHtml(customerId)}/measurements/${escapeHtml(setId)}/history">← Back to ${escapeHtml(set.label)} history</a></p><div class="card panel"><p class="eyebrow">Measurement comparison</p><h2>${escapeHtml(customer.fullName)}</h2><p class="lead">${escapeHtml(set.label)} · ${escapeHtml(set.templateName || '')}</p><form id="measurement-compare-form" class="filter-form"><div class="field"><label for="compare-from">Compare from</label><select id="compare-from" name="from">${options(from)}</select></div><div class="field"><label for="compare-to">Compare to</label><select id="compare-to" name="to">${options(to)}</select></div><button class="button button-primary" type="submit">Compare revisions</button></form><div class="table-wrap"><table class="data-table"><thead><tr><th>Measurement</th><th>From</th><th>To</th><th>Change</th></tr></thead><tbody>${rowMarkup || '<tr><td colspan="4">No measurement differences were returned.</td></tr>'}</tbody></table></div><p class="form-note">Changes are calculated by the existing API. Previous revisions remain unchanged.</p></div></section>`;
+    document.querySelector('#measurement-compare-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const nextFrom = Number.parseInt(form.elements.from.value, 10);
+      const nextTo = Number.parseInt(form.elements.to.value, 10);
+      if (!Number.isInteger(nextFrom) || !Number.isInteger(nextTo) || nextFrom === nextTo) {
+        showToast('Choose two different measurement revisions.');
+        return;
+      }
+      location.hash = `customers/${encodeURIComponent(customerId)}/measurements/${encodeURIComponent(setId)}/compare?from=${nextFrom}&to=${nextTo}`;
+    });
+  } catch (error) {
+    container.innerHTML = `<section class="card"><h2>Could not compare measurements</h2><p class="form-error" role="alert">${escapeHtml(error.message || 'Try again shortly.')}</p><a href="#customers/${escapeHtml(customerId)}/measurements/${escapeHtml(setId)}/history">Back to measurement history</a></section>`;
+  }
+}
+
+
+async function renderCustomerPortal() {
+  const token = location.hash.length > 1 ? decodeURIComponent(location.hash.slice(1)) : '';
+  // The capability token is removed from the address bar immediately and is never persisted.
+  history.replaceState(null, '', `${location.pathname}${location.search}`);
+  app.innerHTML = `<section class="auth-wrap card"><p class="eyebrow">Customer portal</p><h1>Secure order updates</h1><p class="lead">Checking your private portal link…</p><div class="loading-card"><div class="spinner" aria-hidden="true"></div></div></section>`;
+  if (!token) {
+    app.innerHTML = '<section class="auth-wrap card"><p class="eyebrow">Customer portal</p><h1>Portal link required</h1><p>This page needs the secure link sent by your tailoring business. Open the complete link from your email, or contact the business for a new one.</p></section>';
+    return;
+  }
+  try {
+    const response = await fetch('/backend/api/customer-portal/access', { method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/json' }, credentials: 'omit', cache: 'no-store', body: JSON.stringify({ token }) });
+    const result = await readBody(response);
+    if (!response.ok) throw new ApiError(response.status, result);
+    const orders = Array.isArray(result.orders) ? result.orders : [];
+    const invoices = Array.isArray(result.invoices) ? result.invoices : [];
+    app.innerHTML = `<section class="panel"><div class="welcome"><p class="eyebrow">Customer portal · ${escapeHtml(result.businessName)}</p><h1>Hello, ${escapeHtml(result.customerName)}.</h1><p>View your order progress and invoice balances. This link is private to you; do not forward it.</p><div class="account-line"><span class="pill">${orders.length} order${orders.length === 1 ? '' : 's'}</span><span class="pill">${invoices.length} invoice${invoices.length === 1 ? '' : 's'}</span></div></div><div class="card"><h2>Your orders</h2>${orders.map((order) => `<article class="revision-card"><div class="panel-head"><div><h3>Order ${escapeHtml(order.orderNumber)}</h3><p>${escapeHtml(order.status)} · Promised ${escapeHtml(order.promisedDate)}</p></div><span class="pill">${escapeHtml(order.total)} ${escapeHtml(order.currencyCode || result.currencyCode)}</span></div><div class="revision-list">${(order.progress || []).map((step) => `<div class="revision-card"><strong>${escapeHtml(step.stage)}</strong><p>${escapeHtml(step.status)}${step.completedAtUtc ? ` · Completed ${escapeHtml(dateLabel(step.completedAtUtc))}` : ''}</p></div>`).join('') || '<p>Production progress has not been published yet.</p>'}</div></article>`).join('') || '<p class="empty-state">No active orders are available.</p>'}</div><div class="card"><h2>Your invoices</h2>${invoices.map((invoice) => `<article class="revision-card"><div class="panel-head"><div><h3>${escapeHtml(invoice.number || 'Invoice')}</h3><p>${escapeHtml(invoice.status)}${invoice.dueDate ? ` · Due ${escapeHtml(invoice.dueDate)}` : ''}</p></div><span class="pill">Balance: ${escapeHtml(invoice.balance)} ${escapeHtml(invoice.currencyCode)}</span></div><p>Total ${escapeHtml(invoice.total)} ${escapeHtml(invoice.currencyCode)} · Verified paid ${escapeHtml(invoice.verifiedPaid)}</p><div class="table-wrap"><table><thead><tr><th>Date</th><th>Method</th><th>Amount</th><th>Reference</th></tr></thead><tbody>${(invoice.payments || []).map((payment) => `<tr><td>${escapeHtml(payment.receivedOn)}</td><td>${escapeHtml(payment.method)}</td><td>${escapeHtml(payment.amount)} ${escapeHtml(payment.currencyCode)}</td><td>${escapeHtml(payment.reference || '—')}</td></tr>`).join('') || '<tr><td colspan="4">No verified payments are recorded.</td></tr>'}</tbody></table></div></article>`).join('') || '<p class="empty-state">No invoices are available.</p>'}</div><p class="form-note">Payment history shows verified payments only. To make a payment or ask a question, contact ${escapeHtml(result.businessName)} directly. This portal does not accept card details.</p></section>`;
+  } catch (error) {
+    app.innerHTML = `<section class="auth-wrap card"><p class="eyebrow">Customer portal</p><h1>Link unavailable</h1><p class="form-error" role="alert">${escapeHtml(error.message || 'This link is invalid, revoked or expired.')}</p><p>For your security, request a new portal link from the business if you still need access.</p></section>`;
   }
 }
 
@@ -849,8 +1248,42 @@ installButton.addEventListener('click', async () => {
     : 'Open your browser menu and choose Install app or Add to Home screen.');
 });
 
-if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
-  navigator.serviceWorker.register('/sw.js').catch(() => showToast('Offline shell could not be enabled on this visit. Avzar can still work online.'));
+const updateNotice = document.querySelector('#update-notice');
+const updateButton = document.querySelector('#update-button');
+let waitingWorker = null;
+let reloadingForUpdate = false;
+
+function showUpdateNotice(worker) {
+  waitingWorker = worker;
+  updateNotice.hidden = false;
 }
 
-checkSession();
+updateButton.addEventListener('click', () => {
+  if (!waitingWorker) return;
+  updateButton.disabled = true;
+  updateButton.textContent = 'Updating…';
+  waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+});
+
+navigator.serviceWorker?.addEventListener('controllerchange', () => {
+  if (!waitingWorker || reloadingForUpdate) return;
+  reloadingForUpdate = true;
+  window.location.reload();
+});
+
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
+  navigator.serviceWorker.register('/sw.js').then((registration) => {
+    if (registration.waiting && navigator.serviceWorker.controller) showUpdateNotice(registration.waiting);
+    registration.addEventListener('updatefound', () => {
+      const installing = registration.installing;
+      if (!installing) return;
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) showUpdateNotice(installing);
+      });
+    });
+    window.addEventListener('online', () => registration.update().catch(() => {}));
+  }).catch(() => showToast('Offline shell could not be enabled on this visit. Avzar can still work online.'));
+}
+
+if (location.pathname.replace(/\/$/, '') === '/customer-portal') renderCustomerPortal();
+else checkSession();
