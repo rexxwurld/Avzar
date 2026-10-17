@@ -90,6 +90,17 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         return (email, membership.Id);
     }
 
+    /// <summary>Adds a customer straight to the database (setup only).</summary>
+    public async Task<Guid> SeedCustomerAsync(Guid businessId, string fullName)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var customer = new Tailoring.Domain.Customers.Customer { BusinessId = businessId, FullName = fullName };
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+        return customer.Id;
+    }
+
     /// <summary>Adds a second location to an existing business (setup only; goes straight to the database).</summary>
     public async Task<Guid> SeedLocationAsync(Guid businessId, string name)
     {
