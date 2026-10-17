@@ -27,9 +27,13 @@ for (const file of walk(join(root, 'src'))) {
       if (/^[A-Za-z_$][\w$]*$/.test(importedName)) serviceFunctions.add(importedName);
     }
   }
-  const serviceCall = serviceFunctions.size
-    ? new RegExp(`\\bawait\\s+(?:[A-Za-z_$][\\w$]*Service\\.)?(?:${[...serviceFunctions].map(identifier).join('|')})\\s*\\(`)
-    : null;
+  // `import * as account from './accountService.js'` -> calls look like `await account.confirmEmail(`.
+  const serviceNamespaces = new Set();
+  for (const imported of src.matchAll(/import\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s+from\s*['"][^'"]*Service\.js['"]/g)) serviceNamespaces.add(imported[1]);
+  const alternatives = [];
+  if (serviceFunctions.size) alternatives.push(`(?:[A-Za-z_$][\\w$]*Service\\.)?(?:${[...serviceFunctions].map(identifier).join('|')})`);
+  if (serviceNamespaces.size) alternatives.push(`(?:${[...serviceNamespaces].map(identifier).join('|')})\\.[A-Za-z_$][\\w$]*`);
+  const serviceCall = alternatives.length ? new RegExp(`\\bawait\\s+(?:${alternatives.join('|')})\\s*\\(`) : null;
   for (const m of src.matchAll(re)) {
     const body = m[4];
     const real = /\b(pool|client|db)\.query\(|\bawait\s+\w+Service\.|withTransaction\(/.test(body)
