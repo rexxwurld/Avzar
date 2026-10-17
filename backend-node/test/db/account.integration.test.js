@@ -20,7 +20,7 @@ async function makeUser() {
   const id = randomUUID();
   await pool.query(
     `INSERT INTO "AspNetUsers" ("Id","AccessFailedCount","CreatedAtUtc","Email","EmailConfirmed","FullName","LockoutEnabled","NormalizedEmail","NormalizedUserName","PasswordHash","PhoneNumberConfirmed","SecurityStamp","TwoFactorEnabled","UserName")
-     VALUES ($1,0,now(),$2,false,'Test User',true,upper($2),upper($2),$3,false,$4,false,$2)`,
+     VALUES ($1,0,now(),$2::text,false,'Test User',true,upper($2::text),upper($2::text),$3,false,$4,false,$2::text)`,
     [id, `${id}@example.test`, await hashPassword(PASSWORD), randomUUID()]);
   return id;
 }
