@@ -37,7 +37,7 @@ public sealed class TaskLocationScopeTests(PostgresFixture fx) : IClassFixture<P
         var db = fx.Create(bid);
         var t = new FakeUserTenant(bid, userId);
         ILocationScope? scope = userId is null ? null : new LocationScope(db, t, new PermissionService(db));
-        return new TaskService(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new PermissionService(db), scope);
+        return new TaskService(db, t, new AuditLogger(db), new ProductionPlanner(db, t), new PermissionService(db), scope ?? new UnrestrictedLocationScope());
     }
 
     private static CreateOrderRequest NewOrder(Guid customerId, Guid locationId) => new()
