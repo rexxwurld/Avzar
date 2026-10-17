@@ -1,9 +1,9 @@
 {
  "summary": {
   "total": 245,
-  "implemented": 85,
+  "implemented": 94,
   "placeholder": 68,
-  "missing": 92
+  "missing": 83
  },
  "rows": [
   {
@@ -34,7 +34,7 @@
    "method": "POST",
    "path": "/api/account/resend-verification",
    "source": "AccountControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
@@ -46,49 +46,49 @@
    "method": "POST",
    "path": "/api/account/two-factor/setup",
    "source": "AccountControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/account/two-factor/enable",
    "source": "AccountControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/account/two-factor/disable",
    "source": "AccountControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/account/sessions",
    "source": "AccountControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "DELETE",
    "path": "/api/account/sessions/{sessionId:guid}",
    "source": "AccountControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/account/sessions/revoke-all",
    "source": "AccountControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",
    "path": "/api/account/export",
    "source": "AccountControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
    "path": "/api/account/delete",
    "source": "AccountControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "POST",
