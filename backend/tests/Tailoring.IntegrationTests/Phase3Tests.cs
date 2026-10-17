@@ -168,14 +168,17 @@ public sealed class Phase3Tests(PostgresFixture fx) : IClassFixture<PostgresFixt
         var persisted = await db.ProductionTasks.AsNoTracking().SingleAsync(x => x.Id == task.Id);
         Assert.Equal(ProductionTaskStatus.Scheduled, persisted.Status);
         Assert.NotNull(persisted.PlannedStartUtc);
-        Assert.Equal(2, await db.EmailOutbox.CountAsync(x => x.BusinessId == w.BusinessId && x.DeduplicationKey != null));
+        // AssignAsync (called above) now queues its own deduplicated "task.assignment" mail; the schedule apply adds exactly two more.
+        Assert.Equal(1, await db.EmailOutbox.CountAsync(x => x.BusinessId == w.BusinessId && x.TemplateKey == "task.assignment" && x.DeduplicationKey != null));
+        Assert.Equal(2, await db.EmailOutbox.CountAsync(x => x.BusinessId == w.BusinessId && x.TemplateKey!.StartsWith("schedule.") && x.DeduplicationKey != null));
 
         var stale = await Assert.ThrowsAsync<AppException>(() => schedule.ApplyAsync(new ShopScheduleApplyRequest
         {
             StartUtc = start, HorizonDays = 10, ExpectedTaskVersions = preview.TaskVersions, ExpectedSlots = preview.Scheduled
         }));
         Assert.Equal("schedule_preview_stale", stale.Code);
-        Assert.Equal(2, await db.EmailOutbox.CountAsync(x => x.BusinessId == w.BusinessId && x.DeduplicationKey != null));
+        Assert.Equal(3, await db.EmailOutbox.CountAsync(x => x.BusinessId == w.BusinessId && x.DeduplicationKey != null)); // a rejected stale apply queues nothing more
+        Assert.Equal(2, await db.EmailOutbox.CountAsync(x => x.BusinessId == w.BusinessId && x.TemplateKey!.StartsWith("schedule.") && x.DeduplicationKey != null));
     }
 
     [Fact]
