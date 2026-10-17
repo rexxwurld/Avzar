@@ -10,8 +10,8 @@ const SHELL_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  // A new version waits here until the user accepts the update notice (see showUpdateNotice in app.js).
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS)));
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -21,6 +21,10 @@ self.addEventListener('activate', (event) => {
     ))
   );
   self.clients.claim();
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', (event) => {
