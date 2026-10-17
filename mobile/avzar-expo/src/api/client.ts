@@ -80,6 +80,13 @@ async function accessToken(): Promise<string> {
   return token;
 }
 
+export const BUSINESS_EVENTS_URL = `${API_BASE_URL}/hubs/business-events`;
+
+/** Current access token (refreshed first if it is about to expire), for the live-update connection. */
+export function realtimeAccessToken(): Promise<string> {
+  return accessToken();
+}
+
 async function request<T>(path: string, init: RequestInit = {}, auth = true): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('Accept', 'application/json');
