@@ -1,6 +1,6 @@
 # Avzar Mobile (Expo)
 
-This is the first React Native/Expo implementation pass for Avzar. It lives beside the existing MAUI project so the existing app can be retained until feature parity and build/device checks pass.
+This is the first React Native/Expo implementation pass for Avzar. It is kept as a reference only: the product direction is the vanilla-JavaScript PWA in `pwa/`, and the MAUI project it was written beside has been removed. It uses the API's bearer-token flow.
 
 ## Included in this pass
 
@@ -17,7 +17,7 @@ This is the first React Native/Expo implementation pass for Avzar. It lives besi
 
 - Creating/editing measurement sets and measurement revisions.
 - Orders, invoices, payments, staff, schedule editing, notifications, subscriptions, AI studio and full storefront administration.
-- SQLite-backed offline records and durable sync/conflict resolution. The old MAUI app's offline task queue is not yet replaced.
+- SQLite-backed offline records and durable sync/conflict resolution. The removed MAUI app's offline task queue was never replaced here.
 - Node.js API. This first mobile pass deliberately uses the existing ASP.NET API to avoid mixing a backend rewrite with the first mobile UI implementation.
 - End-to-end tests and Android/iOS builds. They have not been run in the authoring environment.
 
