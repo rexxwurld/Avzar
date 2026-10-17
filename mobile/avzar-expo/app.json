@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Avzar",
+    "slug": "avzar-mobile",
+    "scheme": "avzar",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rexxwurld.avzar"
+    },
+    "android": {
+      "package": "com.rexxwurld.avzar",
+      "edgeToEdgeEnabled": true
+    }
+  }
+}

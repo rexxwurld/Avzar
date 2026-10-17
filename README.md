@@ -2,7 +2,7 @@
 
 **Avzar is a multi-tenant SaaS platform for fashion designers, tailoring businesses, garment workshops and fashion entrepreneurs.** One workspace per business covers customers and measurements, designs, orders and quotations, invoices and verified payments, workshop production, and a public online storefront.
 
-> **Status: active development, not production-ready.** The backend and storefront renderer are substantially built. The staff dashboard is **partially implemented** (auth, staff/roles/locations, customers and initial order workflows). The storefront editor and production dashboard are **partial**; automated scheduling is still incomplete (a pure first-pass domain algorithm exists but is not integrated), as are notifications, AI, billing, platform admin and the mobile app. Each claim below is tagged with its evidence level. See [Verification and known limitations](#verification-and-known-limitations).
+> **Status: active development, not production-ready.** The owner has selected a **mobile-first PWA built with HTML, CSS, and vanilla JavaScript**, served by a JavaScript Express service. The first PWA shell and a restricted same-origin proxy to the existing ASP.NET API have been added under `pwa/` and `backend-node/`. The existing ASP.NET API and PostgreSQL schema remain authoritative; no production cutover has occurred. Customer/measurement/order/finance/scheduling modules have not yet been migrated to the PWA/Node service. The existing Next.js storefront renderer, MAUI app, and experimental Expo app are retained for reference while their roles are assessed. Dependency installation and end-to-end verification of the new slice remain outstanding. See [Feature inventory](docs/FEATURE_INVENTORY.md), [Architecture](docs/ARCHITECTURE.md), and [Verification and known limitations](#verification-and-known-limitations).
 
 ## Who it is for and what it solves
 
@@ -37,7 +37,9 @@ Small fashion businesses typically run on WhatsApp threads, paper measurement bo
 | Reports | Not built | |
 | AI design tools and assistant builder | Not built | |
 | Paystack/Flutterwave billing, platform admin | Not built | |
-| .NET MAUI mobile and offline sync | Not built | |
+| MAUI starter | Partially implemented | Existing bearer login, assigned tasks, offline action queue and SignalR client; builds/device behavior unverified |
+| Experimental Expo mobile app | Reference only; not initial product direction | Source exists but React Native is not part of the agreed PWA-first launch |
+| PWA + Node.js/Express | Initial JavaScript slice | `pwa/` provides installable shell, auth UI, and customer list/create/edit/detail against existing API endpoints. `backend-node/` serves it and proxies to ASP.NET. Business routes and Node database access are not migrated; not production-ready |
 
 Per-item detail lives in [PROGRESS.md](PROGRESS.md).
 
@@ -45,17 +47,15 @@ Per-item detail lives in [PROGRESS.md](PROGRESS.md).
 
 ```mermaid
 flowchart LR
-  Browser[Browser] --> Web[Next.js 15<br/>public renderer]
-  Web -->|/api proxy| Api[ASP.NET Core API<br/>.NET 10]
-  Mobile[MAUI app<br/>planned] -.->|JWT| Api
-  Api --> App[Application<br/>contracts, DTOs]
-  App --> Dom[Domain<br/>entities, rules]
-  Api --> Infra[Infrastructure<br/>EF Core, services]
-  Infra --> PG[(PostgreSQL)]
-  Infra -.->|optional| Redis[(Redis)]
-  Infra -.->|optional| S3[(S3-compatible storage)]
-  Infra -.->|optional| Mail[SMTP / Resend]
-  Infra -.->|optional| AV[ClamAV]
+  Phone[Phone / Desktop Browser] --> PWA[Vanilla HTML + CSS + JavaScript PWA]
+  PWA -->|same-origin /backend/api proxy| Node[Node.js + Express host]
+  Node -->|temporary compatibility proxy| Api[Existing ASP.NET Core API]
+  Api --> Infra[Existing services and EF Core]
+  Infra --> PG[(Existing PostgreSQL)]
+  PWA -.->|public business storefronts stay available| Web[Existing Next.js public renderer]
+  Node -.->|future, isolated domain migration| PGStage[(Staging PostgreSQL)]
+  Api -.-> Redis[(Redis / background jobs)]
+  Api -.-> Store[(S3-compatible storage)]
 ```
 
 Layers: `Tailoring.Domain` (entities, permissions) → `Tailoring.Application` (service contracts, DTOs, `AppException`) → `Tailoring.Infrastructure` (EF Core, implementations) → `Tailoring.Api` (thin controllers, auth, wiring). Details: [docs/architecture.md](docs/architecture.md).
@@ -72,8 +72,13 @@ Layers: `Tailoring.Domain` (entities, permissions) → `Tailoring.Application` (
 ```
 backend/src/Tailoring.{Domain,Application,Infrastructure,Api}
 backend/tests/Tailoring.IntegrationTests   PostgreSQL via Testcontainers
-web/                                       Next.js 15 public storefront renderer
-docs/                                      architecture, runbook, static review
+pwa/                                       vanilla HTML/CSS/JavaScript installable PWA
+backend-node/                               JavaScript + Express host and restricted API proxy
+backend/src/Tailoring.{Domain,Application,Infrastructure,Api}  existing authoritative API
+mobile/Avzar.Mobile/                       existing MAUI starter (reference; retained)
+mobile/avzar-expo/                         experimental Expo source (not initial target)
+web/                                       existing Next.js management UI + public storefront renderer
+docs/                                      architecture, runbook, feature and migration inventories
 scripts/bootstrap-backend.sh               solution + first migration
 .github/workflows/                         ci.yml, generate-migration.yml, generate-lockfile.yml
 ```
@@ -93,7 +98,22 @@ ConnectionStrings__Default="Host=localhost;Database=tailoring;Username=tailoring
 
 Development auto-migrates and seeds plans. Production must apply migrations explicitly (or set `Database__MigrateOnStartup=true`) and set `Billing__SeedPlansOnStartup=true` once. **Eight migrations are committed** under `backend/src/Tailoring.Infrastructure/Persistence/Migrations` and applied to a clean PostgreSQL by CI; add forward migrations only (see the RUNBOOK) and never regenerate `InitialSchema`. Full steps: [docs/RUNBOOK.md](docs/RUNBOOK.md).
 
-### Tests
+### PWA-first JavaScript slice
+
+The new PWA is served by Express so browser cookies remain same-origin. During migration, set `API_URL` to the existing ASP.NET API; Node does not yet replace its business routes or connect to PostgreSQL.
+
+```bash
+cd backend-node
+cp .env.example .env
+# Edit API_URL in .env to the existing API reachable from this machine
+npm install
+npm test
+npm run dev
+```
+
+Open `http://localhost:8081`. The PWA shell can load without the API, but sign-in requires a reachable API. The service readiness endpoint intentionally remains `503` until the Node backend is ready for cutover.
+
+### Existing project tests
 
 ```bash
 cd backend && dotnet test -c Release       # needs Docker
@@ -124,7 +144,8 @@ Persistent ASP.NET Core Data Protection keys are required in production (preview
 - **CI run #238** (commit `40306ac`): backend, web and migrations jobs succeeded per the run page; logs were collapsed, so counts were not seen. See `PROGRESS.md`.
 - **CI run #230** (2026-10-16, commit `c349faf9023a9a0c1c6d5e7ddb5950c76016953c`): the supplied backend log shows a Release build with 0 warnings/0 errors, **693/693 tests passed** (0 failed, 0 skipped), and the EF model-drift gate reports that committed migrations match the model. The web job succeeded and `npm audit` reported 0 vulnerabilities; the supplied web excerpt does not show the test count or typecheck/build summaries. The #230 migration job output was not supplied. Historical run #207 applied eight migrations to clean PostgreSQL 17.11 (67 tables, 33 check constraints, 113 foreign keys, 8 partial indexes, no cascading foreign keys on financial/audit tables). Ownership-transfer notification emails and location-scoping behavior are covered by the passing backend suite.
 - **Dependency security:** `web/package.json` pins Next.js 15.5.28, React ^19.2.8 and Vitest 4.1.11 with a `postcss` override; `web/package-lock.json` is committed, CI and the Docker build use `npm ci`, and CI fails on any high or critical `npm audit` finding in the whole tree. Check the Next.js release notes (Next.js ships monthly security releases) before any public deployment.
-- **Not verified:** `docker compose` startup; full-stack smoke test; storefront publish-to-render; email, S3, ClamAV, Redis, DNS and every other external integration; mobile. The staff dashboard is partial: the order create/edit/action UI is present and a partial production task list/detail/actions UI is now added for manager and worker views in the working copy. These latest order/production UI changes have not yet been verified by a fresh web build or CI. The `/storefront` editor now exists as a first slice but is not yet the polished drag-and-drop builder.
+- **PWA/Node first slice (2026-10-17):** `pwa/` contains the vanilla-JavaScript shell, install manifest, static-only service worker, sign-in/session/sign-out views and safe browser-facing API client. `backend-node/` now uses JavaScript + Express and serves the PWA, with a restricted same-origin proxy to the existing ASP.NET API. The proxy path/origin helper tests passed with Node built-in tests (2/2), and JavaScript syntax checks passed. Customer list/create/edit/detail and measurement-profile reads are now wired to existing API endpoints, but dependency installation timed out, so Express integration tests and live API/cookie behavior remain unverified. The Node service has no PostgreSQL connection or migrated business routes; `/health/ready` intentionally returns 503. Keep production traffic on the current ASP.NET API.
+- **Not verified:** `docker compose` startup; full-stack smoke test; storefront publish-to-render; email, S3, ClamAV, Redis, DNS and every other external integration; mobile builds/device workflows. The staff dashboard is partial: the order create/edit/action UI is present and a partial production task list/detail/actions UI is now added for manager and worker views in the working copy. These latest order/production UI changes have not yet been verified by a fresh web build or CI. The `/storefront` editor now exists as a first slice but is not yet the polished drag-and-drop builder.
 - CI actions are on `checkout@v6`, `setup-node@v6`, `setup-dotnet@v5`, `upload-artifact@v6`; run #207 used them without error.
 - Known design issues: the public site's `frame-ancestors 'none'` will block the editor's preview iframe; nonce CSP makes public pages dynamic (not CDN-cacheable).
 
@@ -140,7 +161,7 @@ Planned, in rough priority order (none implemented unless marked above):
 
 ## Documentation
 
-[PROGRESS.md](PROGRESS.md) · [docs/RUNBOOK.md](docs/RUNBOOK.md) · [docs/architecture.md](docs/architecture.md) · [docs/STATIC_REVIEW.md](docs/STATIC_REVIEW.md)
+[PROGRESS.md](PROGRESS.md) · [docs/RUNBOOK.md](docs/RUNBOOK.md) · [docs/architecture.md](docs/architecture.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/FEATURE_INVENTORY.md](docs/FEATURE_INVENTORY.md) · [docs/STATIC_REVIEW.md](docs/STATIC_REVIEW.md) · [mobile/Node migration inventory](docs/MOBILE_NODE_MIGRATION_INVENTORY.md) · [Node API compatibility matrix](docs/NODE_API_COMPATIBILITY_MATRIX.md)
 
 ### Storefront management (current web slice)
 The signed-in `/storefront` page supports storefront creation from allowed templates, draft editing for page title/slug/SEO/visibility and navigation, custom page add/remove under plan entitlements, section content/style/variant/visibility and ordering, theme settings, private preview, publish/unpublish, version history/rollback, and contact settings. This is still a structured-data editor, not a polished drag-and-drop visual builder; browser E2E and media-picker work remain open. See `docs/MASTER_ENGINEERING_HANDOFF.md` for verification status.

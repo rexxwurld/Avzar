@@ -1,5 +1,25 @@
 # Progress checklist
 
+## PWA Pass 17 — Phase 4 and Phase 5 workflow slice (2026-10-17)
+- **Phase 4 — Orders and production UI:** added permission-gated order creation and editing against `POST/PUT /api/orders`, multiple garment lines, customer/location selection, promised dates, priority, delivery details, discounts, idempotency keys on create, and server-authoritative pricing/validation. Existing order edits send the row version and preserve per-line measurement/design snapshots; removing a line is delegated to the API's update contract.
+- Added order quote, confirm, cancel-with-reason, and deliver actions; task generation can be requested for confirmed/in-production orders where no production tasks exist. Existing order lifecycle transitions remain server-enforced.
+- Added production task list/detail screens, manager assignment, worker start/complete/report-issue actions, manager unblock/cancel actions, and explicit permission-gated audited override start. Completion sends the task's required checklist back to the API. These screens use the existing ASP.NET API; no Node database writes were added.
+- **Phase 5 — Staff and scheduling UI:** added staff listing, invite workflow, activate/deactivate controls, role/location assignment, worker skill editing, weekly recurring availability editing, leave recording/review, and worker calendar views. Added shop-wide schedule preview/apply; apply is offered only for a complete preview and passes the preview's expected task versions and slots back to the API for revalidation.
+- Service worker cache bumped to `avzar-shell-v2` so deployed clients do not keep the old static shell indefinitely. The API proxy already allows safe `/backend/api/**` routes and allowlists the `Idempotency-Key` header.
+- **Local checks:** `node --check pwa/app.js` and `node --check pwa/sw.js` passed. `node --test backend-node/test/proxy.test.js` passed 2/2. `node --test backend-node/test/app.test.js` could not run because `supertest` is not installed; package installation is still an environment blocker. No browser/API end-to-end test, .NET build, live email, Redis, push, or device test was performed.
+- **Important limitation:** these are PWA screens wired to the existing ASP.NET API, not a completed migration to Node.js. Phase 4/5 integration still requires CI plus staging checks against real auth/permissions, order lifecycle, worker availability, leave approval, schedule conflicts, and notification delivery. Do not mark either phase production-complete until those checks pass.
+
+## PWA-first JavaScript implementation slice (2026-10-17)
+- Follow-on increment: connected the PWA Orders navigation to the existing permission-protected order API. Added search/status filtering, pagination, and a read-only order detail view showing garment lines, totals, promised date, delivery details, and the API-provided production progress summary. No order mutations or fabricated records were added.
+- Verification for this increment: `node --check pwa/app.js` passed. The full Node test command was attempted but could not run the Express integration suite because `supertest` is not installed; `npm install` timed out. Two dependency-free proxy tests passed. This is not a full integration or staging verification.
+- Added `pwa/` with a mobile-first vanilla HTML/CSS/JavaScript shell, manifest, existing app icons, and a service worker that caches only the static shell and explicitly bypasses API routes.
+- Added login/session/logout UI against the existing ASP.NET cookie + CSRF API contract, including business selection and two-factor/recovery-code form states. Added real customer list/search/pagination, create/edit, duplicate-confirmation, status-change, detail, and read-only measurement-profile views against existing API endpoints. Orders/finance screens do not display fabricated sample records and remain pending.
+- Converted `backend-node/` from an unconnected TypeScript scaffold to JavaScript + Express. It serves the PWA and exposes a restricted same-origin `/backend/api/**` proxy to the existing API, with allowlisted request headers, webhook path blocking, and no-store API responses.
+- Added `docs/FEATURE_INVENTORY.md` and `docs/ARCHITECTURE.md`; updated the migration inventory to reflect the owner's PWA-first decision.
+- Verification: `node --check` passed for the changed JavaScript files; built-in proxy helper tests passed **2/2**. Dependency installation/package-lock generation timed out in this environment, so Express/Supertest integration tests and end-to-end API/cookie behavior are **not verified**.
+- Safety: Node has no PostgreSQL integration or migrated business routes; `/health/ready` remains 503. Existing ASP.NET API, PostgreSQL schema, Next.js storefront renderer, MAUI app, and experimental Expo app remain in place. No production traffic or database was changed.
+- Next: run dependency-backed CI for `backend-node`, verify sign-in and customer CRUD against staging, then implement measurement recording/revision workflows.
+
 ## Pass 12 continuation (2026-10-16)
 - Added Redis Streams job-queue primitives: atomic idempotent enqueue, consumer group processing, abandoned-entry claiming, bounded retry and dead-letter stream; wired only when `Redis__ConnectionString` is configured and added Redis to local Docker Compose. This is **not yet an end-to-end job feature**: no business job handlers/producers are registered, and live Redis/compile tests are blocked by the environment.
 - Added the MAUI SignalR client and backend SignalR bearer-query handling, with an HTTP negotiate regression test. See `docs/PASS12_COMPLETION_STATUS.md` for the exact scope and verification boundary.
@@ -551,3 +571,35 @@ Added source for the next roadmap slice on top of the recovered 2026-10-16 ZIP:
 - Preserved support for BOMs, escaped double quotes, quoted commas, embedded newlines, CRLF/LF line endings, blank lines and row limits.
 - Added regression cases for quotes inside unquoted cells, trailing characters after a quoted value, and whitespace after a closing quote.
 - Verification: source and regression tests were reviewed, but execution is **not verified** because the environment has no .NET SDK. `npm ci` also timed out, so web checks were not run. No database, payment, email, or production action was performed.
+
+## Pass 13 — Mobile + Node.js migration inventory (2026-10-17)
+
+- Inspected the supplied `Avzar-main.zip` source tree, README/PROGRESS status, API controller surface, mobile starter, database migration files, environment example, and CI workflows.
+- Added `docs/MOBILE_NODE_MIGRATION_INVENTORY.md` with the existing feature inventory, migration risks, recommended sequence, acceptance criteria, and explicit verification constraints.
+- Confirmed the existing MAUI app has bearer sign-in/refresh/revoke, task list/actions, secure token storage, an offline action queue, and SignalR task updates; it is still not the full tailoring app and has not been build/device verified.
+- Confirmed the current API has existing customer, measurement, order, production/scheduling, finance, inventory, subscription, AI, media, and storefront route families. These must be mapped and regression-tested before replacement.
+- No production services or databases were contacted or modified. No source code was deleted or replaced. The archive contains no `.git` metadata, so exact GitHub branch/HEAD parity cannot be verified.
+- Verification limits: Node.js 22 is available; .NET SDK and Docker are not installed. `npm view` timed out, so the current compatible Expo SDK version could not be verified from the registry. The migration inventory is static source inspection, not a build/test result.
+- Next: confirm the intended GitHub baseline, fix the known web `TS1308` error, then add a single Expo Router app and testable Node.js API in parallel without changing production traffic.
+
+
+## Pass 14 — Expo + Node.js parallel foundation (2026-10-17)
+
+- Added `mobile/avzar-expo/` using the stable Expo SDK 57 line, React Native, TypeScript and Expo Router. The existing MAUI project was preserved.
+- Implemented an initial API-backed mobile slice: SecureStore token storage; existing `/api/auth/token` sign-in with business-selection handling; refresh/revoke requests; dashboard shell; customer list/search/create/detail; measurement profile/history reads; assigned-task list; and sign-out. API errors are surfaced instead of bypassing permissions.
+- Added `backend-node/` as a separate Express + TypeScript migration foundation with Zod environment validation, liveness endpoint, deliberately-not-ready readiness endpoint, safe generic error responses and initial tests. No business routes, database driver, production connection or cutover were added.
+- Added `docs/MOBILE_NODE_MIGRATION_INVENTORY.md` and updated this progress checklist. Added ignores for Expo output, TypeScript build output and coverage.
+- Verification: 15 `.ts`/`.tsx` source files in the Expo project passed a TypeScript transpile/syntax parse using the globally available TypeScript compiler. This is **not** a semantic typecheck. Dependency installation/registry lookup timed out, so no Expo dependency resolution, Node test suite, TypeScript semantic check, Android/iOS build, or live API request was run. No lockfiles were generated.
+- Expo version selection: SDK 57 is the latest stable line identified from Expo's official changelog/docs; SDK 58 was listed as beta on 2026-10-17. Dependencies still need registry installation and `npx expo install --fix` / `npx expo-doctor` before build verification.
+- Known current limitations: the Expo task screen is read-only; offline SQLite synchronization, task actions, create/edit measurement flows, orders, finance, scheduling, push notifications, subscription UI, and Node API business routes remain unimplemented. The new Node service must remain off production traffic.
+- No production database or deployment was contacted or changed.
+
+
+## Pass 15 — PWA measurement recording and revision history (2026-10-17)
+
+- Added PWA routes for creating a measurement profile from an active measurement template, recording a complete new revision for an existing profile, and viewing revision history.
+- Added template-driven numeric fields, units, required/range hints, optional notes, current-revision display, and links from the customer profile to measurement history.
+- Added permission checks in the UI for `measurements.record`; the existing ASP.NET API remains responsible for authorization and validation. Revision writes use the existing `/api/measurement-sets/{id}/revisions` endpoint and do not overwrite prior history.
+- Updated the feature inventory and migration checklist. No database schema, production service, ASP.NET implementation, or existing mobile project was changed.
+- Verification: `node --check` passed for `pwa/app.js` and `pwa/sw.js`; built-in proxy tests passed. The full Node integration suite could not run because `supertest`/project dependencies are not installed, and dependency installation timed out. No staging credentials or production API requests were available, so browser/API workflow verification remains open.
+- Next: validate the measurement screens against staging, then implement PWA order list/detail and daily task list using the existing API contracts. Keep Node off production traffic until dependency-backed tests, API compatibility and security checks pass.
