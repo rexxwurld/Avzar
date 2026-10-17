@@ -2,6 +2,19 @@
 
 Repository: `https://github.com/rexxwurld/Avzar.git` (primary branch historically `main`). The supplied archive does not contain `.git`, so its exact branch/HEAD/worktree cannot be verified from this handoff. Always inspect the actual checkout before pushing or merging. Preserve user work, never weaken tests, never expose secrets, use forward-only migrations, and do not deploy or run real email/payment flows without authorization.
 
+## Direction (owner, 2026-10-17): mobile-first PWA, JavaScript-first stack
+Primary product = installable PWA (`pwa/`: HTML/CSS/vanilla JS) served by Node/Express (`backend-node/`); PostgreSQL kept. The ASP.NET API (`backend/`) stays authoritative; Node only serves the PWA and proxies safe `/backend/api/*` routes and reports `/health/ready` from the upstream API (no business endpoint is migrated to Node yet). `web/` (Next.js), `mobile/Avzar.Mobile` (MAUI) and `mobile/avzar-expo` (Expo) are retained until replacements are verified.
+
+## CI run #289 (commit `e860e1714e2a4906689f27328cfe75ba54ad8b82`, "Update Avzar from final engineering handoff") — backend and migrations FAILED (build), pwa-node and web succeeded
+- **backend / migrations:** `dotnet build -c Release` failed: `OverdueTaskReminderWorker.cs(20,5): CS0246 'IConfiguration' not found` (missing `using Microsoft.Extensions.Configuration;`). Because the build failed, **no .NET tests ran** and no migration check ran for this commit. **Fix written, not yet run in CI:** the using was added. Build errors are reported per project, so more errors in the test project could appear after this one is fixed.
+- **Still-unfixed from #284:** `Phase3Tests` schedule mail test (expected 2, got 3 in #284 because task assignment now queues a `task.assignment` mail). Fix written (count by template; 1 `task.assignment`, 2 `schedule.*`), not yet run.
+- **pwa-node:** succeeded: `npm ci` (86 packages), `npm audit` 0 vulnerabilities, syntax checks, `node --test`; the log showed tests 1-7 passing (readiness tests included), the final summary count was cut off.
+- **web:** succeeded: typecheck clean, Vitest passing (count cut off in the paste), Next 15.5.28 build compiled 14 static pages; warnings: `@types/node` peer, multiple-lockfile workspace root.
+- **New warning, all builds:** transitive `MessagePack 2.5.187` advisories (NU1902 moderate, NU1903 high) in `Tailoring.Api` and the test project; source not yet identified.
+- **Mobile build workflow (commit `ed00525`, run #5):** iOS and Android MAUI builds failed at restore with `NU1015`: `Microsoft.AspNetCore.SignalR.Client` had no version because `mobile/` is outside `backend/` and does not use the central package file. **Fix written, not yet run:** `Version="10.0.0"` (same as `backend/Directory.Packages.props`) and an explicit `Microsoft.Maui.Controls 10.0.110` reference (MA002). Later MAUI build errors are possible.
+- **Expo mobile checks (workflow "Mobile + Node migration foundation", commit `e860e17`):** failed after ~25s with the later steps skipped, which points to the `npm install` step in `mobile/avzar-expo`; the error text was not in the paste and the npm registry is unreachable here, so the cause is unconfirmed. No lockfile is committed there. Needs the expanded install log.
+- Not covered: browser/device PWA tests, Docker Compose smoke (owner decision), real email/S3/ClamAV/Redis/DNS/Paystack/OpenAI/SignalR.
+
 ## CI run #254 (commit `8f18d45bfe57b41513fccf239ca3e8426545c7b8`, "Add files via upload") — all three jobs succeeded (latest evidence)
 
 - **backend (2m13s):** TRX artifact: **710 passed / 0 failed / 0 skipped / 0 errors** (704 earlier + 6 new `CrossTenantApiTests`, all six passed). The job's step output was collapsed, so the drift-gate line was not seen for this run; the migrations job's Release build showed 0 warnings / 0 errors.
