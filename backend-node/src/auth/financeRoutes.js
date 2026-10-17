@@ -35,6 +35,7 @@ import {
   reversePayment,
   verifyPayment,
 } from './paymentService.js';
+import { createReceiptPdf } from './receiptPdfService.js';
 
 const invoiceLineSchema = z.object({
   description: z.string().trim().min(1).max(200),
@@ -355,6 +356,19 @@ export function createFinanceRouter({ env, pool }) {
     if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_receipt_id', 'The receipt ID is invalid.');
     return res.status(200).json(await getReceipt(pool, req.currentUser, req.params.id,
       await allowedLocations(pool, req.currentUser)));
+  });
+
+  router.get('/receipts/:id/pdf', ...requirePaymentView, async (req, res) => {
+    if (!isUuid(req.params.id)) throw AppError.badRequest('invalid_receipt_id', 'The receipt ID is invalid.');
+    const pdf = await createReceiptPdf(pool, req.currentUser, req.params.id,
+      await allowedLocations(pool, req.currentUser));
+    return res.status(200)
+      .set({
+        'cache-control': 'private, no-store',
+        'content-type': 'application/pdf',
+        'content-disposition': `attachment; filename="${pdf.fileName}"`,
+      })
+      .send(pdf.content);
   });
 
   router.get('/expense-categories', ...requireExpensesView, async (req, res) => {

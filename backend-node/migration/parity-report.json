@@ -1,9 +1,9 @@
 {
  "summary": {
   "total": 245,
-  "implemented": 84,
+  "implemented": 85,
   "placeholder": 68,
-  "missing": 93
+  "missing": 92
  },
  "rows": [
   {
@@ -688,7 +688,7 @@
    "method": "GET",
    "path": "/api/receipts/{id:guid}/pdf",
    "source": "PdfControllers.cs",
-   "node": "missing"
+   "node": "implemented"
   },
   {
    "method": "GET",

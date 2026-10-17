@@ -189,4 +189,58 @@ describe('finance', () => {
     assert.equal(createExpense.status, 201);
     assert.equal(createExpense.body.description, 'Fabric restock');
   });
+
+  it('serves a tenant-scoped receipt PDF to users with payment view permission', async () => {
+    const receiptId = '00000000-0000-4000-8000-000000000050';
+    const pool = {
+      query: async (sql) => {
+        if (sql.includes('FROM "UserSessions"')) return { rows: [{ '?column?': 1 }] };
+        if (sql.includes('FROM "Memberships"')) return { rows: [{
+          UserId: '00000000-0000-4000-8000-000000000001',
+          BusinessId: '00000000-0000-4000-8000-000000000002',
+          Email: 'owner@example.test',
+          FullName: 'Owner',
+          BusinessName: 'Shop',
+          TimeZoneId: 'UTC',
+          CurrencyCode: 'USD',
+          IsOwner: true,
+          Permissions: ['payments.view'],
+        }] };
+        if (sql.includes('FROM "Receipts" r')) return { rows: [{
+          Id: receiptId,
+          Number: 'RCT-2026-00001',
+          PaymentId: '00000000-0000-4000-8000-000000000040',
+          InvoiceId: '00000000-0000-4000-8000-000000000030',
+          InvoiceNumber: 'INV-2026-00001',
+          CustomerId: '00000000-0000-4000-8000-000000000010',
+          CustomerName: 'Test customer',
+          CurrencyCode: 'USD',
+          Amount: '100.00',
+          Method: 'Cash',
+          Reference: null,
+          BalanceAfter: '0',
+          IssuedAtUtc: '2026-10-17T12:00:00.000Z',
+          VoidedAtUtc: null,
+        }] };
+        if (sql.includes('FROM "Businesses" b')) return { rows: [{
+          Name: 'Shop',
+          BrandColor: '#1f3a5f',
+          ContactPhone: null,
+          ContactEmail: null,
+          TaxNumber: null,
+          PdfFooterNote: null,
+          Address: null,
+        }] };
+        return { rows: [] };
+      },
+    };
+    const response = await requestApp(createApp(env, pool), `/api/receipts/${receiptId}/pdf`, {
+      headers: { authorization: `Bearer ${bearerToken()}` },
+    });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /application\/pdf/);
+    assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    assert.equal(response.headers.get('content-disposition'), 'attachment; filename="Receipt-RCT-2026-00001.pdf"');
+    assert.equal(response.text.startsWith('%PDF-'), true);
+  });
 });
